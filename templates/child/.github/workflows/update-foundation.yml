@@ -1,0 +1,13 @@
+name: update-foundation
+
+on:
+  schedule:
+    - cron: '13 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  call-foundation:
+    uses: __FOUNDATION_REPOSITORY__/.github/workflows/update-foundation.yml@__FOUNDATION_VERSION__
+    with:
+      config_path: .wp-plugin-base.env
+    secrets: inherit

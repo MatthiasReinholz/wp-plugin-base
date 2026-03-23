@@ -1,0 +1,105 @@
+name: reusable-update-foundation
+
+on:
+  workflow_call:
+    inputs:
+      config_path:
+        required: false
+        type: string
+        default: .wp-plugin-base.env
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Read config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "${{ inputs.config_path }}"
+          set +a
+          : "${FOUNDATION_REPOSITORY:?FOUNDATION_REPOSITORY is required}"
+          : "${FOUNDATION_VERSION:?FOUNDATION_VERSION is required}"
+          echo "repository=${FOUNDATION_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "version=${FOUNDATION_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add foundation remote
+        run: |
+          git remote remove foundation >/dev/null 2>&1 || true
+          git remote add foundation "https://github.com/${{ steps.config.outputs.repository }}.git"
+
+      - name: Resolve latest compatible version
+        id: latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="${{ steps.config.outputs.version }}"
+          major="${current%%.*}"
+          latest="$(
+            git ls-remote --tags --refs foundation \
+              | awk '{print $2}' \
+              | sed 's#refs/tags/##' \
+              | grep -E "^${major}\.[0-9]+\.[0-9]+$" \
+              | sort -V \
+              | tail -n 1
+          )"
+
+          if [ -z "$latest" ] || [ "$latest" = "$current" ]; then
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Pull subtree update
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          git fetch foundation tag "${{ steps.latest.outputs.version }}"
+          git subtree pull --prefix=.wp-plugin-base foundation "${{ steps.latest.outputs.version }}" --squash
+
+      - name: Update repo config
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.latest.outputs.version }}/m" "${{ inputs.config_path }}"
+
+      - name: Regenerate managed files
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh "${{ inputs.config_path }}"
+
+      - name: Create foundation update PR
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        with:
+          branch: chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}
+          commit-message: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
+          title: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
+          body: |
+            This PR updates the vendored foundation and the pinned reusable workflow refs.
+
+            Updated foundation version:
+            - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+
+            Managed files were regenerated from the new foundation version.
+
+      - name: Report no update needed
+        if: ${{ steps.latest.outputs.update_needed != 'true' }}
+        run: echo "No compatible foundation update found."

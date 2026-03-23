@@ -1,0 +1,3 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Custom Plugin 2.4.6\n"

@@ -1,0 +1,34 @@
+name: prepare-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'How to derive the next release version'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      version:
+        description: 'Release version in x.y.z format when release type is custom'
+        required: false
+        type: string
+      base_ref:
+        description: 'Base branch for the release branch'
+        required: true
+        default: 'main'
+        type: string
+
+jobs:
+  call-foundation:
+    uses: __FOUNDATION_REPOSITORY__/.github/workflows/prepare-release.yml@__FOUNDATION_VERSION__
+    with:
+      config_path: .wp-plugin-base.env
+      release_type: ${{ inputs.release_type }}
+      version: ${{ inputs.version }}
+      base_ref: ${{ inputs.base_ref }}
+    secrets: inherit

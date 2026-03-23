@@ -1,0 +1,14 @@
+name: release
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+  call-foundation:
+    uses: __FOUNDATION_REPOSITORY__/.github/workflows/release.yml@__FOUNDATION_VERSION__
+    with:
+      config_path: .wp-plugin-base.env
+      production_environment: __PRODUCTION_ENVIRONMENT__
+    secrets: inherit

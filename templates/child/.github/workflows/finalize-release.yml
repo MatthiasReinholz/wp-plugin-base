@@ -1,0 +1,13 @@
+name: finalize-release
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+jobs:
+  call-foundation:
+    uses: __FOUNDATION_REPOSITORY__/.github/workflows/finalize-release.yml@__FOUNDATION_VERSION__
+    with:
+      config_path: .wp-plugin-base.env
+    secrets: inherit

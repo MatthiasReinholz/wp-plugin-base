@@ -1,0 +1,8 @@
+/.git
+/.github
+/.wp-plugin-base
+/.wp-plugin-base.env
+/dist
+/node_modules
+/tests
+/.distignore

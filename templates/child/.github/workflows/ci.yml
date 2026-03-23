@@ -1,0 +1,18 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - 'feature/**'
+      - 'release/**'
+      - 'hotfix/**'
+
+jobs:
+  call-foundation:
+    uses: __FOUNDATION_REPOSITORY__/.github/workflows/ci.yml@__FOUNDATION_VERSION__
+    with:
+      config_path: .wp-plugin-base.env
+    secrets: inherit

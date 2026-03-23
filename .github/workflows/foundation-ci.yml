@@ -1,0 +1,71 @@
+name: foundation-ci
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  validate:
+    name: Validate foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        with:
+          php-version: '8.1'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+
+      - name: Check shell syntax
+        run: |
+          while IFS= read -r file; do
+            bash -n "$file"
+          done < <(find scripts -name '*.sh' -print | sort)
+
+      - name: Validate standard fixture
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/standard-plugin"
+          cp -R tests/fixtures/standard-plugin "$fixture"
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/check_versions.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/check_release_branch.sh release/1.2.3
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/lint_php.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/lint_js.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/build_zip.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/release/generate_github_release_body.sh 1.2.3 > "$fixture/dist/release-body.md"
+
+      - name: Validate nonstandard fixture
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/nonstandard-plugin"
+          cp -R tests/fixtures/nonstandard-plugin "$fixture"
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/check_versions.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/check_release_branch.sh release/2.4.6
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/lint_php.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/lint_js.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/build_zip.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/release/generate_github_release_body.sh 2.4.6 > "$fixture/dist/release-body.md"
+
+      - name: Validate child sync
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/managed-child"
+          mkdir -p "$fixture/.wp-plugin-base"
+          cp -R tests/fixtures/standard-plugin/. "$fixture/"
+          rsync -a ./ "$fixture/.wp-plugin-base/"
+          WP_PLUGIN_BASE_ROOT="$fixture" bash "$fixture/.wp-plugin-base/scripts/update/sync_child_repo.sh"
+          test -f "$fixture/.github/workflows/ci.yml"
+          test -f "$fixture/CONTRIBUTING.md"
