@@ -32,6 +32,7 @@ cat <<'EOF' > "$EXCLUDES_FILE"
 /.git/
 /.github/
 /.wp-plugin-base/
+/.wordpress-org/
 /dist/
 /node_modules/
 /.wp-plugin-base.env
