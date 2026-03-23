@@ -19,12 +19,15 @@ Use this path when you are starting a new WordPress plugin repo from scratch.
    - `NODE_VERSION`
 5. Set optional values only if the repo layout differs from the defaults.
 6. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
-7. Commit the vendored foundation, config, and generated managed files.
+7. Commit the vendored foundation, config, and generated managed files, including `.github/dependabot.yml`.
 8. Add GitHub Actions settings:
    - `SVN_USERNAME` as a GitHub Actions secret
    - `SVN_PASSWORD` as a GitHub Actions secret
    - `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable
-9. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
+9. In GitHub repository settings, enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+10. If that setting is greyed out, ask an organization owner to allow it at the organization level first.
+11. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
+12. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
 
 ## Default Layout Assumptions
 
