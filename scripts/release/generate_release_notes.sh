@@ -11,8 +11,7 @@ fi
 
 previous_tag="$(
   git tag --sort=-v:refname \
-    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-    | head -n 1
+    | awk '/^[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }'
 )"
 
 if [ -n "$previous_tag" ]; then

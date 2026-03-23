@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.1
+
+* Fix first-release note generation when no prior semver tags exist.
+
 ## v1.2.0
 
 * change PR automation handling
