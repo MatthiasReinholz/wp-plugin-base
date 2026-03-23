@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  tag:
-    name: Tag merged foundation release
+  release:
+    name: Publish merged foundation release
     if: >
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'main' &&
@@ -41,6 +41,9 @@ jobs:
       - name: Validate foundation version metadata
         run: bash scripts/foundation/check_version.sh "${{ steps.release.outputs.version }}"
 
+      - name: Generate GitHub release body
+        run: bash scripts/foundation/generate_github_release_body.sh "${{ steps.release.outputs.version }}" > dist-foundation-release.md
+
       - name: Ensure tag does not already exist
         env:
           VERSION: ${{ steps.release.outputs.version }}
@@ -55,8 +58,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Create annotated tag
+      - name: Create annotated tag locally
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Foundation release ${{ steps.release.outputs.version }}"
 
       - name: Push tag
         run: git push origin "${{ steps.release.outputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        with:
+          tag_name: ${{ steps.release.outputs.version }}
+          body_path: dist-foundation-release.md

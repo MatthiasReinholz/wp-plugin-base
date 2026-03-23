@@ -16,8 +16,8 @@ The foundation now uses the same staged release model as the plugin repos.
 1. Run `prepare-foundation-release`.
 2. Review the generated `release/vX.Y.Z` pull request.
 3. Merge the release PR into `main`.
-4. `finalize-foundation-release` creates and pushes the annotated tag automatically.
-5. `release-foundation` runs from that tag and publishes the GitHub Release.
+4. `finalize-foundation-release` creates the annotated tag and publishes the GitHub Release in the same workflow.
+5. `release-foundation` is only the manual recovery workflow for an already existing tag.
 
 Only after the GitHub Release exists should projects auto-update to that version.
 
