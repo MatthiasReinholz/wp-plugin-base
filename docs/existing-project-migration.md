@@ -23,7 +23,9 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
    - `bash .wp-plugin-base/scripts/ci/build_zip.sh`
 8. Review the generated ZIP to confirm that only installable plugin files are included.
 9. Merge only after the repo-local packaging and release semantics still match the previous behavior.
-10. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
+10. In GitHub repository settings, enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+11. If that setting is greyed out, ask an organization owner to allow it at the organization level first.
+12. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
 
 ## Common Migration Adjustments
 

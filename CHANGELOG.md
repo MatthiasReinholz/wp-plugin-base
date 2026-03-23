@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.3
+
+* Tighten release ordering and messaging
+
 ## v1.1.2
 
 * Publish releases in finalize workflows
