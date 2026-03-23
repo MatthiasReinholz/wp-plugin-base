@@ -5,6 +5,9 @@ on:
     types:
       - closed
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: write
 
@@ -33,7 +36,7 @@ jobs:
           exit 1
 
       - name: Checkout merge commit
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
@@ -65,7 +68,7 @@ jobs:
         run: git push origin "${{ steps.release.outputs.version }}"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
         with:
           tag_name: ${{ steps.release.outputs.version }}
           body_path: dist-foundation-release.md

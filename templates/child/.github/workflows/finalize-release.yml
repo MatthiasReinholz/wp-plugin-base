@@ -5,6 +5,9 @@ on:
     types:
       - closed
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   release:
     name: Publish merged release
@@ -36,7 +39,7 @@ jobs:
           exit 1
 
       - name: Checkout merge commit
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
@@ -61,12 +64,12 @@ jobs:
           echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}" >> "$GITHUB_OUTPUT"
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        uses: shivammathur/setup-php@fcafdd6392932010c2bd5094439b8e33be2a8a09
         with:
           php-version: ${{ steps.config.outputs.php_version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: ${{ steps.config.outputs.node_version }}
 
@@ -86,7 +89,7 @@ jobs:
         run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.release.outputs.version }}" > dist/release-body.md
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ steps.config.outputs.plugin_slug }}-${{ steps.release.outputs.version }}
           path: dist/${{ steps.config.outputs.zip_file }}
@@ -117,6 +120,16 @@ jobs:
       - name: Create annotated tag locally
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
 
+      - name: Push tag
+        run: git push origin "${{ steps.release.outputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
+        with:
+          tag_name: ${{ steps.release.outputs.version }}
+          body_path: dist/release-body.md
+          files: dist/${{ steps.config.outputs.zip_file }}
+
       - name: Install Subversion
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y subversion
@@ -132,13 +145,3 @@ jobs:
           SOURCE_DIR: ./
           SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
           VERSION: ${{ steps.release.outputs.version }}
-
-      - name: Push tag
-        run: git push origin "${{ steps.release.outputs.version }}"
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
-        with:
-          tag_name: ${{ steps.release.outputs.version }}
-          body_path: dist/release-body.md
-          files: dist/${{ steps.config.outputs.zip_file }}

@@ -8,6 +8,9 @@ on:
         type: string
         default: .wp-plugin-base.env
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: write
   pull-requests: write
@@ -19,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
@@ -108,7 +111,7 @@ jobs:
 
       - name: Create foundation update PR
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
         with:
           branch: chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}
           commit-message: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"

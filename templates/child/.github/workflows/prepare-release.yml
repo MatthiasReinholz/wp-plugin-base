@@ -23,6 +23,9 @@ on:
         default: 'main'
         type: string
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: write
   pull-requests: write
@@ -111,7 +114,7 @@ jobs:
 
             After merge:
             - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the same `finalize-release` workflow publishes the GitHub release
+            - the same `finalize-release` workflow publishes the GitHub release and optionally deploys to WordPress.org
           delete-branch: false
 
       - name: Report prepare-release outcome
