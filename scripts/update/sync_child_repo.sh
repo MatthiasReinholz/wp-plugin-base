@@ -37,4 +37,4 @@ while IFS= read -r template_file; do
   render_template "$template_file" "$ROOT_DIR/$relative_path"
 done < <(find "$TEMPLATE_DIR/.github" -type f | sort)
 
-echo "Synchronized managed child-repo files."
+echo "Synchronized managed project files."

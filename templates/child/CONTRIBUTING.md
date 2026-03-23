@@ -31,7 +31,7 @@ Hotfixes use the same model from `hotfix/x.y.z` branches.
 
 ## CI And Release Automation
 
-This project uses reusable workflows from `__FOUNDATION_REPOSITORY__` pinned to `__FOUNDATION_VERSION__`.
+This project uses local managed workflow files generated from `wp-plugin-base` version `__FOUNDATION_VERSION__`.
 
 Managed workflow files:
 
