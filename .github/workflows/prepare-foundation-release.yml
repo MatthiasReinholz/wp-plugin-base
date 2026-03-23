@@ -89,6 +89,6 @@ jobs:
             - prepare the repository for the foundation release tag
 
             After merge:
-            - the `finalize-foundation-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the pushed tag triggers the `release-foundation` workflow automatically
+            - the `finalize-foundation-release` workflow creates the annotated `${{ steps.version.outputs.value }}` tag
+            - the same `finalize-foundation-release` workflow publishes the GitHub release
           delete-branch: false
