@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0
+
+* change PR automation handling
+* change handling when tag/branch already exist
+* chore(deps): bump actions/checkout from 5.0.1 to 6.0.2
+* chore(deps): bump shivammathur/setup-php
+* enhance workflow access and documentation
+
 ## v1.1.3
 
 * Tighten release ordering and messaging
