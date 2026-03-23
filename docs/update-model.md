@@ -1,6 +1,6 @@
 # Update Model
 
-Child repos should keep a vendored copy of `wp-plugin-base` in `.wp-plugin-base/`.
+Your project should keep a vendored copy of `wp-plugin-base` in `.wp-plugin-base/`.
 
 The scheduled `update-foundation` workflow:
 

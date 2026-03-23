@@ -1,6 +1,6 @@
 # Existing Project Migration
 
-Use this path when migrating an existing plugin repo onto `wp-plugin-base`.
+Use this path when migrating an existing plugin repository onto `wp-plugin-base`.
 
 ## Recommended Migration Order
 
@@ -36,5 +36,5 @@ Use this path when migrating an existing plugin repo onto `wp-plugin-base`.
 Before enabling WordPress.org deploy, confirm:
 
 - `WORDPRESS_ORG_SLUG` is correct
-- `WP_ORG_DEPLOY_ENABLED` is still unset or `false` during migration
+- `WP_ORG_DEPLOY_ENABLED` is still unset or `false` in GitHub Actions repository variables or environment variables during migration
 - the generated ZIP matches the existing install artifact shape

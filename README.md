@@ -5,16 +5,16 @@
 It provides two reuse layers:
 
 - reusable GitHub Actions workflows for CI, release preparation, tagging, publishing, and foundation updates
-- vendored source under `.wp-plugin-base/` inside child repos for scripts, templates, and documentation
+- vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
 The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
 
-## Child Repo Contract
+## Project Contract
 
-Each child repo should contain:
+Each project repository should contain:
 
 - `.wp-plugin-base/` populated from this repo as vendored source
-- `.wp-plugin-base.env` with repo-specific metadata
+- `.wp-plugin-base.env` with project-specific metadata
 - plugin-local code and assets
 - thin workflow wrappers in `.github/workflows/`
 
@@ -30,8 +30,8 @@ You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history
 
 Foundation releases use semver tags with a `v` prefix such as `v1.0.1`.
 
-- child repos pin `FOUNDATION_VERSION` to one exact foundation release
-- child update PRs only consider published GitHub Releases, not arbitrary tags or branch heads
+- your project pins `FOUNDATION_VERSION` to one exact foundation release
+- automated foundation update PRs only consider published GitHub Releases, not arbitrary tags or branch heads
 - automatic updates stay within the current major series
 - major foundation upgrades are manual
 
@@ -62,15 +62,19 @@ Optional keys:
 
 Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`.
 
+`.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
+
 ## WordPress.org Deploy
 
 WordPress.org deploy is built into the shared release workflow and is disabled by default.
 
-To enable it in a child repo:
+To enable it in your project:
 
-1. set the repository or environment variable `WP_ORG_DEPLOY_ENABLED=true`
+1. set `WP_ORG_DEPLOY_ENABLED=true` as either:
+   - a GitHub Actions repository variable in the repository settings, or
+   - a GitHub Actions environment variable on the selected deployment environment
 2. set `WORDPRESS_ORG_SLUG` in `.wp-plugin-base.env`
-3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub secrets
+3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
 

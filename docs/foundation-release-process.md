@@ -1,12 +1,12 @@
 # Foundation Release Process
 
-Child repos update against published foundation releases, not branch heads.
+Projects using the foundation update against published foundation releases, not branch heads.
 
 ## Release Rules
 
 - Foundation versions use `vX.Y.Z`.
-- Child repos pin one exact version in `FOUNDATION_VERSION`.
-- Child update PRs only consider published GitHub Releases in the same major series.
+- Each project pins one exact version in `FOUNDATION_VERSION`.
+- Automated update PRs only consider published GitHub Releases in the same major series.
 - Major upgrades are manual because they may include contract changes.
 
 ## Releasing The Foundation
@@ -19,7 +19,7 @@ The foundation now uses the same staged release model as the plugin repos.
 4. `finalize-foundation-release` creates and pushes the annotated tag automatically.
 5. `release-foundation` runs from that tag and publishes the GitHub Release.
 
-Only after the GitHub Release exists should child repos auto-update to that version.
+Only after the GitHub Release exists should projects auto-update to that version.
 
 ## Recommended Governance
 

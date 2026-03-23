@@ -31,7 +31,7 @@ Hotfixes use the same model from `hotfix/x.y.z` branches.
 
 ## CI And Release Automation
 
-This repository uses reusable workflows from `__FOUNDATION_REPOSITORY__` pinned to `__FOUNDATION_VERSION__`.
+This project uses reusable workflows from `__FOUNDATION_REPOSITORY__` pinned to `__FOUNDATION_VERSION__`.
 
 Managed workflow files:
 
@@ -42,3 +42,8 @@ Managed workflow files:
 - `.github/workflows/update-foundation.yml`
 
 The WordPress.org deploy path is built in but opt-in. It only runs when `WP_ORG_DEPLOY_ENABLED=true`.
+
+Set `WP_ORG_DEPLOY_ENABLED` in GitHub Actions settings as either:
+
+- a repository variable for the whole repository, or
+- an environment variable on the deployment environment used by the release workflow

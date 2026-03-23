@@ -20,10 +20,10 @@ Use this path when you are starting a new WordPress plugin repo from scratch.
 5. Set optional values only if the repo layout differs from the defaults.
 6. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 7. Commit the vendored foundation, config, and generated managed files.
-8. Add GitHub secrets and variables:
-   - `SVN_USERNAME`
-   - `SVN_PASSWORD`
-   - `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled
+8. Add GitHub Actions settings:
+   - `SVN_USERNAME` as a GitHub Actions secret
+   - `SVN_PASSWORD` as a GitHub Actions secret
+   - `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable
 
 ## Default Layout Assumptions
 
