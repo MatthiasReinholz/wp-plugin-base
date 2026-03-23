@@ -11,8 +11,61 @@ on:
       - 'hotfix/**'
 
 jobs:
-  call-foundation:
-    uses: __FOUNDATION_REPOSITORY__/.github/workflows/ci.yml@__FOUNDATION_VERSION__
-    with:
-      config_path: .wp-plugin-base.env
-    secrets: inherit
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Read config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source .wp-plugin-base.env
+          set +a
+          : "${PLUGIN_SLUG:?PLUGIN_SLUG is required}"
+          : "${ZIP_FILE:?ZIP_FILE is required}"
+          : "${PHP_VERSION:?PHP_VERSION is required}"
+          : "${NODE_VERSION:?NODE_VERSION is required}"
+          echo "plugin_slug=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
+          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
+          echo "php_version=${PHP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "node_version=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        with:
+          php-version: ${{ steps.config.outputs.php_version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ steps.config.outputs.node_version }}
+
+      - name: Lint PHP
+        run: bash .wp-plugin-base/scripts/ci/lint_php.sh
+
+      - name: Lint JavaScript
+        run: bash .wp-plugin-base/scripts/ci/lint_js.sh
+
+      - name: Verify version metadata
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh
+
+      - name: Validate release branch metadata
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: bash .wp-plugin-base/scripts/ci/check_release_branch.sh "$BRANCH_NAME"
+
+      - name: Build package
+        run: bash .wp-plugin-base/scripts/ci/build_zip.sh
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.config.outputs.plugin_slug }}-package
+          path: dist/${{ steps.config.outputs.zip_file }}
+          if-no-files-found: error

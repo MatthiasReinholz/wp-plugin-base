@@ -5,9 +5,112 @@ on:
     - cron: '13 6 * * 1'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  call-foundation:
-    uses: __FOUNDATION_REPOSITORY__/.github/workflows/update-foundation.yml@__FOUNDATION_VERSION__
-    with:
-      config_path: .wp-plugin-base.env
-    secrets: inherit
+  update:
+    name: Update foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Read config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source .wp-plugin-base.env
+          set +a
+          : "${FOUNDATION_REPOSITORY:?FOUNDATION_REPOSITORY is required}"
+          : "${FOUNDATION_VERSION:?FOUNDATION_VERSION is required}"
+          echo "repository=${FOUNDATION_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "version=${FOUNDATION_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve latest compatible released version
+        id: latest
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="${{ steps.config.outputs.version }}"
+          major="${current%%.*}"
+          api_url="https://api.github.com/repos/${{ steps.config.outputs.repository }}/releases?per_page=100"
+          latest="$(
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$api_url" \
+              | jq -r --arg major "$major" '
+                  map(
+                    select(
+                      .draft == false and
+                      .prerelease == false and
+                      (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
+                    )
+                  )
+                  | map(.tag_name)
+                  | sort_by(split(".") | map(ltrimstr("v") | tonumber))
+                  | last // empty
+                '
+          )"
+
+          if [ -z "$latest" ] || [ "$latest" = "$current" ]; then
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Clone target foundation version
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          rm -rf "$RUNNER_TEMP/wp-plugin-base"
+          git clone --depth 1 --branch "${{ steps.latest.outputs.version }}" "https://github.com/${{ steps.config.outputs.repository }}.git" "$RUNNER_TEMP/wp-plugin-base"
+
+      - name: Refresh vendored foundation directory
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          rm -rf .wp-plugin-base
+          mkdir -p .wp-plugin-base
+          rsync -a --exclude '.git' "$RUNNER_TEMP/wp-plugin-base/" .wp-plugin-base/
+
+      - name: Update project config
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.latest.outputs.version }}/m" .wp-plugin-base.env
+
+      - name: Regenerate managed files
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh
+
+      - name: Create foundation update PR
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        with:
+          branch: chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}
+          commit-message: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
+          title: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
+          body: |
+            This PR updates the vendored foundation and regenerates the managed workflow and documentation files.
+
+            Updated foundation version:
+            - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+
+      - name: Report no update needed
+        if: ${{ steps.latest.outputs.update_needed != 'true' }}
+        run: echo "No compatible foundation update found."

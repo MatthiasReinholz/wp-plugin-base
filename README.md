@@ -4,10 +4,19 @@
 
 It provides two reuse layers:
 
-- reusable GitHub Actions workflows for CI, release preparation, tagging, publishing, and foundation updates
+- managed workflow files generated into your project's `.github/workflows/`
 - vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
 The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
+
+## Access Requirements
+
+For your project to consume this foundation successfully:
+
+- your project must commit both `.wp-plugin-base/` and `.wp-plugin-base.env` before the shared workflows can run
+- if you use the automated foundation self-update workflow, the GitHub Actions runner must be able to read releases from `FOUNDATION_REPOSITORY`
+
+If those conditions are not met, the local project workflows will either fail to find `.wp-plugin-base/` or, for self-update only, fail to reach the foundation release source.
 
 ## Project Contract
 
@@ -16,7 +25,7 @@ Each project repository should contain:
 - `.wp-plugin-base/` populated from this repo as vendored source
 - `.wp-plugin-base.env` with project-specific metadata
 - plugin-local code and assets
-- thin workflow wrappers in `.github/workflows/`
+- managed local workflow files in `.github/workflows/`
 
 Managed files are generated from `templates/child/` by running:
 

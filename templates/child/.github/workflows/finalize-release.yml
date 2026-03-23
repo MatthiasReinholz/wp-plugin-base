@@ -6,8 +6,57 @@ on:
       - closed
 
 jobs:
-  call-foundation:
-    uses: __FOUNDATION_REPOSITORY__/.github/workflows/finalize-release.yml@__FOUNDATION_VERSION__
-    with:
-      config_path: .wp-plugin-base.env
-    secrets: inherit
+  tag:
+    name: Tag merged release
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Derive release version
+        id: release
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [[ "$HEAD_REF" =~ ^(release|hotfix)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Unsupported release branch: $HEAD_REF" >&2
+          exit 1
+
+      - name: Checkout merge commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Validate metadata versions
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.release.outputs.version }}"
+
+      - name: Ensure tag does not already exist
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${VERSION} already exists." >&2
+            exit 1
+          fi
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create annotated tag
+        run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
+
+      - name: Push tag
+        run: git push origin "${{ steps.release.outputs.version }}"
