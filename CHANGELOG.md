@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1
+
+* Grant release workflows pull-request read access so release PR validation works in private repositories.
+
 ## v1.1.0
 
 * Switch project workflows to local managed files
