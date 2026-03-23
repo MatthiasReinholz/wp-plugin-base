@@ -5,6 +5,7 @@
 It provides two reuse layers:
 
 - managed workflow files generated into your project's `.github/workflows/`
+- a managed `.github/dependabot.yml` file for GitHub Actions dependency updates
 - vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
 The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
@@ -15,6 +16,7 @@ For your project to consume this foundation successfully:
 
 - your project must commit both `.wp-plugin-base/` and `.wp-plugin-base.env` before the shared workflows can run
 - if you use the automated foundation self-update workflow, the GitHub Actions runner must be able to read releases from `FOUNDATION_REPOSITORY`
+- if you want workflows such as `prepare-release` or `update-foundation` to open pull requests, the repository must allow GitHub Actions to create and approve pull requests
 
 If those conditions are not met, the local project workflows will either fail to find `.wp-plugin-base/` or, for self-update only, fail to reach the foundation release source.
 
@@ -34,6 +36,8 @@ bash .wp-plugin-base/scripts/update/sync_child_repo.sh
 ```
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
+
+The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
 
 ## Foundation Release Contract
 
@@ -93,3 +97,4 @@ If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release 
 - [Existing project migration](docs/existing-project-migration.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Update model](docs/update-model.md)
+- [Troubleshooting](docs/troubleshooting.md)
