@@ -97,6 +97,6 @@ jobs:
             - package build
 
             After merge:
-            - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the tag triggers the `release` workflow automatically
+            - the `finalize-release` workflow creates the annotated `${{ steps.version.outputs.value }}` tag
+            - the same `finalize-release` workflow publishes the GitHub release and optionally deploys to WordPress.org
           delete-branch: false

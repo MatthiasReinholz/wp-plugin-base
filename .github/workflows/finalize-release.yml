@@ -124,6 +124,16 @@ jobs:
       - name: Create annotated tag locally
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
 
+      - name: Push tag
+        run: git push origin "${{ steps.release.outputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        with:
+          tag_name: ${{ steps.release.outputs.version }}
+          body_path: dist/release-body.md
+          files: dist/${{ steps.config.outputs.zip_file }}
+
       - name: Install Subversion
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y subversion
@@ -139,13 +149,3 @@ jobs:
           SOURCE_DIR: ./
           SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
           VERSION: ${{ steps.release.outputs.version }}
-
-      - name: Push tag
-        run: git push origin "${{ steps.release.outputs.version }}"
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
-        with:
-          tag_name: ${{ steps.release.outputs.version }}
-          body_path: dist/release-body.md
-          files: dist/${{ steps.config.outputs.zip_file }}
