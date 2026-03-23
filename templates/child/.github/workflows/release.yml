@@ -12,6 +12,7 @@ jobs:
     environment: __PRODUCTION_ENVIRONMENT__
     permissions:
       contents: write
+      pull-requests: read
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
 
