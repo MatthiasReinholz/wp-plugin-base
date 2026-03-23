@@ -1,9 +1,12 @@
 name: release
 
 on:
-  push:
-    tags:
-      - '*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release tag in x.y.z format'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -17,9 +20,24 @@ jobs:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
 
     steps:
+      - name: Validate target version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use x.y.z format." >&2
+            exit 1
+          fi
+
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ steps.version.outputs.value }}
           fetch-depth: 0
 
       - name: Read config
@@ -56,10 +74,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           COMMIT_SHA="$(git rev-parse HEAD)"
-          bash .wp-plugin-base/scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" "$COMMIT_SHA"
+          bash .wp-plugin-base/scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${{ steps.version.outputs.value }}" "$COMMIT_SHA"
 
       - name: Validate tag and metadata versions
-        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${GITHUB_REF_NAME}"
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.version.outputs.value }}"
 
       - name: Lint PHP
         run: bash .wp-plugin-base/scripts/ci/lint_php.sh
@@ -71,12 +89,12 @@ jobs:
         run: bash .wp-plugin-base/scripts/ci/build_zip.sh
 
       - name: Generate GitHub release body
-        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${GITHUB_REF_NAME}" > dist/release-body.md
+        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.version.outputs.value }}" > dist/release-body.md
 
       - name: Upload package artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ steps.config.outputs.plugin_slug }}-${{ github.ref_name }}
+          name: ${{ steps.config.outputs.plugin_slug }}-${{ steps.version.outputs.value }}
           path: dist/${{ steps.config.outputs.zip_file }}
           if-no-files-found: error
 
@@ -102,10 +120,11 @@ jobs:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SOURCE_DIR: ./
           SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
+          VERSION: ${{ steps.version.outputs.value }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.value }}
           body_path: dist/release-body.md
           files: dist/${{ steps.config.outputs.zip_file }}

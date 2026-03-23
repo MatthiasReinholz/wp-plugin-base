@@ -11,6 +11,25 @@ on:
         required: false
         type: string
         default: production
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release tag in x.y.z format'
+        required: true
+        type: string
+      config_path:
+        description: 'Path to the project config file'
+        required: false
+        default: .wp-plugin-base.env
+        type: string
+      production_environment:
+        description: 'GitHub environment for release publishing'
+        required: false
+        default: production
+        type: string
 
 permissions:
   contents: write
@@ -20,14 +39,31 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    environment: ${{ inputs.production_environment }}
+    environment: ${{ inputs.production_environment || github.event.inputs.production_environment || 'production' }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
 
     steps:
+      - name: Resolve inputs
+        id: resolved
+        shell: bash
+        run: |
+          set -euo pipefail
+          config_path="${{ inputs.config_path || github.event.inputs.config_path || '.wp-plugin-base.env' }}"
+          version="${{ inputs.version || github.event.inputs.version }}"
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use x.y.z format." >&2
+            exit 1
+          fi
+
+          echo "config_path=$config_path" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ steps.resolved.outputs.version }}
           fetch-depth: 0
 
       - name: Read config
@@ -36,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           set -a
-          source "${{ inputs.config_path }}"
+          source "${{ steps.resolved.outputs.config_path }}"
           set +a
           : "${PLUGIN_SLUG:?PLUGIN_SLUG is required}"
           : "${PLUGIN_NAME:?PLUGIN_NAME is required}"
@@ -65,27 +101,27 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           COMMIT_SHA="$(git rev-parse HEAD)"
-          bash .wp-plugin-base/scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" "$COMMIT_SHA"
+          bash .wp-plugin-base/scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${{ steps.resolved.outputs.version }}" "$COMMIT_SHA"
 
       - name: Validate tag and metadata versions
-        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${GITHUB_REF_NAME}" "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.resolved.outputs.version }}" "${{ steps.resolved.outputs.config_path }}"
 
       - name: Lint PHP
-        run: bash .wp-plugin-base/scripts/ci/lint_php.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/lint_php.sh "${{ steps.resolved.outputs.config_path }}"
 
       - name: Lint JavaScript
-        run: bash .wp-plugin-base/scripts/ci/lint_js.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/lint_js.sh "${{ steps.resolved.outputs.config_path }}"
 
       - name: Build package
-        run: bash .wp-plugin-base/scripts/ci/build_zip.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/build_zip.sh "${{ steps.resolved.outputs.config_path }}"
 
       - name: Generate GitHub release body
-        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${GITHUB_REF_NAME}" "${{ inputs.config_path }}" > dist/release-body.md
+        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.resolved.outputs.version }}" "${{ steps.resolved.outputs.config_path }}" > dist/release-body.md
 
       - name: Upload package artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ steps.config.outputs.plugin_slug }}-${{ github.ref_name }}
+          name: ${{ steps.config.outputs.plugin_slug }}-${{ steps.resolved.outputs.version }}
           path: dist/${{ steps.config.outputs.zip_file }}
           if-no-files-found: error
 
@@ -111,10 +147,11 @@ jobs:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SOURCE_DIR: ./
           SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
+          VERSION: ${{ steps.resolved.outputs.version }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.resolved.outputs.version }}
           body_path: dist/release-body.md
           files: dist/${{ steps.config.outputs.zip_file }}

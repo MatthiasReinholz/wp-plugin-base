@@ -15,7 +15,7 @@ Do not push directly to `main`. Open a pull request instead.
 
 ## Release Process
 
-Releases are tag-driven. A branch push must never publish a plugin release.
+Releases are merge-driven and tag-backed. A branch push must never publish a plugin release.
 
 Normal release flow:
 
@@ -24,8 +24,8 @@ Normal release flow:
 3. Review the generated `release/x.y.z` pull request.
 4. Review the auto-generated changelog entry, adjust it if needed, and complete any plugin-specific smoke tests.
 5. Merge the `release/x.y.z` pull request into `main`.
-6. The merged release PR automatically creates and pushes the `x.y.z` tag.
-7. The pushed tag automatically triggers the publish workflow.
+6. The merged release PR automatically creates the `x.y.z` tag and publishes the GitHub release in the same workflow.
+7. Use `release.yml` only as a manual recovery path for an existing tag if automatic publication needs to be repeated.
 
 Hotfixes use the same model from `hotfix/x.y.z` branches.
 
@@ -40,6 +40,8 @@ Managed workflow files:
 - `.github/workflows/finalize-release.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/update-foundation.yml`
+
+`finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag.
 
 The WordPress.org deploy path is built in but opt-in. It only runs when `WP_ORG_DEPLOY_ENABLED=true`.
 

@@ -11,3 +11,5 @@ These files are intended to be generated from foundation templates in your proje
 - `CONTRIBUTING.md`
 
 Do not hand-edit those files in your project unless you are intentionally diverging from the foundation. If you need a permanent change, make it in `wp-plugin-base` and resync.
+
+`finalize-release.yml` is the standard automated publish path. `release.yml` is the manual recovery workflow for an already existing tag.

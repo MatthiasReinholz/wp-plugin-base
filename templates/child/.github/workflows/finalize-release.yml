@@ -6,8 +6,8 @@ on:
       - closed
 
 jobs:
-  tag:
-    name: Tag merged release
+  release:
+    name: Publish merged release
     if: >
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'main' &&
@@ -17,6 +17,9 @@ jobs:
 
     permissions:
       contents: write
+    environment: __PRODUCTION_ENVIRONMENT__
+    env:
+      WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
 
     steps:
       - name: Derive release version
@@ -38,8 +41,64 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
 
+      - name: Read config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source .wp-plugin-base.env
+          set +a
+          : "${PLUGIN_SLUG:?PLUGIN_SLUG is required}"
+          : "${PLUGIN_NAME:?PLUGIN_NAME is required}"
+          : "${ZIP_FILE:?ZIP_FILE is required}"
+          : "${PHP_VERSION:?PHP_VERSION is required}"
+          : "${NODE_VERSION:?NODE_VERSION is required}"
+          echo "plugin_slug=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
+          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
+          echo "php_version=${PHP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "node_version=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        with:
+          php-version: ${{ steps.config.outputs.php_version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ steps.config.outputs.node_version }}
+
       - name: Validate metadata versions
         run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.release.outputs.version }}"
+
+      - name: Lint PHP
+        run: bash .wp-plugin-base/scripts/ci/lint_php.sh
+
+      - name: Lint JavaScript
+        run: bash .wp-plugin-base/scripts/ci/lint_js.sh
+
+      - name: Build package
+        run: bash .wp-plugin-base/scripts/ci/build_zip.sh
+
+      - name: Generate GitHub release body
+        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.release.outputs.version }}" > dist/release-body.md
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.config.outputs.plugin_slug }}-${{ steps.release.outputs.version }}
+          path: dist/${{ steps.config.outputs.zip_file }}
+          if-no-files-found: error
+
+      - name: Validate WordPress.org deploy configuration
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        run: |
+          if [ -z "${{ steps.config.outputs.wordpress_org_slug }}" ]; then
+            echo "WORDPRESS_ORG_SLUG must be set in .wp-plugin-base.env when WP_ORG_DEPLOY_ENABLED=true." >&2
+            exit 1
+          fi
 
       - name: Ensure tag does not already exist
         env:
@@ -55,8 +114,31 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Create annotated tag
+      - name: Create annotated tag locally
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
+
+      - name: Install Subversion
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Deploy to WordPress.org
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
+        with:
+          generate-zip: false
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SOURCE_DIR: ./
+          SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
+          VERSION: ${{ steps.release.outputs.version }}
 
       - name: Push tag
         run: git push origin "${{ steps.release.outputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        with:
+          tag_name: ${{ steps.release.outputs.version }}
+          body_path: dist/release-body.md
+          files: dist/${{ steps.config.outputs.zip_file }}
