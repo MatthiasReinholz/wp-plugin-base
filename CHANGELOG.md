@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.2
+
+* Publish releases in finalize workflows
+
 ## v1.1.1
 
 * Grant release workflows pull-request read access so release PR validation works in private repositories.
