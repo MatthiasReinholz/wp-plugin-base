@@ -71,7 +71,7 @@ jobs:
           echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}" >> "$GITHUB_OUTPUT"
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@fcafdd6392932010c2bd5094439b8e33be2a8a09
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
         with:
           php-version: ${{ steps.config.outputs.php_version }}
 
