@@ -1,0 +1,94 @@
+name: prepare-foundation-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'How to derive the next foundation release version'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      version:
+        description: 'Foundation release version in vX.Y.Z format when release type is custom'
+        required: false
+        type: string
+      base_ref:
+        description: 'Base branch for the release branch'
+        required: true
+        default: 'main'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-foundation-release-${{ inputs.base_ref }}-${{ inputs.release_type }}-${{ inputs.version || 'auto' }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare foundation release branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout base ref
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.base_ref }}
+          fetch-depth: 0
+
+      - name: Resolve target version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.release_type }}" = "custom" ]; then
+            if ! [[ "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Custom version must use vX.Y.Z format." >&2
+              exit 1
+            fi
+
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version="$(bash scripts/foundation/next_version.sh "${{ inputs.release_type }}")"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure release branch does not already exist
+        env:
+          RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
+            echo "Release branch $RELEASE_BRANCH already exists." >&2
+            exit 1
+          fi
+
+      - name: Bump foundation version metadata
+        run: bash scripts/foundation/bump_version.sh "${{ steps.version.outputs.value }}"
+
+      - name: Create or update release pull request
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        with:
+          branch: release/${{ steps.version.outputs.value }}
+          base: ${{ inputs.base_ref }}
+          commit-message: Foundation release ${{ steps.version.outputs.value }}
+          title: Foundation release ${{ steps.version.outputs.value }}
+          body: |
+            This PR was created by the `prepare-foundation-release` workflow.
+
+            Included changes:
+            - bump `VERSION` to `${{ steps.version.outputs.value }}`
+            - add generated release notes to `CHANGELOG.md`
+            - prepare the repository for the foundation release tag
+
+            After merge:
+            - the `finalize-foundation-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
+            - the pushed tag triggers the `release-foundation` workflow automatically
+          delete-branch: false

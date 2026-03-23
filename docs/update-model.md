@@ -5,7 +5,7 @@ Child repos should keep a vendored copy of `wp-plugin-base` in `.wp-plugin-base/
 The scheduled `update-foundation` workflow:
 
 - reads `FOUNDATION_VERSION`
-- checks for a newer compatible foundation tag in the same major series
+- checks for a newer compatible published foundation release in the same major series
 - refreshes the vendored `.wp-plugin-base/` directory from that foundation tag
 - regenerates managed files from templates
 - opens a pull request

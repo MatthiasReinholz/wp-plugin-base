@@ -35,6 +35,12 @@ jobs:
             bash -n "$file"
           done < <(find scripts -name '*.sh' -print | sort)
 
+      - name: Validate foundation release metadata
+        run: |
+          set -euo pipefail
+          bash scripts/foundation/check_version.sh
+          bash scripts/foundation/check_release_branch.sh "release/$(tr -d '\n' < VERSION)"
+
       - name: Validate standard fixture
         run: |
           set -euo pipefail

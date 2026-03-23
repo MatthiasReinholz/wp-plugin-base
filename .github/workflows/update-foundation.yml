@@ -46,20 +46,34 @@ jobs:
           git remote remove foundation >/dev/null 2>&1 || true
           git remote add foundation "https://github.com/${{ steps.config.outputs.repository }}.git"
 
-      - name: Resolve latest compatible version
+      - name: Resolve latest compatible released version
         id: latest
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           current="${{ steps.config.outputs.version }}"
           major="${current%%.*}"
+          api_url="https://api.github.com/repos/${{ steps.config.outputs.repository }}/releases?per_page=100"
           latest="$(
-            git ls-remote --tags --refs foundation \
-              | awk '{print $2}' \
-              | sed 's#refs/tags/##' \
-              | grep -E "^${major}\.[0-9]+\.[0-9]+$" \
-              | sort -V \
-              | tail -n 1
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$api_url" \
+              | jq -r --arg major "$major" '
+                  map(
+                    select(
+                      .draft == false and
+                      .prerelease == false and
+                      (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
+                    )
+                  )
+                  | map(.tag_name)
+                  | sort_by(split(".") | map(ltrimstr("v") | tonumber))
+                  | last // empty
+                '
           )"
 
           if [ -z "$latest" ] || [ "$latest" = "$current" ]; then

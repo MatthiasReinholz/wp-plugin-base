@@ -22,9 +22,18 @@ Managed files are generated from `templates/child/` by running:
 
 ```bash
 bash .wp-plugin-base/scripts/update/sync_child_repo.sh
+```
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
-```
+
+## Foundation Release Contract
+
+Foundation releases use semver tags with a `v` prefix such as `v1.0.1`.
+
+- child repos pin `FOUNDATION_VERSION` to one exact foundation release
+- child update PRs only consider published GitHub Releases, not arbitrary tags or branch heads
+- automatic updates stay within the current major series
+- major foundation upgrades are manual
 
 ## Config
 
@@ -64,3 +73,10 @@ To enable it in a child repo:
 3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub secrets
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
+
+## Guides
+
+- [New project setup](docs/new-project.md)
+- [Existing project migration](docs/existing-project-migration.md)
+- [Foundation release process](docs/foundation-release-process.md)
+- [Update model](docs/update-model.md)

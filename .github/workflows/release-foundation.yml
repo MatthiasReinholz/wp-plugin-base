@@ -1,0 +1,54 @@
+name: release-foundation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Validate target version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME}"
+
+          if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use vX.Y.Z format." >&2
+            exit 1
+          fi
+
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag comes from a merged release PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          bash scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" "$COMMIT_SHA"
+
+      - name: Validate foundation version metadata
+        run: bash scripts/foundation/check_version.sh "${{ steps.version.outputs.value }}"
+
+      - name: Generate GitHub release body
+        run: |
+          bash scripts/foundation/generate_github_release_body.sh "${{ steps.version.outputs.value }}" > dist-foundation-release.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        with:
+          tag_name: ${{ steps.version.outputs.value }}
+          body_path: dist-foundation-release.md
