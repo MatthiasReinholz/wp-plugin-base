@@ -14,6 +14,7 @@ Projects using the foundation update against published foundation releases, not 
 The foundation now uses the same staged release model as the plugin repos.
 
 1. Run `prepare-foundation-release`.
+   Rerunning it for the same version refreshes the existing `release/vX.Y.Z` branch and updates the existing PR if needed.
 2. Review the generated `release/vX.Y.Z` pull request.
 3. Merge the release PR into `main`.
 4. `finalize-foundation-release` creates the annotated tag and publishes the GitHub Release in the same workflow.
