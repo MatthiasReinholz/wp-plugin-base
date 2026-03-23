@@ -70,11 +70,18 @@ jobs:
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
-      - name: Pull subtree update
+      - name: Clone target foundation version
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
-          git fetch foundation tag "${{ steps.latest.outputs.version }}"
-          git subtree pull --prefix=.wp-plugin-base foundation "${{ steps.latest.outputs.version }}" --squash
+          rm -rf "$RUNNER_TEMP/wp-plugin-base"
+          git clone --depth 1 --branch "${{ steps.latest.outputs.version }}" "https://github.com/${{ steps.config.outputs.repository }}.git" "$RUNNER_TEMP/wp-plugin-base"
+
+      - name: Refresh vendored foundation directory
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          rm -rf .wp-plugin-base
+          mkdir -p .wp-plugin-base
+          rsync -a --exclude '.git' "$RUNNER_TEMP/wp-plugin-base/" .wp-plugin-base/
 
       - name: Update repo config
         if: ${{ steps.latest.outputs.update_needed == 'true' }}

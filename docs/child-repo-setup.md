@@ -7,3 +7,5 @@
 5. Configure GitHub secrets and the optional `WP_ORG_DEPLOY_ENABLED` variable.
 
 Child repos should pin exact foundation tags and update through PRs rather than tracking a moving branch.
+
+Using `git subtree` for the initial bootstrap is fine, but it is not required for the automated update path.

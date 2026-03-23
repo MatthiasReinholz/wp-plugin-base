@@ -3,7 +3,7 @@
 `wp-plugin-base` splits reuse into two layers.
 
 - Reusable workflows live in `.github/workflows/` and are referenced from child repos with a pinned foundation tag.
-- Shared source files live inside the child repo under `.wp-plugin-base/`, which is intended to be managed with `git subtree`.
+- Shared source files live inside the child repo under `.wp-plugin-base/` as vendored source.
 
 This avoids runtime dependencies while still allowing upstream improvements to flow into child repos through update PRs.
 

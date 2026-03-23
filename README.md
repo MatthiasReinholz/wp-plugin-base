@@ -13,7 +13,7 @@ The foundation is a development dependency only. It must never be a runtime depe
 
 Each child repo should contain:
 
-- `.wp-plugin-base/` populated from this repo via `git subtree`
+- `.wp-plugin-base/` populated from this repo as vendored source
 - `.wp-plugin-base.env` with repo-specific metadata
 - plugin-local code and assets
 - thin workflow wrappers in `.github/workflows/`
@@ -22,6 +22,8 @@ Managed files are generated from `templates/child/` by running:
 
 ```bash
 bash .wp-plugin-base/scripts/update/sync_child_repo.sh
+
+You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 ```
 
 ## Config

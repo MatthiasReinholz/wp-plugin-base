@@ -6,7 +6,7 @@ The scheduled `update-foundation` workflow:
 
 - reads `FOUNDATION_VERSION`
 - checks for a newer compatible foundation tag in the same major series
-- pulls the subtree update into `.wp-plugin-base/`
+- refreshes the vendored `.wp-plugin-base/` directory from that foundation tag
 - regenerates managed files from templates
 - opens a pull request
 
