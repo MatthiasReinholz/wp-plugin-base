@@ -63,11 +63,42 @@ jobs:
 
       - name: Ensure release branch does not already exist
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
         run: |
+          set -euo pipefail
           if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
+<<<<<<< Updated upstream
             echo "Release branch $RELEASE_BRANCH already exists." >&2
             exit 1
+=======
+            api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${RELEASE_BRANCH}&base=${{ inputs.base_ref }}"
+            open_pr_count="$(
+              curl -fsSL \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "$api_url" \
+                | jq 'length'
+            )"
+
+            echo "branch_exists=true" >> "$GITHUB_OUTPUT"
+
+            if [ "$open_pr_count" -gt 0 ]; then
+              echo "ref=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "open_pr_exists=true" >> "$GITHUB_OUTPUT"
+              echo "Refreshing existing release branch $RELEASE_BRANCH."
+            else
+              echo "ref=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+              echo "open_pr_exists=false" >> "$GITHUB_OUTPUT"
+              echo "Existing release branch $RELEASE_BRANCH has no open PR. Recreating it from ${{ inputs.base_ref }}."
+            fi
+          else
+            echo "ref=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+            echo "branch_exists=false" >> "$GITHUB_OUTPUT"
+            echo "open_pr_exists=false" >> "$GITHUB_OUTPUT"
+            echo "Preparing a new release branch from ${{ inputs.base_ref }}."
+>>>>>>> Stashed changes
           fi
 
       - name: Bump foundation version metadata
@@ -92,3 +123,29 @@ jobs:
             - the `finalize-foundation-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
             - the pushed tag triggers the `release-foundation` workflow automatically
           delete-branch: false
+<<<<<<< Updated upstream
+=======
+
+      - name: Report prepare-foundation-release outcome
+        env:
+          BRANCH_EXISTS: ${{ steps.source.outputs.branch_exists }}
+          OPEN_PR_EXISTS: ${{ steps.source.outputs.open_pr_exists }}
+          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
+          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PULL_REQUEST_NUMBER" ]; then
+            echo "Foundation release branch $RELEASE_BRANCH is ready."
+            echo "PR #$PULL_REQUEST_NUMBER ($PULL_REQUEST_OPERATION): $PULL_REQUEST_URL"
+            exit 0
+          fi
+
+          if [ "$BRANCH_EXISTS" = "true" ] && [ "$OPEN_PR_EXISTS" = "true" ]; then
+            echo "Foundation release branch $RELEASE_BRANCH already existed and no additional PR update was required."
+          else
+            echo "Foundation release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create-pull-request step output." >&2
+            exit 1
+          fi
+>>>>>>> Stashed changes
