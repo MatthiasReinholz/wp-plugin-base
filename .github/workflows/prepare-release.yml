@@ -57,19 +57,32 @@ jobs:
           version="$(bash .wp-plugin-base/scripts/release/next_version.sh "${{ inputs.release_type }}" "${{ inputs.config_path }}")"
           echo "value=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure release branch does not already exist
+      - name: Resolve source ref
+        id: source
         env:
           RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
         run: |
           if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
-            echo "Release branch $RELEASE_BRANCH already exists. Update the existing release PR manually or delete the branch before rerunning prepare-release." >&2
-            exit 1
+            echo "ref=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "branch_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Refreshing existing release branch $RELEASE_BRANCH."
+          else
+            echo "ref=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+            echo "branch_exists=false" >> "$GITHUB_OUTPUT"
+            echo "Preparing a new release branch from ${{ inputs.base_ref }}."
           fi
+
+      - name: Checkout source ref
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          fetch-depth: 0
 
       - name: Bump release metadata
         run: bash .wp-plugin-base/scripts/release/bump_version.sh "${{ steps.version.outputs.value }}" "${{ inputs.config_path }}"
 
       - name: Create or update release pull request
+        id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
         with:
           branch: release/${{ steps.version.outputs.value }}
@@ -95,5 +108,27 @@ jobs:
 
             After merge:
             - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the tag triggers the `release` workflow automatically
+            - the same `finalize-release` workflow publishes the GitHub release
           delete-branch: false
+
+      - name: Report prepare-release outcome
+        env:
+          BRANCH_EXISTS: ${{ steps.source.outputs.branch_exists }}
+          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
+          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PULL_REQUEST_NUMBER" ]; then
+            echo "Release branch $RELEASE_BRANCH is ready."
+            echo "PR #$PULL_REQUEST_NUMBER ($PULL_REQUEST_OPERATION): $PULL_REQUEST_URL"
+            exit 0
+          fi
+
+          if [ "$BRANCH_EXISTS" = "true" ]; then
+            echo "Release branch $RELEASE_BRANCH already existed and no additional PR update was required."
+          else
+            echo "Release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create-pull-request step output." >&2
+            exit 1
+          fi
