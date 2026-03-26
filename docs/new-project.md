@@ -24,10 +24,12 @@ Use this path when you are starting a new WordPress plugin repo from scratch.
    - `SVN_USERNAME` as a GitHub Actions secret
    - `SVN_PASSWORD` as a GitHub Actions secret
    - `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable
-9. In GitHub repository settings, enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
-10. If that setting is greyed out, ask an organization owner to allow it at the organization level first.
-11. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
-12. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
+9. In GitHub, open `Settings` -> `Actions` -> `General`.
+10. Under `Workflow permissions`, select `Read and write permissions`.
+11. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+12. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
+13. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
+14. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
 
 ## Default Layout Assumptions
 

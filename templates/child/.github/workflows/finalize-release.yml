@@ -39,7 +39,7 @@ jobs:
           exit 1
 
       - name: Checkout merge commit
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
@@ -64,7 +64,7 @@ jobs:
           echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}" >> "$GITHUB_OUTPUT"
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@fcafdd6392932010c2bd5094439b8e33be2a8a09
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
         with:
           php-version: ${{ steps.config.outputs.php_version }}
 

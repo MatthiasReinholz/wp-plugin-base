@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout base ref
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.base_ref }}
           fetch-depth: 0
@@ -100,7 +100,7 @@ jobs:
           fi
 
       - name: Checkout source ref
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ steps.source.outputs.ref }}
           fetch-depth: 0

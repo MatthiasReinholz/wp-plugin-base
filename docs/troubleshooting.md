@@ -16,7 +16,7 @@ If the setting is visible in the repository settings, enable it:
 
 1. Open your repository on GitHub.
 2. Go to `Settings` -> `Actions` -> `General`.
-3. Find `Workflow permissions`.
+3. Under `Workflow permissions`, select `Read and write permissions`.
 4. Enable `Allow GitHub Actions to create and approve pull requests`.
 5. Save the change and rerun the failed workflow.
 

@@ -45,7 +45,15 @@ Managed workflow files:
 
 `finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` opens reviewable PRs for GitHub Actions version updates.
 
-`prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`. If that setting is greyed out, an organization owner must allow it at the organization level first.
+`prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`.
+
+Enable it in GitHub under `Settings` -> `Actions` -> `General`:
+
+1. Set `Workflow permissions` to `Read and write permissions`.
+2. Enable `Allow GitHub Actions to create and approve pull requests`.
+3. Save the change.
+
+If that option is greyed out, an organization owner must allow it first in the organization under `Settings` -> `Actions` -> `General`.
 
 The WordPress.org deploy path is built in but opt-in. It only runs when `WP_ORG_DEPLOY_ENABLED=true`.
 
