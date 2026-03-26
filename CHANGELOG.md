@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.2
+
+* Update generated project workflow pins for actions/checkout and shivammathur/setup-php.
+* Document exactly how to enable GitHub Actions pull request creation in repository and organization settings.
+* Switch the foundation repository license text to GPL v3 and align fixture license markers.
+
 ## v1.2.1
 
 * Fix first-release note generation when no prior semver tags exist.

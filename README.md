@@ -20,6 +20,24 @@ For your project to consume this foundation successfully:
 
 If those conditions are not met, the local project workflows will either fail to find `.wp-plugin-base/` or, for self-update only, fail to reach the foundation release source.
 
+To enable pull request creation in GitHub:
+
+1. Open your repository on GitHub.
+2. Go to `Settings` -> `Actions` -> `General`.
+3. Scroll to `Workflow permissions`.
+4. Select `Read and write permissions`.
+5. Enable `Allow GitHub Actions to create and approve pull requests`.
+6. Save the changes.
+
+If `Allow GitHub Actions to create and approve pull requests` is greyed out:
+
+1. Open the parent organization on GitHub.
+2. Go to `Settings` -> `Actions` -> `General`.
+3. Allow repositories in the organization to let GitHub Actions create and approve pull requests.
+4. Return to the repository and enable the repository-level setting there if GitHub still requires it.
+
+See [Troubleshooting](docs/troubleshooting.md) for the failure modes and the organization-level case.
+
 ## Project Contract
 
 Each project repository should contain:
