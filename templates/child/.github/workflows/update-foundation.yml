@@ -85,6 +85,16 @@ jobs:
           rm -rf "$RUNNER_TEMP/wp-plugin-base"
           git clone --depth 1 --branch "${{ steps.latest.outputs.version }}" "https://github.com/${{ steps.config.outputs.repository }}.git" "$RUNNER_TEMP/wp-plugin-base"
 
+      - name: Verify foundation release provenance
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
+            "${{ steps.config.outputs.repository }}" \
+            "${{ steps.latest.outputs.version }}" \
+            "$RUNNER_TEMP/wp-plugin-base"
+
       - name: Refresh vendored foundation directory
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
@@ -101,18 +111,34 @@ jobs:
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh
 
+      - name: Write foundation update pull request body
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          cat > "$RUNNER_TEMP/foundation-update-pr.md" <<'EOF'
+          This PR updates the vendored foundation and regenerates the managed workflow and documentation files.
+
+          Updated foundation version:
+          - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+
+          Security checks performed before proposing this update:
+          - release is published and not draft/prerelease
+          - tag matches the foundation semver contract
+          - tag commit is reachable from the foundation `main`
+          - release was produced by the protected foundation release flow
+          - release author is in the allowed release-author list
+          EOF
+
       - name: Create foundation update PR
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
-        with:
-          branch: chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}
-          commit-message: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
-          title: "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}"
-          body: |
-            This PR updates the vendored foundation and regenerates the managed workflow and documentation files.
-
-            Updated foundation version:
-            - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
+            "chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}" \
+            "main" \
+            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
+            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
+            "$RUNNER_TEMP/foundation-update-pr.md"
 
       - name: Report no update needed
         if: ${{ steps.latest.outputs.update_needed != 'true' }}

@@ -19,3 +19,14 @@ Workflow handling is intentionally local-first:
 - only the optional foundation self-update workflow reaches back to the `wp-plugin-base` repository
 
 That means day-to-day CI and release automation work without cross-repo reusable workflow access. The main requirement is that `.wp-plugin-base/` is committed in your project.
+
+## Security Handling
+
+The local-first design also narrows the supply-chain surface:
+
+- workflow logic is visible in your project repository
+- shared shell logic is vendored and reviewable under `.wp-plugin-base/`
+- only a small set of external GitHub Actions remain, all pinned to commit SHAs
+- release PR creation, GitHub release publication, and WordPress.org deployment are handled by repo-local scripts instead of additional marketplace actions
+
+The only workflow that reaches back to GitHub for foundation content is `update-foundation`, and that path verifies release provenance before it proposes an update.

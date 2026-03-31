@@ -109,34 +109,51 @@ jobs:
       - name: Bump foundation version metadata
         run: bash scripts/foundation/bump_version.sh "${{ steps.version.outputs.value }}"
 
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Write release pull request body
+        run: |
+          cat > "$RUNNER_TEMP/foundation-release-pr.md" <<'EOF'
+          This PR was created by the `prepare-foundation-release` workflow.
+
+          Included changes:
+          - bump `VERSION` to `${{ steps.version.outputs.value }}`
+          - add generated release notes to `CHANGELOG.md`
+          - prepare the repository for the foundation release tag
+
+          Automated checks on this PR:
+          - foundation version metadata consistency
+          - workflow/action allowlist and permission audit
+          - fixture validation for standard and nonstandard plugin layouts
+          - child project sync validation
+
+          After merge:
+          - the `finalize-foundation-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
+          - the same `finalize-foundation-release` workflow publishes the GitHub release and emits an attestation for the foundation release metadata asset
+          EOF
+
       - name: Create or update release pull request
         id: cpr
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
-        with:
-          branch: release/${{ steps.version.outputs.value }}
-          base: ${{ inputs.base_ref }}
-          commit-message: Foundation release ${{ steps.version.outputs.value }}
-          title: Foundation release ${{ steps.version.outputs.value }}
-          body: |
-            This PR was created by the `prepare-foundation-release` workflow.
-
-            Included changes:
-            - bump `VERSION` to `${{ steps.version.outputs.value }}`
-            - add generated release notes to `CHANGELOG.md`
-            - prepare the repository for the foundation release tag
-
-            After merge:
-            - the `finalize-foundation-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the same `finalize-foundation-release` workflow publishes the GitHub release
-          delete-branch: false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/update/create_or_update_pr.sh \
+            "release/${{ steps.version.outputs.value }}" \
+            "${{ inputs.base_ref }}" \
+            "Foundation release ${{ steps.version.outputs.value }}" \
+            "Foundation release ${{ steps.version.outputs.value }}" \
+            "$RUNNER_TEMP/foundation-release-pr.md"
 
       - name: Report prepare-foundation-release outcome
         env:
           BRANCH_EXISTS: ${{ steps.source.outputs.branch_exists }}
           OPEN_PR_EXISTS: ${{ steps.source.outputs.open_pr_exists }}
-          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
-          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull_request_number }}
+          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull_request_operation }}
+          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull_request_url }}
           RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
         run: |
           set -euo pipefail
@@ -149,6 +166,6 @@ jobs:
           if [ "$BRANCH_EXISTS" = "true" ] && [ "$OPEN_PR_EXISTS" = "true" ]; then
             echo "Foundation release branch $RELEASE_BRANCH already existed and no additional PR update was required."
           else
-            echo "Foundation release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create-pull-request step output." >&2
+            echo "Foundation release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create_or_update_pr step output." >&2
             exit 1
           fi

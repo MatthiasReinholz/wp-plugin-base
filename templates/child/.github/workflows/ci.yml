@@ -13,6 +13,9 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate
@@ -48,6 +51,9 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: ${{ steps.config.outputs.node_version }}
+
+      - name: Audit workflow security policy
+        run: bash .wp-plugin-base/scripts/ci/audit_workflows.sh
 
       - name: Lint PHP
         run: bash .wp-plugin-base/scripts/ci/lint_php.sh

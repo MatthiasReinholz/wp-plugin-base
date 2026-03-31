@@ -17,6 +17,8 @@ env:
 
 permissions:
   contents: write
+  attestations: write
+  id-token: write
 
 jobs:
   release:
@@ -102,6 +104,11 @@ jobs:
           path: dist/${{ steps.config.outputs.zip_file }}
           if-no-files-found: error
 
+      - name: Attest package provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+        with:
+          subject-path: dist/${{ steps.config.outputs.zip_file }}
+
       - name: Validate WordPress.org deploy configuration
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         run: |
@@ -131,11 +138,14 @@ jobs:
         run: git push origin "${{ steps.release.outputs.version }}"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
-        with:
-          tag_name: ${{ steps.release.outputs.version }}
-          body_path: dist/release-body.md
-          files: dist/${{ steps.config.outputs.zip_file }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+            "${{ steps.release.outputs.version }}" \
+            "${{ steps.release.outputs.version }}" \
+            dist/release-body.md \
+            "dist/${{ steps.config.outputs.zip_file }}"
 
       - name: Install Subversion
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
@@ -143,12 +153,11 @@ jobs:
 
       - name: Deploy to WordPress.org
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
-        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
-        with:
-          generate-zip: false
         env:
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
-          SOURCE_DIR: ./
-          SLUG: ${{ steps.config.outputs.wordpress_org_slug }}
-          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          bash .wp-plugin-base/scripts/release/deploy_wordpress_org.sh \
+            "${{ steps.release.outputs.version }}" \
+            "${{ inputs.config_path }}" \
+            "dist/package/${{ steps.config.outputs.plugin_slug }}"

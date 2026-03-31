@@ -5,6 +5,7 @@
 3. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 4. Commit the generated files.
 5. Configure GitHub Actions secrets and, if needed, the `WP_ORG_DEPLOY_ENABLED` GitHub Actions variable.
+6. Configure the GitHub Actions policy described in [Security model](security-model.md).
 
 Your project should pin exact foundation tags and update through PRs rather than tracking a moving branch.
 

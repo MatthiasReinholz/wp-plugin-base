@@ -10,6 +10,18 @@ It provides two reuse layers:
 
 The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
 
+## Security Model
+
+`wp-plugin-base` assumes a locked-down GitHub Actions posture:
+
+- workflows are local to your project and run against the checked-out repository
+- every external action must be pinned to a full commit SHA
+- only a small approved action allowlist is permitted
+- release and update workflows use repo-local shell scripts where practical instead of additional third-party actions
+- foundation self-updates only trust published foundation releases that pass provenance checks
+
+See [Security model](docs/security-model.md) for the full policy and the current approved action set.
+
 ## Access Requirements
 
 For your project to consume this foundation successfully:
@@ -57,6 +69,17 @@ You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history
 
 The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
 
+## Recommended GitHub Actions Policy
+
+Apply this policy in GitHub under `Settings` -> `Actions` -> `General` for each project repository or, preferably, at the organization level:
+
+1. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
+2. Allow GitHub-authored actions.
+3. Allow only the specific non-GitHub actions that the current foundation version documents in [Security model](docs/security-model.md).
+4. Enable `Require actions to be pinned to a full-length commit SHA`.
+
+This foundation already generates workflows that match that policy. Keeping the GitHub setting aligned means GitHub rejects unexpected workflow drift before a compromised action can run.
+
 ## Foundation Release Contract
 
 Foundation releases use semver tags with a `v` prefix such as `v1.0.1`.
@@ -90,10 +113,13 @@ Optional keys:
 - `PACKAGE_EXCLUDE`
 - `CHANGELOG_HEADING`
 - `PRODUCTION_ENVIRONMENT`
+- `CODEOWNERS_REVIEWERS`
 
 Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`.
 
 `.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
+
+Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
 
 ## WordPress.org Deploy
 
@@ -105,14 +131,17 @@ To enable it in your project:
    - a GitHub Actions repository variable in the repository settings, or
    - a GitHub Actions environment variable on the selected deployment environment
 2. set `WORDPRESS_ORG_SLUG` in `.wp-plugin-base.env`
-3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets
+3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets on the protected deployment environment when possible
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
+
+For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials.
 
 ## Guides
 
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)
+- [Security model](docs/security-model.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Update model](docs/update-model.md)
 - [Troubleshooting](docs/troubleshooting.md)

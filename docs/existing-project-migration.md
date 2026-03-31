@@ -24,10 +24,14 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 8. Review the generated ZIP to confirm that only installable plugin files are included.
 9. Merge only after the repo-local packaging and release semantics still match the previous behavior.
 10. In GitHub, open `Settings` -> `Actions` -> `General`.
-11. Under `Workflow permissions`, select `Read and write permissions`.
-12. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
-13. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
-14. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
+11. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
+12. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
+13. Enable `Require actions to be pinned to a full-length commit SHA`.
+14. Under `Workflow permissions`, select `Read and write permissions`.
+15. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+16. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
+17. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
+18. If WordPress.org deploy will remain enabled, move `SVN_USERNAME` and `SVN_PASSWORD` into environment secrets and protect the selected deployment environment with at least one reviewer.
 
 ## Common Migration Adjustments
 
@@ -43,3 +47,4 @@ Before enabling WordPress.org deploy, confirm:
 - `WORDPRESS_ORG_SLUG` is correct
 - `WP_ORG_DEPLOY_ENABLED` is still unset or `false` in GitHub Actions repository variables or environment variables during migration
 - the generated ZIP matches the existing install artifact shape
+- the GitHub Actions policy for the repository matches the allowlist and pinning rules documented in [Security model](security-model.md)
