@@ -67,6 +67,8 @@ Optional flows need additional tools:
 
 The shared scripts now fail fast with explicit missing-tool errors instead of failing deeper into release or update flows.
 
+`tools/wordpress-env` is a separate lockfile-backed npm tooling bundle. Shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`, and the local `.npmrc` now travels with that temp install so engine and frozen-install defaults stay explicit.
+
 ## Security Model
 
 `wp-plugin-base` assumes a locked-down GitHub Actions posture:

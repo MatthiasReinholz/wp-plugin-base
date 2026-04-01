@@ -1,6 +1,10 @@
 {
   "name": "wp-plugin-base-wordpress-env-tools",
   "private": true,
+  "engines": {
+    "node": ">=18.12.0",
+    "npm": ">=8.19.2"
+  },
   "devDependencies": {
     "@wordpress/env": "11.2.0"
   }
