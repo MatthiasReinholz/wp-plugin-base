@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "package build" rsync zip
 
 wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars PLUGIN_SLUG MAIN_PLUGIN_FILE ZIP_FILE
@@ -28,6 +32,14 @@ if [ ! -f "$MAIN_PLUGIN_PATH" ]; then
   exit 1
 fi
 
+if [[ ! "$ZIP_FILE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$ ]]; then
+  echo "ZIP_FILE must be a simple zip filename: $ZIP_FILE" >&2
+  exit 1
+fi
+
+wp_plugin_base_assert_path_within_root "$MAIN_PLUGIN_PATH" "Main plugin file"
+wp_plugin_base_assert_path_within_root "$DISTIGNORE_PATH" "Distignore file"
+
 cat <<'EOF' > "$EXCLUDES_FILE"
 /.git/
 /.github/
@@ -50,6 +62,7 @@ mkdir -p "$STAGE_DIR"
 if [ -n "${PACKAGE_INCLUDE:-}" ]; then
   while IFS= read -r include_path; do
     source_path="$(wp_plugin_base_resolve_path "$include_path")"
+    wp_plugin_base_assert_path_within_root "$source_path" "PACKAGE_INCLUDE"
 
     if [ ! -e "$source_path" ]; then
       echo "Missing package include path: $include_path" >&2

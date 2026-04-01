@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "foundation release provenance verification" curl git jq
+
 REPOSITORY="${1:-}"
 VERSION="${2:-}"
 FOUNDATION_DIR="${3:-}"

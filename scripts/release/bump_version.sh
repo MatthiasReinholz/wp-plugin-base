@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "release metadata update" git perl
 
 VERSION="${1:-}"
 
@@ -29,10 +33,9 @@ cleanup() {
 trap cleanup EXIT
 
 perl -0pi -e "s/^ \\* Version: .*\$/ * Version: $VERSION/m" "$PLUGIN_FILE"
-perl -0pi -e "s/^Version: .*\$/Version: $VERSION/m" "$README_PATH"
 
-if grep -q "^ \\* Stable tag: " "$PLUGIN_FILE"; then
-  perl -0pi -e "s/^ \\* Stable tag: .*\$/ * Stable tag: $VERSION/m" "$PLUGIN_FILE"
+if grep -q "^Version: " "$README_PATH"; then
+  perl -0pi -e "s/^Version: .*\$/Version: $VERSION/m" "$README_PATH"
 fi
 
 if grep -q "^Stable tag: " "$README_PATH"; then

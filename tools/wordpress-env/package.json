@@ -1,0 +1,7 @@
+{
+  "name": "wp-plugin-base-wordpress-env-tools",
+  "private": true,
+  "devDependencies": {
+    "@wordpress/env": "11.2.0"
+  }
+}

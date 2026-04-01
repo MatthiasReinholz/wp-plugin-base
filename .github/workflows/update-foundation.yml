@@ -29,15 +29,7 @@ jobs:
       - name: Read config
         id: config
         shell: bash
-        run: |
-          set -euo pipefail
-          set -a
-          source "${{ inputs.config_path }}"
-          set +a
-          : "${FOUNDATION_REPOSITORY:?FOUNDATION_REPOSITORY is required}"
-          : "${FOUNDATION_VERSION:?FOUNDATION_VERSION is required}"
-          echo "repository=${FOUNDATION_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "version=${FOUNDATION_VERSION}" >> "$GITHUB_OUTPUT"
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh foundation "${{ inputs.config_path }}" "$GITHUB_OUTPUT"
 
       - name: Configure git identity
         run: |

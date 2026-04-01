@@ -1,5 +1,21 @@
 # Troubleshooting
 
+## Local Validation Fails Immediately
+
+Run the shared local validation entrypoint first:
+
+```bash
+bash .wp-plugin-base/scripts/ci/validate_project.sh
+```
+
+If that fails before any repo checks run, the most common causes are:
+
+- a missing command such as `ruby`, `jq`, `rsync`, `zip`, `gh`, or `svn`
+- an invalid `.wp-plugin-base.env` value
+- a missing `MAIN_PLUGIN_FILE`, `README_FILE`, or optional `POT_FILE`
+
+The validation scripts now fail fast and identify the missing tool or invalid config key directly.
+
 ## Pull Request Creation Fails
 
 Some foundation workflows create pull requests automatically, including:

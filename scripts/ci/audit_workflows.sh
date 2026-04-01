@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "workflow audit" git ruby perl
+
 TARGET_ROOT="${1:-}"
 
 if [ -z "$TARGET_ROOT" ]; then
@@ -145,55 +151,70 @@ while IFS= read -r entry; do
   uses_entries+=("$entry")
 done < <(
   perl -ne '
-    if (/^[[:space:]]*uses:[[:space:]]*([^[:space:]]+)/) {
+    if (/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*([^[:space:]]+)/) {
       print "$ARGV:$.:$1\n";
     }
   ' "${workflow_files[@]}"
 )
 
-for entry in "${uses_entries[@]}"; do
-  file="${entry%%:*}"
-  rest="${entry#*:}"
-  line="${rest%%:*}"
-  ref="${entry##*:}"
+if [ "${#uses_entries[@]}" -gt 0 ]; then
+  for entry in "${uses_entries[@]}"; do
+    file="${entry%%:*}"
+    rest="${entry#*:}"
+    line="${rest%%:*}"
+    ref="${entry##*:}"
 
-  if [[ "$ref" == ./* ]]; then
-    continue
-  fi
+    if [[ "$ref" == ./* ]]; then
+      continue
+    fi
 
-  if [[ ! "$ref" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+@[0-9a-f]{40}$ ]]; then
-    echo "${file}:${line}: action reference must be pinned to a full-length commit SHA: ${ref}" >&2
-    exit 1
-  fi
+    if [[ ! "$ref" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+@[0-9a-f]{40}$ ]]; then
+      echo "${file}:${line}: action reference must be pinned to a full-length commit SHA: ${ref}" >&2
+      exit 1
+    fi
 
-  allowed=false
-  for action in "${allowed_actions[@]}"; do
-    if [ "$ref" = "$action" ]; then
-      allowed=true
-      break
+    allowed=false
+    for action in "${allowed_actions[@]}"; do
+      if [ "$ref" = "$action" ]; then
+        allowed=true
+        break
+      fi
+    done
+
+    if [ "$allowed" != true ]; then
+      echo "${file}:${line}: action is not in the approved allowlist: ${ref}" >&2
+      exit 1
     fi
   done
-
-  if [ "$allowed" != true ]; then
-    echo "${file}:${line}: action is not in the approved allowlist: ${ref}" >&2
-    exit 1
-  fi
-done
+fi
 
 declare -a scan_files=()
 while IFS= read -r file; do
   case "$file" in
-    */scripts/ci/audit_workflows.sh|*/.github/workflows/foundation-ci.yml)
+    */scripts/ci/audit_workflows.sh)
       continue
       ;;
   esac
   scan_files+=("$file")
 done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.sh' \) | sort)
 
-if rg -n -e 'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' -e 'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' "${scan_files[@]}" >/dev/null 2>&1; then
-  echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
-  rg -n -e 'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' -e 'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' "${scan_files[@]}" >&2
-  exit 1
+remote_script_patterns=(
+  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
+  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
+)
+
+if command -v rg >/dev/null 2>&1; then
+  if rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+    echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
+    rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    exit 1
+  fi
+else
+  if grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+    echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
+    grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    exit 1
+  fi
 fi
 
 while IFS=: read -r file line url; do

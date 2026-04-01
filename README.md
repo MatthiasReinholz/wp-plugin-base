@@ -2,6 +2,15 @@
 
 `wp-plugin-base` is a GitHub-centric foundation for WordPress plugin repositories.
 
+It is the **delivery and governance layer** for plugin repos:
+
+- managed local GitHub Actions workflows
+- release, packaging, and optional WordPress.org deployment automation
+- workflow hardening and provenance checks
+- vendored scripts, templates, and documentation under `.wp-plugin-base/`
+
+It is **not** a plugin runtime framework. It does not currently provide plugin-side DI, PSR-4 runtime scaffolding, settings abstractions, REST controllers, or block architecture. Those concerns should remain outside this repo or move into a future companion runtime layer.
+
 It provides two reuse layers:
 
 - managed workflow files generated into your project's `.github/workflows/`
@@ -9,6 +18,54 @@ It provides two reuse layers:
 - vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
 The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
+
+## Who It Is For
+
+`wp-plugin-base` is optimized first for product teams and maintainers who need:
+
+- repeatable release automation across plugin repositories
+- a hardened GitHub Actions policy by default
+- a vendored, reviewable infrastructure layer instead of opaque reusable workflows
+- a clear update path for shared repo automation
+
+If you only need a minimal plugin starter and do not want shared CI/release governance, `wp scaffold plugin` or a simpler starter is a better fit.
+
+## Quick Start
+
+1. Vendor this repo into your plugin repository at `.wp-plugin-base/`.
+2. Create `.wp-plugin-base.env` from `.wp-plugin-base/templates/child/.wp-plugin-base.env.example`.
+3. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
+4. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
+5. Commit `.wp-plugin-base/`, `.wp-plugin-base.env`, and the generated managed files.
+
+For the foundation repo itself, run:
+
+```bash
+bash scripts/foundation/validate.sh
+```
+
+## Local Tooling Contract
+
+Core local validation depends on these commands being available:
+
+- `bash`
+- `git`
+- `php`
+- `node`
+- `ruby`
+- `perl`
+- `jq`
+- `rg`
+- `rsync`
+- `zip`
+- `unzip`
+
+Optional flows need additional tools:
+
+- `gh` for GitHub release and pull request automation
+- `svn` for WordPress.org deployment
+
+The shared scripts now fail fast with explicit missing-tool errors instead of failing deeper into release or update flows.
 
 ## Security Model
 
@@ -65,6 +122,12 @@ Managed files are generated from `templates/child/` by running:
 bash .wp-plugin-base/scripts/update/sync_child_repo.sh
 ```
 
+Validate the repo contract locally with:
+
+```bash
+bash .wp-plugin-base/scripts/ci/validate_project.sh
+```
+
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
 The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
@@ -115,7 +178,7 @@ Optional keys:
 - `PRODUCTION_ENVIRONMENT`
 - `CODEOWNERS_REVIEWERS`
 
-Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`.
+Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`. `ZIP_FILE` must be a simple `.zip` filename, not a path.
 
 `.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
 
@@ -141,7 +204,9 @@ For stronger review on production publishing, protect the deployment environment
 
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)
+- [Product layers](docs/layers.md)
 - [Security model](docs/security-model.md)
+- [Compatibility and public contract](docs/compatibility.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Update model](docs/update-model.md)
 - [Troubleshooting](docs/troubleshooting.md)

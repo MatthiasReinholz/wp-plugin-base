@@ -46,6 +46,12 @@ Managed workflow files:
 
 `finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` opens reviewable PRs for GitHub Actions version updates.
 
+Before opening or merging changes, run:
+
+```bash
+bash .wp-plugin-base/scripts/ci/validate_project.sh
+```
+
 `prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`.
 
 Enable it in GitHub under `Settings` -> `Actions` -> `General`:

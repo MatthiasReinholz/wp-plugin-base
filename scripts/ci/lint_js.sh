@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "JavaScript syntax validation" node
 
 wp_plugin_base_load_config "${1:-}"
 

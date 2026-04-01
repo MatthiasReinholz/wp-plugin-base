@@ -1,0 +1,18 @@
+{
+  "name": "wp-plugin-base/quality-pack",
+  "type": "project",
+  "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^9.6",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "wp-coding-standards/wpcs": "^3.2"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "sort-packages": true
+  }
+}
