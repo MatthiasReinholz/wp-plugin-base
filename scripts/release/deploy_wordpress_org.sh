@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "WordPress.org deployment" python3 rsync svn
 
 VERSION="${1:-}"
 CONFIG_OVERRIDE="${2:-}"
@@ -20,10 +24,16 @@ wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG SVN_USERNAME SVN_PASS
 
 SOURCE_DIR="${SOURCE_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
 ASSETS_DIR="$ROOT_DIR/.wordpress-org"
-SVN_URL="https://plugins.svn.wordpress.org/$WORDPRESS_ORG_SLUG"
+SVN_HOST="plugins.svn.wordpress.org"
+SVN_SCHEME="https"
+SVN_PORT="443"
+SVN_URL="${SVN_SCHEME}://${SVN_HOST}/$WORDPRESS_ORG_SLUG"
 WORK_DIR="$(mktemp -d)"
 SVN_DIR="$WORK_DIR/svn"
-SVN_ARGS=(--non-interactive --no-auth-cache --username "$SVN_USERNAME" --password "$SVN_PASSWORD")
+SVN_CONFIG_DIR="$WORK_DIR/subversion-config"
+SVN_REALM_DEFAULT="<${SVN_SCHEME}://${SVN_HOST}:${SVN_PORT}> Use your WordPress.org login"
+SVN_REALM="${SVN_REALM:-$SVN_REALM_DEFAULT}"
+SVN_ARGS=(--non-interactive --config-dir "$SVN_CONFIG_DIR" --username "$SVN_USERNAME")
 
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -35,6 +45,15 @@ if [ ! -d "$SOURCE_DIR" ]; then
   echo "WordPress.org deploy source directory not found: $SOURCE_DIR" >&2
   exit 1
 fi
+
+bash "$SCRIPT_DIR/validate_wordpress_org_deploy.sh" "$VERSION" "$CONFIG_OVERRIDE" "$SOURCE_DIR"
+
+mkdir -p "$SVN_CONFIG_DIR"
+python3 "$SCRIPT_DIR/../lib/write_svn_simple_auth.py" \
+  "$SVN_CONFIG_DIR" \
+  "$SVN_REALM" \
+  "$SVN_USERNAME" \
+  "$SVN_PASSWORD"
 
 svn checkout "${SVN_ARGS[@]}" --depth immediates "$SVN_URL" "$SVN_DIR" >/dev/null
 

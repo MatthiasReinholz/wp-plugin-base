@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "pull request automation" git gh jq
+
 BRANCH_NAME="${1:-}"
 BASE_BRANCH="${2:-}"
 PR_TITLE="${3:-}"

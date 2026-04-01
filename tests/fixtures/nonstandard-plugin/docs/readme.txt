@@ -1,5 +1,4 @@
 === Custom Plugin ===
-Version: 2.4.6
 Stable tag: 2.4.6
 
 == Release Notes ==

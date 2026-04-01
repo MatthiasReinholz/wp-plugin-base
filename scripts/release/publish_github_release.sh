@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
+wp_plugin_base_require_commands "GitHub release publication" gh
+
 TAG_NAME="${1:-}"
 RELEASE_TITLE="${2:-}"
 NOTES_FILE="${3:-}"

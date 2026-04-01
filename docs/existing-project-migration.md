@@ -15,23 +15,19 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 4. Set the minimum required overrides in `.wp-plugin-base.env`.
 5. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 6. Replace any old local CI or release scripts with thin shims or direct calls into `.wp-plugin-base/scripts/...`.
-7. Run the shared script suite locally:
-   - `bash .wp-plugin-base/scripts/ci/check_versions.sh`
-   - `bash .wp-plugin-base/scripts/ci/check_release_branch.sh release/x.y.z`
-   - `bash .wp-plugin-base/scripts/ci/lint_php.sh`
-   - `bash .wp-plugin-base/scripts/ci/lint_js.sh`
-   - `bash .wp-plugin-base/scripts/ci/build_zip.sh`
-8. Review the generated ZIP to confirm that only installable plugin files are included.
-9. Merge only after the repo-local packaging and release semantics still match the previous behavior.
-10. In GitHub, open `Settings` -> `Actions` -> `General`.
-11. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
-12. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
-13. Enable `Require actions to be pinned to a full-length commit SHA`.
-14. Under `Workflow permissions`, select `Read and write permissions`.
-15. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
-16. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
-17. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
-18. If WordPress.org deploy will remain enabled, move `SVN_USERNAME` and `SVN_PASSWORD` into environment secrets and protect the selected deployment environment with at least one reviewer.
+7. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
+8. Optionally validate release-branch metadata with `bash .wp-plugin-base/scripts/ci/validate_project.sh .wp-plugin-base.env release/x.y.z`.
+9. Review the generated ZIP to confirm that only installable plugin files are included.
+10. Merge only after the repo-local packaging and release semantics still match the previous behavior.
+11. In GitHub, open `Settings` -> `Actions` -> `General`.
+12. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
+13. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
+14. Enable `Require actions to be pinned to a full-length commit SHA`.
+15. Under `Workflow permissions`, select `Read and write permissions`.
+16. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+17. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
+18. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
+19. If WordPress.org deploy will remain enabled, move `SVN_USERNAME` and `SVN_PASSWORD` into environment secrets and protect the selected deployment environment with at least one reviewer.
 
 ## Common Migration Adjustments
 

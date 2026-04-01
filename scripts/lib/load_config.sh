@@ -35,6 +35,48 @@ wp_plugin_base_config_path() {
   printf '%s/%s\n' "$root_dir" "$config_path"
 }
 
+wp_plugin_base_config_error() {
+  local config_path="$1"
+  local line_number="$2"
+  local message="$3"
+
+  echo "${config_path}:${line_number}: ${message}" >&2
+  exit 1
+}
+
+wp_plugin_base_parse_config_value() {
+  local raw_value="$1"
+  local config_path="$2"
+  local line_number="$3"
+  local value
+
+  value="$(wp_plugin_base_trim "$raw_value")"
+
+  case "$value" in
+    \"*\")
+      if [ "${#value}" -lt 2 ] || [ "${value: -1}" != '"' ]; then
+        wp_plugin_base_config_error "$config_path" "$line_number" "unterminated double-quoted value"
+      fi
+      value="${value:1:${#value}-2}"
+      value="${value//\\\\/\\}"
+      value="${value//\\\"/\"}"
+      ;;
+    \'*\')
+      if [ "${#value}" -lt 2 ] || [ "${value: -1}" != "'" ]; then
+        wp_plugin_base_config_error "$config_path" "$line_number" "unterminated single-quoted value"
+      fi
+      value="${value:1:${#value}-2}"
+      ;;
+    *)
+      if [[ "$value" =~ [[:space:]] ]]; then
+        wp_plugin_base_config_error "$config_path" "$line_number" "unquoted values must not contain whitespace"
+      fi
+      ;;
+  esac
+
+  printf '%s' "$value"
+}
+
 wp_plugin_base_load_config() {
   ROOT_DIR="$(wp_plugin_base_root)"
   CONFIG_PATH="$(wp_plugin_base_config_path "$ROOT_DIR" "${1:-}")"
@@ -44,15 +86,41 @@ wp_plugin_base_load_config() {
     exit 1
   fi
 
-  set -a
-  # shellcheck disable=SC1090
-  . "$CONFIG_PATH"
-  set +a
+  ROOT_DIR="$(cd "$ROOT_DIR" && pwd -P)"
+  CONFIG_PATH="$(cd "$(dirname "$CONFIG_PATH")" && pwd -P)/$(basename "$CONFIG_PATH")"
+
+  local line=""
+  local line_number=0
+  local trimmed_line=""
+  local key=""
+  local raw_value=""
+  local parsed_value=""
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line_number=$((line_number + 1))
+    trimmed_line="$(wp_plugin_base_trim "$line")"
+
+    if [ -z "$trimmed_line" ] || [[ "$trimmed_line" == \#* ]]; then
+      continue
+    fi
+
+    if [[ ! "$trimmed_line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      wp_plugin_base_config_error "$CONFIG_PATH" "$line_number" "expected KEY=value syntax"
+    fi
+
+    key="${BASH_REMATCH[1]}"
+    raw_value="${BASH_REMATCH[2]}"
+    parsed_value="$(wp_plugin_base_parse_config_value "$raw_value" "$CONFIG_PATH" "$line_number")"
+    printf -v "$key" '%s' "$parsed_value"
+    export "$key"
+  done < "$CONFIG_PATH"
 
   README_FILE="${README_FILE:-readme.txt}"
   CHANGELOG_HEADING="${CHANGELOG_HEADING:-Changelog}"
   DISTIGNORE_FILE="${DISTIGNORE_FILE:-.distignore}"
   PRODUCTION_ENVIRONMENT="${PRODUCTION_ENVIRONMENT:-production}"
+  WORDPRESS_READINESS_ENABLED="${WORDPRESS_READINESS_ENABLED:-false}"
+  WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
 }
 
 wp_plugin_base_require_vars() {
@@ -75,6 +143,39 @@ wp_plugin_base_resolve_path() {
   fi
 
   printf '%s/%s\n' "$ROOT_DIR" "$value"
+}
+
+wp_plugin_base_canonicalize_path() {
+  local path="$1"
+  local directory
+  local basename
+
+  directory="$(cd "$(dirname "$path")" && pwd -P)"
+  basename="$(basename "$path")"
+
+  if [ "$basename" = "." ]; then
+    printf '%s\n' "$directory"
+    return
+  fi
+
+  printf '%s/%s\n' "$directory" "$basename"
+}
+
+wp_plugin_base_assert_path_within_root() {
+  local path="$1"
+  local label="$2"
+  local canonical_path
+
+  canonical_path="$(wp_plugin_base_canonicalize_path "$path")"
+
+  case "$canonical_path" in
+    "$ROOT_DIR"|"$ROOT_DIR"/*)
+      ;;
+    *)
+      echo "${label} must stay within the repository root: ${path}" >&2
+      exit 1
+      ;;
+  esac
 }
 
 wp_plugin_base_read_header_value() {
@@ -116,4 +217,15 @@ wp_plugin_base_csv_to_lines() {
       printf '%s\n' "$item"
     fi
   done
+}
+
+wp_plugin_base_is_true() {
+  case "${1:-}" in
+    true|TRUE|1|yes|YES)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }

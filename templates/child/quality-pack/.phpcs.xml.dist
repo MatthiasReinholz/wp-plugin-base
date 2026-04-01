@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<ruleset name="WP Plugin Base Quality Pack">
+  <description>WordPress Coding Standards checks managed by wp-plugin-base.</description>
+
+  <arg value="p"/>
+  <arg name="extensions" value="php"/>
+  <arg name="colors"/>
+
+  <config name="testVersion" value="__PHP_VERSION__-"/>
+  <config name="minimum_supported_wp_version" value="6.4"/>
+
+  <file>.</file>
+
+  <exclude-pattern>*/.git/*</exclude-pattern>
+  <exclude-pattern>*/.github/*</exclude-pattern>
+  <exclude-pattern>*/.wp-plugin-base/*</exclude-pattern>
+  <exclude-pattern>*/.wp-plugin-base-quality-pack/*</exclude-pattern>
+  <exclude-pattern>*/dist/*</exclude-pattern>
+  <exclude-pattern>*/node_modules/*</exclude-pattern>
+  <exclude-pattern>*/tests/*</exclude-pattern>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+
+  <rule ref="WordPress-Core"/>
+  <rule ref="WordPress-Extra"/>
+  <rule ref="PHPCompatibilityWP"/>
+</ruleset>

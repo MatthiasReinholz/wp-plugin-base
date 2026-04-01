@@ -18,6 +18,12 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    outputs:
+      plugin_slug: ${{ steps.config.outputs.plugin_slug }}
+      zip_file: ${{ steps.config.outputs.zip_file }}
+      php_version: ${{ steps.config.outputs.php_version }}
+      node_version: ${{ steps.config.outputs.node_version }}
+      wordpress_readiness_enabled: ${{ steps.config.outputs.wordpress_readiness_enabled }}
 
     steps:
       - name: Checkout
@@ -26,19 +32,7 @@ jobs:
       - name: Read config
         id: config
         shell: bash
-        run: |
-          set -euo pipefail
-          set -a
-          source "${{ inputs.config_path }}"
-          set +a
-          : "${PLUGIN_SLUG:?PLUGIN_SLUG is required}"
-          : "${ZIP_FILE:?ZIP_FILE is required}"
-          : "${PHP_VERSION:?PHP_VERSION is required}"
-          : "${NODE_VERSION:?NODE_VERSION is required}"
-          echo "plugin_slug=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
-          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
-          echo "php_version=${PHP_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "node_version=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project "${{ inputs.config_path }}" "$GITHUB_OUTPUT"
 
       - name: Set up PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
@@ -50,25 +44,10 @@ jobs:
         with:
           node-version: ${{ steps.config.outputs.node_version }}
 
-      - name: Audit workflow security policy
-        run: bash .wp-plugin-base/scripts/ci/audit_workflows.sh
-
-      - name: Lint PHP
-        run: bash .wp-plugin-base/scripts/ci/lint_php.sh "${{ inputs.config_path }}"
-
-      - name: Lint JavaScript
-        run: bash .wp-plugin-base/scripts/ci/lint_js.sh "${{ inputs.config_path }}"
-
-      - name: Verify version metadata
-        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "" "${{ inputs.config_path }}"
-
-      - name: Validate release branch metadata
+      - name: Validate repository
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: bash .wp-plugin-base/scripts/ci/check_release_branch.sh "$BRANCH_NAME" "${{ inputs.config_path }}"
-
-      - name: Build package
-        run: bash .wp-plugin-base/scripts/ci/build_zip.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/validate_project.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -76,3 +55,30 @@ jobs:
           name: ${{ steps.config.outputs.plugin_slug }}-package
           path: dist/${{ steps.config.outputs.zip_file }}
           if-no-files-found: error
+
+  wordpress-readiness:
+    name: WordPress readiness
+    if: ${{ needs.validate.outputs.wordpress_readiness_enabled == 'true' }}
+    needs:
+      - validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ needs.validate.outputs.php_version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: ${{ needs.validate.outputs.node_version }}
+
+      - name: Validate WordPress readiness
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+        run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"

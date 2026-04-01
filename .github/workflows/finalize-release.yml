@@ -56,21 +56,7 @@ jobs:
       - name: Read config
         id: config
         shell: bash
-        run: |
-          set -euo pipefail
-          set -a
-          source "${{ inputs.config_path }}"
-          set +a
-          : "${PLUGIN_SLUG:?PLUGIN_SLUG is required}"
-          : "${PLUGIN_NAME:?PLUGIN_NAME is required}"
-          : "${ZIP_FILE:?ZIP_FILE is required}"
-          : "${PHP_VERSION:?PHP_VERSION is required}"
-          : "${NODE_VERSION:?NODE_VERSION is required}"
-          echo "plugin_slug=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
-          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
-          echo "php_version=${PHP_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "node_version=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}" >> "$GITHUB_OUTPUT"
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project "${{ inputs.config_path }}" "$GITHUB_OUTPUT"
 
       - name: Set up PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
@@ -82,16 +68,27 @@ jobs:
         with:
           node-version: ${{ steps.config.outputs.node_version }}
 
+      - name: Validate WordPress readiness
+        if: ${{ steps.config.outputs.wordpress_readiness_enabled == 'true' }}
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
+        run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
+
       - name: Validate metadata versions
+        if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
         run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}"
 
       - name: Lint PHP
+        if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
         run: bash .wp-plugin-base/scripts/ci/lint_php.sh "${{ inputs.config_path }}"
 
       - name: Lint JavaScript
+        if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
         run: bash .wp-plugin-base/scripts/ci/lint_js.sh "${{ inputs.config_path }}"
 
       - name: Build package
+        if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
         run: bash .wp-plugin-base/scripts/ci/build_zip.sh "${{ inputs.config_path }}"
 
       - name: Generate GitHub release body
@@ -111,11 +108,7 @@ jobs:
 
       - name: Validate WordPress.org deploy configuration
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
-        run: |
-          if [ -z "${{ steps.config.outputs.wordpress_org_slug }}" ]; then
-            echo "WORDPRESS_ORG_SLUG must be set in the repo config when WP_ORG_DEPLOY_ENABLED=true." >&2
-            exit 1
-          fi
+        run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}" "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
       - name: Ensure tag does not already exist
         env:
