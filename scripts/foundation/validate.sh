@@ -19,6 +19,7 @@ while IFS= read -r file; do
 done < <(find "$ROOT_DIR/scripts" -name '*.sh' -print | sort)
 
 bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$ROOT_DIR"
+bash "$ROOT_DIR/scripts/foundation/check_wordpress_env_tooling.sh"
 bash "$ROOT_DIR/scripts/foundation/check_version.sh"
 bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "release/$(tr -d '\n' < "$ROOT_DIR/VERSION")"
 

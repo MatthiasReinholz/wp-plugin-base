@@ -19,7 +19,7 @@ wp_plugin_base_install_wordpress_env() {
 
   source_dir="$(wp_plugin_base_wordpress_tools_dir)"
 
-  cp "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/"
+  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/"
 
   (
     cd "$destination_dir"
