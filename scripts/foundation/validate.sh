@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "foundation validation" git php node ruby perl rg rsync zip unzip jq docker
+wp_plugin_base_require_commands "foundation validation" git php node ruby perl rsync zip unzip jq docker
 audit_fixture=""
 zip_fixture=""
 quality_fixture=""

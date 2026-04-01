@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "workflow audit" git ruby perl rg
+wp_plugin_base_require_commands "workflow audit" git ruby perl
 
 TARGET_ROOT="${1:-}"
 
@@ -198,10 +198,23 @@ while IFS= read -r file; do
   scan_files+=("$file")
 done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.sh' \) | sort)
 
-if rg -n -e 'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' -e 'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' "${scan_files[@]}" >/dev/null 2>&1; then
-  echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
-  rg -n -e 'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' -e 'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b' "${scan_files[@]}" >&2
-  exit 1
+remote_script_patterns=(
+  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
+  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
+)
+
+if command -v rg >/dev/null 2>&1; then
+  if rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+    echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
+    rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    exit 1
+  fi
+else
+  if grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+    echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
+    grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    exit 1
+  fi
 fi
 
 while IFS=: read -r file line url; do

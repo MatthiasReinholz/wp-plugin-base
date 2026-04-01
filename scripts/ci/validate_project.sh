@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_OVERRIDE="${1:-}"
 BRANCH_NAME="${2:-${BRANCH_NAME:-}}"
 
-wp_plugin_base_require_commands "project validation" git php node ruby perl rg rsync zip unzip
+wp_plugin_base_require_commands "project validation" git php node ruby perl rsync zip unzip
 bash "$SCRIPT_DIR/validate_config.sh" --scope project "$CONFIG_OVERRIDE"
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"

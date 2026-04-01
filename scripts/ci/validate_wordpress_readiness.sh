@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_OVERRIDE="${1:-}"
 BRANCH_NAME="${2:-${BRANCH_NAME:-}}"
 
-wp_plugin_base_require_commands "WordPress readiness validation" git php node ruby perl rg rsync zip unzip jq docker
+wp_plugin_base_require_commands "WordPress readiness validation" git php node ruby perl rsync zip unzip jq docker
 bash "$SCRIPT_DIR/validate_config.sh" --scope readiness "$CONFIG_OVERRIDE"
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
