@@ -14,6 +14,8 @@ env:
 permissions:
   contents: write
   pull-requests: read
+  attestations: write
+  id-token: write
 
 jobs:
   release:
@@ -55,8 +57,27 @@ jobs:
         run: |
           bash scripts/foundation/generate_github_release_body.sh "${{ steps.version.outputs.value }}" > dist-foundation-release.md
 
+      - name: Create foundation release metadata asset
+        run: |
+          cat > dist-foundation-release.json <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "version": "${{ steps.version.outputs.value }}",
+            "commit": "$(git rev-parse HEAD)"
+          }
+          EOF
+
       - name: Create GitHub release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/release/publish_github_release.sh \
+            "${{ steps.version.outputs.value }}" \
+            "${{ steps.version.outputs.value }}" \
+            dist-foundation-release.md \
+            dist-foundation-release.json
+
+      - name: Attest foundation release metadata
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
         with:
-          tag_name: ${{ steps.version.outputs.value }}
-          body_path: dist-foundation-release.md
+          subject-path: dist-foundation-release.json

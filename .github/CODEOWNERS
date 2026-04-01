@@ -1,0 +1,4 @@
+/.github/workflows/** @MatthiasReinholz
+/templates/child/.github/workflows/** @MatthiasReinholz
+/scripts/** @MatthiasReinholz
+/.github/dependabot.yml @MatthiasReinholz

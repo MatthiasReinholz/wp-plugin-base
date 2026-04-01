@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
+CODEOWNERS_REVIEWERS="${CODEOWNERS_REVIEWERS:-}"
 
 FOUNDATION_DIR="$ROOT_DIR/.wp-plugin-base"
 TEMPLATE_DIR="$FOUNDATION_DIR/templates/child"
@@ -23,9 +24,9 @@ render_template() {
 
   mkdir -p "$(dirname "$destination_file")"
 
-  export FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
+  export FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT CODEOWNERS_REVIEWERS
   perl \
-    -0pe 's~__FOUNDATION_REPOSITORY__~$ENV{FOUNDATION_REPOSITORY}~ge; s~__FOUNDATION_VERSION__~$ENV{FOUNDATION_VERSION}~ge; s~__PRODUCTION_ENVIRONMENT__~$ENV{PRODUCTION_ENVIRONMENT}~ge' \
+    -0pe 's~__FOUNDATION_REPOSITORY__~$ENV{FOUNDATION_REPOSITORY}~ge; s~__FOUNDATION_VERSION__~$ENV{FOUNDATION_VERSION}~ge; s~__PRODUCTION_ENVIRONMENT__~$ENV{PRODUCTION_ENVIRONMENT}~ge; s~__CODEOWNERS_REVIEWERS__~$ENV{CODEOWNERS_REVIEWERS}~ge' \
     "$source_file" > "$destination_file"
 }
 
@@ -34,6 +35,12 @@ render_template "$TEMPLATE_DIR/CONTRIBUTING.md" "$ROOT_DIR/CONTRIBUTING.md"
 
 while IFS= read -r template_file; do
   relative_path="${template_file#$TEMPLATE_DIR/}"
+
+  if [ "$relative_path" = ".github/CODEOWNERS" ] && [ -z "$CODEOWNERS_REVIEWERS" ]; then
+    rm -f "$ROOT_DIR/$relative_path"
+    continue
+  fi
+
   render_template "$template_file" "$ROOT_DIR/$relative_path"
 done < <(find "$TEMPLATE_DIR/.github" -type f | sort)
 

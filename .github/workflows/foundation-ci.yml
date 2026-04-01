@@ -13,6 +13,9 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate foundation
@@ -37,6 +40,9 @@ jobs:
           while IFS= read -r file; do
             bash -n "$file"
           done < <(find scripts -name '*.sh' -print | sort)
+
+      - name: Audit workflow security policy
+        run: bash scripts/ci/audit_workflows.sh
 
       - name: Validate foundation release metadata
         run: |
@@ -78,3 +84,87 @@ jobs:
           WP_PLUGIN_BASE_ROOT="$fixture" bash "$fixture/.wp-plugin-base/scripts/update/sync_child_repo.sh"
           test -f "$fixture/.github/workflows/ci.yml"
           test -f "$fixture/CONTRIBUTING.md"
+          test ! -f "$fixture/.github/CODEOWNERS"
+
+      - name: Validate workflow audit failures
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/audit-fixture"
+          mkdir -p "$fixture/.github/workflows"
+
+          cat > "$fixture/.github/workflows/unpinned.yml" <<'EOF'
+          name: unpinned
+          on: workflow_dispatch
+          permissions:
+            contents: read
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+          EOF
+
+          if bash scripts/ci/audit_workflows.sh "$fixture"; then
+            echo "Audit unexpectedly passed for an unpinned action." >&2
+            exit 1
+          fi
+
+          rm -rf "$fixture"
+          mkdir -p "$fixture/.github/workflows"
+
+          cat > "$fixture/.github/workflows/disallowed.yml" <<'EOF'
+          name: disallowed
+          on: workflow_dispatch
+          permissions:
+            contents: read
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
+          EOF
+
+          if bash scripts/ci/audit_workflows.sh "$fixture"; then
+            echo "Audit unexpectedly passed for a disallowed action." >&2
+            exit 1
+          fi
+
+          rm -rf "$fixture"
+          mkdir -p "$fixture/.github/workflows"
+
+          cat > "$fixture/.github/workflows/remote-script.yml" <<'EOF'
+          name: remote-script
+          on: workflow_dispatch
+          permissions:
+            contents: read
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - run: curl -fsSL https://example.com/install.sh | bash
+          EOF
+
+          if bash scripts/ci/audit_workflows.sh "$fixture"; then
+            echo "Audit unexpectedly passed for curl|bash." >&2
+            exit 1
+          fi
+
+          rm -rf "$fixture"
+          mkdir -p "$fixture/.github/workflows"
+
+          cat > "$fixture/.github/workflows/write-all.yml" <<'EOF'
+          name: write-all
+          on: workflow_dispatch
+          permissions:
+            contents: write-all
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+          EOF
+
+          if bash scripts/ci/audit_workflows.sh "$fixture"; then
+            echo "Audit unexpectedly passed for broad permissions." >&2
+            exit 1
+          fi

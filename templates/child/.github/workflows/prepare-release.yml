@@ -108,43 +108,55 @@ jobs:
       - name: Bump release metadata
         run: bash .wp-plugin-base/scripts/release/bump_version.sh "${{ steps.version.outputs.value }}"
 
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Write release pull request body
+        run: |
+          cat > "$RUNNER_TEMP/release-pr.md" <<'EOF'
+          This PR was created by the local `prepare-release` workflow managed by `wp-plugin-base`.
+
+          Included changes:
+          - bump plugin metadata to `${{ steps.version.outputs.value }}`
+          - add auto-generated changelog notes for `${{ steps.version.outputs.value }}`
+          - update the release metadata based on the project config
+          - derive the version using release type `${{ inputs.release_type }}`
+
+          Automated checks on this PR:
+          - version metadata consistency
+          - release branch name matches the version bump
+          - release changelog section exists
+          - release changelog entry contains bullet items
+          - workflow/action allowlist and permission audit
+          - PHP and JavaScript syntax
+          - package build
+
+          After merge:
+          - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
+          - the same `finalize-release` workflow publishes the GitHub release, emits a build attestation for the ZIP, and optionally deploys to WordPress.org
+          EOF
+
       - name: Create or update release pull request
         id: cpr
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
-        with:
-          branch: release/${{ steps.version.outputs.value }}
-          base: ${{ inputs.base_ref }}
-          commit-message: Release ${{ steps.version.outputs.value }}
-          title: Release ${{ steps.version.outputs.value }}
-          body: |
-            This PR was created by the local `prepare-release` workflow managed by `wp-plugin-base`.
-
-            Included changes:
-            - bump plugin metadata to `${{ steps.version.outputs.value }}`
-            - add auto-generated changelog notes for `${{ steps.version.outputs.value }}`
-            - update the release metadata based on the project config
-            - derive the version using release type `${{ inputs.release_type }}`
-
-            Automated checks on this PR:
-            - version metadata consistency
-            - release branch name matches the version bump
-            - release changelog section exists
-            - release changelog entry contains bullet items
-            - PHP and JavaScript syntax
-            - package build
-
-            After merge:
-            - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-            - the same `finalize-release` workflow publishes the GitHub release and optionally deploys to WordPress.org
-          delete-branch: false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
+            "release/${{ steps.version.outputs.value }}" \
+            "${{ inputs.base_ref }}" \
+            "Release ${{ steps.version.outputs.value }}" \
+            "Release ${{ steps.version.outputs.value }}" \
+            "$RUNNER_TEMP/release-pr.md"
 
       - name: Report prepare-release outcome
         env:
           BRANCH_EXISTS: ${{ steps.source.outputs.branch_exists }}
           OPEN_PR_EXISTS: ${{ steps.source.outputs.open_pr_exists }}
-          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
-          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull_request_number }}
+          PULL_REQUEST_OPERATION: ${{ steps.cpr.outputs.pull_request_operation }}
+          PULL_REQUEST_URL: ${{ steps.cpr.outputs.pull_request_url }}
           RELEASE_BRANCH: release/${{ steps.version.outputs.value }}
         run: |
           set -euo pipefail
@@ -157,6 +169,6 @@ jobs:
           if [ "$BRANCH_EXISTS" = "true" ] && [ "$OPEN_PR_EXISTS" = "true" ]; then
             echo "Release branch $RELEASE_BRANCH already existed and no additional PR update was required."
           else
-            echo "Release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create-pull-request step output." >&2
+            echo "Release branch $RELEASE_BRANCH was prepared, but no pull request was created. Check the create_or_update_pr step output." >&2
             exit 1
           fi

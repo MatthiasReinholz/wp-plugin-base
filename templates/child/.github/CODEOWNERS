@@ -1,0 +1,4 @@
+/.github/workflows/** __CODEOWNERS_REVIEWERS__
+/.wp-plugin-base/** __CODEOWNERS_REVIEWERS__
+/scripts/** __CODEOWNERS_REVIEWERS__
+/.github/dependabot.yml __CODEOWNERS_REVIEWERS__
