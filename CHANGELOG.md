@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.3
+
+* supply chain hardening
+
 ## v1.2.2
 
 * Update generated project workflow pins for actions/checkout and shivammathur/setup-php.
