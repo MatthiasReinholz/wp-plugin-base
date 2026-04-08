@@ -101,6 +101,8 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
   validate_regex "$ZIP_FILE" '^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$' 'ZIP_FILE'
   validate_regex "$PHP_VERSION" '^[0-9]+(\.[0-9]+){0,2}$' 'PHP_VERSION'
   validate_regex "$NODE_VERSION" '^[0-9]+(\.[0-9]+){0,2}$' 'NODE_VERSION'
+  validate_regex "${PHP_RUNTIME_MATRIX:-}" '^$|^[0-9]+(\.[0-9]+){0,2}(,[0-9]+(\.[0-9]+){0,2})*$' 'PHP_RUNTIME_MATRIX'
+  validate_regex "$PHP_RUNTIME_MATRIX_MODE" '^(smoke|strict)$' 'PHP_RUNTIME_MATRIX_MODE'
   validate_file "$MAIN_PLUGIN_FILE" "Main plugin file"
   validate_file "$README_FILE" "Readme file"
 
@@ -120,11 +122,24 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
     validate_optional_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
   fi
 
+  if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
+    while IFS= read -r host; do
+      validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
+    done < <(wp_plugin_base_csv_to_lines "$EXTRA_ALLOWED_HOSTS")
+  fi
+
   validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
+  validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
+  validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
 
   if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
     echo "WORDPRESS_QUALITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
+    echo "WORDPRESS_SECURITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2
     exit 1
   fi
 fi

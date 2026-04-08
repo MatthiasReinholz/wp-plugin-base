@@ -13,6 +13,7 @@ If that fails before any repo checks run, the most common causes are:
 - a missing command such as `ruby`, `jq`, `rsync`, `zip`, `gh`, or `svn`
 - an invalid `.wp-plugin-base.env` value
 - a missing `MAIN_PLUGIN_FILE`, `README_FILE`, or optional `POT_FILE`
+- forbidden repository files such as `.DS_Store`, `Thumbs.db`, `.idea/`, `.vscode/`, or transient debug logs
 
 The validation scripts now fail fast and identify the missing tool or invalid config key directly.
 
@@ -50,6 +51,16 @@ In that case, an organization owner must allow it first:
 4. Return to the repository settings and enable the repository-level setting if GitHub still requires it there.
 
 If you do not have organization admin access, ask an organization owner to make that change.
+
+## Readiness Fails On Deployment Environment Protection
+
+When `WP_ORG_DEPLOY_ENABLED=true`, CI/release readiness now enforces deployment environment protection in strict mode.
+
+If readiness fails with reviewer-protection errors:
+
+- confirm `PRODUCTION_ENVIRONMENT` exists in the repository
+- require at least one reviewer on that environment
+- ensure the readiness step has `GH_TOKEN` available so it can query environment protection rules
 
 ## Foundation Self-Update Cannot Open A PR
 

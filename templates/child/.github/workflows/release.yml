@@ -21,6 +21,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: __PRODUCTION_ENVIRONMENT__
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
@@ -71,6 +72,8 @@ jobs:
       - name: Validate WordPress readiness
         if: ${{ steps.config.outputs.wordpress_readiness_enabled == 'true' }}
         env:
+          GH_TOKEN: ${{ github.token }}
+          WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION: 'true'
           WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
         run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh ".wp-plugin-base.env"
 
@@ -92,6 +95,23 @@ jobs:
 
       - name: Generate GitHub release body
         run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.version.outputs.value }}" > dist/release-body.md
+
+      - name: Install SBOM and signing tools
+        run: |
+          bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
+      - name: Generate package SBOM
+        run: |
+          bash .wp-plugin-base/scripts/release/generate_sbom.sh \
+            "dist/package/${{ steps.config.outputs.plugin_slug }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json"
+
+      - name: Sign release package
+        run: |
+          bash .wp-plugin-base/scripts/release/sign_release.sh \
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -132,4 +152,6 @@ jobs:
             "${{ steps.version.outputs.value }}" \
             "${{ steps.version.outputs.value }}" \
             dist/release-body.md \
-            "dist/${{ steps.config.outputs.zip_file }}"
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"

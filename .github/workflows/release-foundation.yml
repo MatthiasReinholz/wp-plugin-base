@@ -21,6 +21,7 @@ jobs:
   release:
     name: Release foundation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -67,6 +68,17 @@ jobs:
           }
           EOF
 
+      - name: Install SBOM and signing tools
+        run: |
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
+      - name: Generate foundation SBOM
+        run: bash scripts/release/generate_sbom.sh "." dist-foundation-release.sbom.cdx.json
+
+      - name: Sign foundation release metadata
+        run: bash scripts/release/sign_release.sh dist-foundation-release.json dist-foundation-release.json.sigstore.json
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,7 +87,9 @@ jobs:
             "${{ steps.version.outputs.value }}" \
             "${{ steps.version.outputs.value }}" \
             dist-foundation-release.md \
-            dist-foundation-release.json
+            dist-foundation-release.json \
+            dist-foundation-release.sbom.cdx.json \
+            dist-foundation-release.json.sigstore.json
 
       - name: Attest foundation release metadata
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32

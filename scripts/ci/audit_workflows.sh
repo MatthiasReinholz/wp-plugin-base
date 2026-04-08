@@ -75,7 +75,9 @@ workflow_files = ENV.fetch("WP_PLUGIN_BASE_AUDIT_WORKFLOWS").split("\n").reject(
 
 expected_permissions = {
   "foundation-ci.yml" => { "contents" => "read" },
+  "scorecard.yml" => { "contents" => "read" },
   "ci.yml" => { "contents" => "read" },
+  "woocommerce-qit.yml" => { "contents" => "read" },
   "prepare-foundation-release.yml" => { "contents" => "write", "pull-requests" => "write" },
   "prepare-release.yml" => { "contents" => "write", "pull-requests" => "write" },
   "update-foundation.yml" => { "contents" => "write", "pull-requests" => "write" },
@@ -143,6 +145,8 @@ declare -a allowed_actions=(
   "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f"
   "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
   "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
+  "github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc"
+  "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
   "shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f"
 )
 
@@ -168,7 +172,7 @@ if [ "${#uses_entries[@]}" -gt 0 ]; then
       continue
     fi
 
-    if [[ ! "$ref" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+@[0-9a-f]{40}$ ]]; then
+    if [[ ! "$ref" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*@[0-9a-f]{40}$ ]]; then
       echo "${file}:${line}: action reference must be pinned to a full-length commit SHA: ${ref}" >&2
       exit 1
     fi
@@ -217,20 +221,58 @@ else
   fi
 fi
 
+declare -a default_allowed_hosts=(
+  'api.github.com'
+  'github.com'
+  'uploads.github.com'
+  'plugins.svn.wordpress.org'
+  'token.actions.githubusercontent.com'
+)
+
+declare -a extra_allowed_hosts=()
+if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
+  while IFS= read -r host; do
+    host="$(printf '%s' "$host" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$host" ] || continue
+    if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+      echo "Invalid host in EXTRA_ALLOWED_HOSTS: $host" >&2
+      exit 1
+    fi
+    extra_allowed_hosts+=("$host")
+  done < <(printf '%s\n' "$EXTRA_ALLOWED_HOSTS" | tr ',' '\n')
+fi
+
+host_is_allowlisted() {
+  local host="$1"
+  local candidate
+
+  for candidate in "${default_allowed_hosts[@]}"; do
+    if [ "$host" = "$candidate" ]; then
+      return 0
+    fi
+  done
+
+  if [ "${#extra_allowed_hosts[@]}" -gt 0 ]; then
+    for candidate in "${extra_allowed_hosts[@]}"; do
+      if [ "$host" = "$candidate" ]; then
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
 while IFS=: read -r file line url; do
   [ -n "$url" ] || continue
   host="${url#https://}"
   host="${host#http://}"
   host="${host%%/*}"
   host="${host%%\$\{*}"
-  case "$host" in
-    api.github.com|github.com|uploads.github.com|plugins.svn.wordpress.org)
-      ;;
-    *)
-      echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
-      exit 1
-      ;;
-  esac
+  if ! host_is_allowlisted "$host"; then
+    echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
+    exit 1
+  fi
 done < <(perl -ne 'while (m{(https?://[^\s"'\''()]+)}g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
 
 while IFS=: read -r file line content; do

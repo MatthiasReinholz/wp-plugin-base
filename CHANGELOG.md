@@ -1,8 +1,22 @@
 # Changelog
 
+## Unreleased
+
+* Make Semgrep SARIF upload reliable by splitting scan/upload/fail phases in CI and preserving SARIF even when findings occur.
+* Minimize the security pack toolchain and lockfile footprint to keep security validation focused and lightweight.
+* Add strict Sigstore bundle verification tooling and documentation for consumers, and tighten verifier identity matching.
+* Enforce strict deployment environment reviewer checks in CI/release readiness paths.
+* Introduce justified suppression flow for intentional public endpoints and tighten authorization-pattern scanning semantics.
+* Add configurable workflow URL host allowlist extensions via `EXTRA_ALLOWED_HOSTS` while keeping strict defaults.
+* Remove mutable WooCommerce QIT CLI version input to preserve reproducibility and pinned dependency behavior.
+* Improve packaging hygiene for child templates (`export-ignore` and dist exclusions for security-pack internals).
+* Add coding-agent-first secure plugin coding contract guidance for Codex/Claude style agent workflows.
+
 ## v1.2.3
 
-* supply chain hardening
+* Harden workflow and release infrastructure with stricter action pinning, tighter workflow audit coverage, and stronger foundation update provenance verification.
+* Add WordPress readiness validation, Plugin Check integration, and an opt-in PHP quality pack for child plugin repositories.
+* Make the foundation more portable by relaxing the `rg` requirement in validation paths and carrying the `tools/wordpress-env/.npmrc` policy with temporary installs.
 
 ## v1.2.2
 

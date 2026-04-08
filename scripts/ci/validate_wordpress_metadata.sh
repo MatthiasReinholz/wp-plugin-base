@@ -5,13 +5,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
 
 CONFIG_OVERRIDE="${1:-}"
 
+wp_plugin_base_require_commands "WordPress metadata validation" node
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 wp_plugin_base_require_vars PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE PHP_VERSION
 
 PLUGIN_FILE="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
+# shellcheck disable=SC2153
 README_PATH="$(wp_plugin_base_resolve_path "$README_FILE")"
 
 header_value() {
@@ -162,6 +166,32 @@ fi
 if [ -z "$PLUGIN_HEADER_DESCRIPTION" ] || [ -z "$PLUGIN_HEADER_AUTHOR" ] || [ -z "$PLUGIN_HEADER_LICENSE" ] || [ -z "$README_LICENSE" ]; then
   echo "Plugin and readme metadata must not be empty." >&2
   exit 1
+fi
+
+PACKAGE_JSON_PATH="$ROOT_DIR/package.json"
+if [ -f "$PACKAGE_JSON_PATH" ]; then
+  has_wp_plugin="$(
+    node - <<'EOF' "$PACKAGE_JSON_PATH"
+const fs = require("node:fs");
+const packageJsonPath = process.argv[2];
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+process.stdout.write(packageJson.wpPlugin ? "true" : "false");
+EOF
+  )"
+
+  if [ "$has_wp_plugin" = "true" ]; then
+    BUILD_BOOTSTRAP="$ROOT_DIR/build/build.php"
+
+    if [ ! -f "$BUILD_BOOTSTRAP" ]; then
+      echo "package.json declares wpPlugin, but build/build.php is missing." >&2
+      exit 1
+    fi
+
+    if ! grep -Eq "require(_once)?[[:space:]]+__DIR__[[:space:]]*\\.[[:space:]]*['\"]/build/build\\.php['\"]" "$PLUGIN_FILE"; then
+      echo "package.json declares wpPlugin, but the main plugin file does not require build/build.php." >&2
+      exit 1
+    fi
+  fi
 fi
 
 echo "Validated WordPress plugin headers and readme metadata."

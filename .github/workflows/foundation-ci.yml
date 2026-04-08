@@ -13,13 +13,93 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
+concurrency:
+  group: foundation-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   validate:
-    name: Validate foundation
+    name: Validate foundation (PHP ${{ matrix.php-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '20'
+
+      - name: Install foundation lint and security tools
+        run: |
+          bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
+
+      - name: Validate foundation
+        env:
+          WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
+        run: bash scripts/foundation/validate.sh
+
+  validate-full:
+    name: Validate full foundation suite (PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '20'
+
+      - name: Install foundation lint and security tools
+        run: |
+          bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
+
+      - name: Validate full foundation
+        env:
+          WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
+        run: bash scripts/foundation/validate-full.sh
+
+  release-security-smoke:
+    name: Release security smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -35,5 +115,77 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Validate foundation
-        run: bash scripts/foundation/validate.sh
+      - name: Prepare release fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)"
+          echo "RELEASE_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          cp -R tests/fixtures/standard-plugin/. "$fixture/"
+          mkdir -p "$fixture/.wp-plugin-base"
+          rsync -a --exclude '.git' ./ "$fixture/.wp-plugin-base/"
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/update/sync_child_repo.sh
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/validate_project.sh "" "release/1.2.3"
+          WP_PLUGIN_BASE_ROOT="$fixture" bash scripts/ci/build_zip.sh
+
+      - name: Create foundation release metadata fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RELEASE_FIXTURE/dist/foundation-release.json" <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "version": "v1.2.3",
+            "commit": "$(git rev-parse HEAD)"
+          }
+          EOF
+
+      - name: Install release security tools
+        run: |
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
+      - name: Generate and validate package SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/generate_sbom.sh "$RELEASE_FIXTURE/dist/package/standard-plugin" "$RELEASE_FIXTURE/dist/standard-plugin.zip.sbom.cdx.json"
+          jq -e '.bomFormat == "CycloneDX"' "$RELEASE_FIXTURE/dist/standard-plugin.zip.sbom.cdx.json" >/dev/null
+          jq -e '.specVersion | strings' "$RELEASE_FIXTURE/dist/standard-plugin.zip.sbom.cdx.json" >/dev/null
+
+      - name: Sign and verify fixture package
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/sign_release.sh "$RELEASE_FIXTURE/dist/standard-plugin.zip" "$RELEASE_FIXTURE/dist/standard-plugin.zip.sigstore.json"
+          # Smoke flow intentionally permits pull-request and branch refs while exercising release scripts from CI.
+          cosign verify-blob \
+            --bundle "$RELEASE_FIXTURE/dist/standard-plugin.zip.sigstore.json" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/(heads/.+|pull/.+/merge)$" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$RELEASE_FIXTURE/dist/standard-plugin.zip" >/dev/null
+
+      - name: Generate and validate foundation source SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/generate_sbom.sh "." "$RELEASE_FIXTURE/dist/foundation-release.sbom.cdx.json"
+          jq -e '.bomFormat == "CycloneDX"' "$RELEASE_FIXTURE/dist/foundation-release.sbom.cdx.json" >/dev/null
+          jq -e '.specVersion | strings' "$RELEASE_FIXTURE/dist/foundation-release.sbom.cdx.json" >/dev/null
+
+      - name: Sign and verify foundation metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/sign_release.sh "$RELEASE_FIXTURE/dist/foundation-release.json" "$RELEASE_FIXTURE/dist/foundation-release.json.sigstore.json"
+          # Smoke flow intentionally permits pull-request and branch refs while exercising release scripts from CI.
+          cosign verify-blob \
+            --bundle "$RELEASE_FIXTURE/dist/foundation-release.json.sigstore.json" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/(heads/.+|pull/.+/merge)$" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$RELEASE_FIXTURE/dist/foundation-release.json" >/dev/null
+
+      - name: Clean up release fixture
+        if: always()
+        shell: bash
+        run: rm -rf "$RELEASE_FIXTURE"

@@ -22,8 +22,10 @@ fi
 
 bash "$SCRIPT_DIR/lint_php.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/lint_js.sh" "$CONFIG_OVERRIDE"
+bash "$SCRIPT_DIR/check_forbidden_files.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/check_versions.sh" "" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR"
+bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "$CONFIG_OVERRIDE"
 
 if [ -n "$BRANCH_NAME" ]; then
   bash "$SCRIPT_DIR/check_release_branch.sh" "$BRANCH_NAME" "$CONFIG_OVERRIDE"

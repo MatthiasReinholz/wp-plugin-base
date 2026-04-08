@@ -38,6 +38,7 @@ jobs:
   prepare:
     name: Prepare foundation release branch
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout base ref
@@ -82,21 +83,27 @@ jobs:
                 | jq 'length'
             )"
 
-            echo "branch_exists=true" >> "$GITHUB_OUTPUT"
-
             if [ "$open_pr_count" -gt 0 ]; then
-              echo "ref=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
-              echo "open_pr_exists=true" >> "$GITHUB_OUTPUT"
+              {
+                echo "branch_exists=true"
+                echo "ref=$RELEASE_BRANCH"
+                echo "open_pr_exists=true"
+              } >> "$GITHUB_OUTPUT"
               echo "Refreshing existing release branch $RELEASE_BRANCH."
             else
-              echo "ref=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
-              echo "open_pr_exists=false" >> "$GITHUB_OUTPUT"
+              {
+                echo "branch_exists=true"
+                echo "ref=${{ inputs.base_ref }}"
+                echo "open_pr_exists=false"
+              } >> "$GITHUB_OUTPUT"
               echo "Existing release branch $RELEASE_BRANCH has no open PR. Recreating it from ${{ inputs.base_ref }}."
             fi
           else
-            echo "ref=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
-            echo "branch_exists=false" >> "$GITHUB_OUTPUT"
-            echo "open_pr_exists=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "ref=${{ inputs.base_ref }}"
+              echo "branch_exists=false"
+              echo "open_pr_exists=false"
+            } >> "$GITHUB_OUTPUT"
             echo "Preparing a new release branch from ${{ inputs.base_ref }}."
           fi
 

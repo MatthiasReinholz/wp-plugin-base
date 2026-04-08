@@ -1,0 +1,8 @@
+{
+  "name": "build-ready-plugin",
+  "private": true,
+  "wpPlugin": {
+    "packages": "packages",
+    "routes": "routes"
+  }
+}

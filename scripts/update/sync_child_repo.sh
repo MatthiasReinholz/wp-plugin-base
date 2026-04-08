@@ -15,6 +15,7 @@ wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
 CODEOWNERS_REVIEWERS="${CODEOWNERS_REVIEWERS:-}"
 WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
+WORDPRESS_SECURITY_PACK_ENABLED="${WORDPRESS_SECURITY_PACK_ENABLED:-false}"
 
 FOUNDATION_DIR="$ROOT_DIR/.wp-plugin-base"
 TEMPLATE_DIR="$FOUNDATION_DIR/templates/child"
@@ -38,11 +39,24 @@ render_template() {
 }
 
 render_template "$TEMPLATE_DIR/.distignore" "$ROOT_DIR/.distignore"
+render_template "$TEMPLATE_DIR/.editorconfig" "$ROOT_DIR/.editorconfig"
+render_template "$TEMPLATE_DIR/.gitattributes" "$ROOT_DIR/.gitattributes"
+render_template "$TEMPLATE_DIR/.gitignore" "$ROOT_DIR/.gitignore"
+render_template "$TEMPLATE_DIR/SECURITY.md" "$ROOT_DIR/SECURITY.md"
 render_template "$TEMPLATE_DIR/CONTRIBUTING.md" "$ROOT_DIR/CONTRIBUTING.md"
+render_template "$TEMPLATE_DIR/uninstall.php.example" "$ROOT_DIR/uninstall.php.example"
+
+if [ ! -f "$ROOT_DIR/CHANGELOG.md" ] && [ -f "$TEMPLATE_DIR/CHANGELOG.md" ]; then
+  render_template "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
+fi
+
+if [ ! -f "$ROOT_DIR/.wp-plugin-base-security-suppressions.json" ] && [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
+  render_template "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" "$ROOT_DIR/.wp-plugin-base-security-suppressions.json"
+fi
 
 while IFS= read -r template_file; do
   [ -n "$template_file" ] || continue
-  relative_path="${template_file#$TEMPLATE_DIR/}"
+  relative_path="${template_file#"$TEMPLATE_DIR"/}"
 
   if [ "$relative_path" = ".github/CODEOWNERS" ] && [ -z "$CODEOWNERS_REVIEWERS" ]; then
     rm -f "$ROOT_DIR/$relative_path"
@@ -53,6 +67,8 @@ while IFS= read -r template_file; do
 done < <(find "$TEMPLATE_DIR/.github" -type f | sort)
 
 QUALITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/quality-pack"
+SECURITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/security-pack"
+QIT_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/qit-pack"
 
 if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
   rm -f "$ROOT_DIR/tests/test-plugin-loads.php"
@@ -60,7 +76,7 @@ if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
 
   while IFS= read -r template_file; do
     [ -n "$template_file" ] || continue
-    relative_path="${template_file#$QUALITY_PACK_TEMPLATE_DIR/}"
+    relative_path="${template_file#"$QUALITY_PACK_TEMPLATE_DIR"/}"
     destination_path="$ROOT_DIR/$relative_path"
 
     if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED"; then
@@ -76,6 +92,40 @@ if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
     find "$ROOT_DIR/bin" -type d -empty -delete 2>/dev/null || true
     find "$ROOT_DIR/tests" -type d -empty -delete 2>/dev/null || true
   fi
+fi
+
+if [ -d "$SECURITY_PACK_TEMPLATE_DIR" ]; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$SECURITY_PACK_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+
+    if wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED"; then
+      render_template "$template_file" "$destination_path"
+      continue
+    fi
+
+    rm -f "$destination_path"
+  done < <(find "$SECURITY_PACK_TEMPLATE_DIR" -type f | sort)
+
+  if ! wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED"; then
+    find "$ROOT_DIR/.wp-plugin-base-security-pack" -type d -empty -delete 2>/dev/null || true
+  fi
+fi
+
+if [ -d "$QIT_PACK_TEMPLATE_DIR" ]; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$QIT_PACK_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+
+    if wp_plugin_base_is_true "$WOOCOMMERCE_QIT_ENABLED"; then
+      render_template "$template_file" "$destination_path"
+      continue
+    fi
+
+    rm -f "$destination_path"
+  done < <(find "$QIT_PACK_TEMPLATE_DIR" -type f | sort)
 fi
 
 echo "Synchronized managed project files."
