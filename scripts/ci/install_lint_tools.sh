@@ -200,8 +200,19 @@ import pathlib
 import sys
 
 prefix = pathlib.Path(sys.argv[1])
-version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-print(prefix / "lib" / version / "site-packages")
+lib_dir = prefix / "lib"
+
+for candidate in sorted(lib_dir.glob("python*/site-packages")):
+    if candidate.exists():
+        print(candidate)
+        raise SystemExit(0)
+
+for candidate in sorted(lib_dir.glob("python*/dist-packages")):
+    if candidate.exists():
+        print(candidate)
+        raise SystemExit(0)
+
+raise SystemExit("Unable to locate Python site-packages directory under prefix")
 EOF
   )"
 fi
