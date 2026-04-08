@@ -158,6 +158,7 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/release/sign_release.sh "$RELEASE_FIXTURE/dist/standard-plugin.zip" "$RELEASE_FIXTURE/dist/standard-plugin.zip.sigstore.json"
+          # Smoke flow intentionally permits pull-request and branch refs while exercising release scripts from CI.
           cosign verify-blob \
             --bundle "$RELEASE_FIXTURE/dist/standard-plugin.zip.sigstore.json" \
             --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/(heads/.+|pull/.+/merge)$" \
@@ -177,6 +178,7 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/release/sign_release.sh "$RELEASE_FIXTURE/dist/foundation-release.json" "$RELEASE_FIXTURE/dist/foundation-release.json.sigstore.json"
+          # Smoke flow intentionally permits pull-request and branch refs while exercising release scripts from CI.
           cosign verify-blob \
             --bundle "$RELEASE_FIXTURE/dist/foundation-release.json.sigstore.json" \
             --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/(heads/.+|pull/.+/merge)$" \

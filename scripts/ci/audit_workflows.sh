@@ -221,20 +221,58 @@ else
   fi
 fi
 
+declare -a default_allowed_hosts=(
+  'api.github.com'
+  'github.com'
+  'uploads.github.com'
+  'plugins.svn.wordpress.org'
+  'token.actions.githubusercontent.com'
+)
+
+declare -a extra_allowed_hosts=()
+if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
+  while IFS= read -r host; do
+    host="$(printf '%s' "$host" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$host" ] || continue
+    if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+      echo "Invalid host in EXTRA_ALLOWED_HOSTS: $host" >&2
+      exit 1
+    fi
+    extra_allowed_hosts+=("$host")
+  done < <(printf '%s\n' "$EXTRA_ALLOWED_HOSTS" | tr ',' '\n')
+fi
+
+host_is_allowlisted() {
+  local host="$1"
+  local candidate
+
+  for candidate in "${default_allowed_hosts[@]}"; do
+    if [ "$host" = "$candidate" ]; then
+      return 0
+    fi
+  done
+
+  if [ "${#extra_allowed_hosts[@]}" -gt 0 ]; then
+    for candidate in "${extra_allowed_hosts[@]}"; do
+      if [ "$host" = "$candidate" ]; then
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
 while IFS=: read -r file line url; do
   [ -n "$url" ] || continue
   host="${url#https://}"
   host="${host#http://}"
   host="${host%%/*}"
   host="${host%%\$\{*}"
-  case "$host" in
-    api.github.com|github.com|uploads.github.com|plugins.svn.wordpress.org|token.actions.githubusercontent.com)
-      ;;
-    *)
-      echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
-      exit 1
-      ;;
-  esac
+  if ! host_is_allowlisted "$host"; then
+    echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
+    exit 1
+  fi
 done < <(perl -ne 'while (m{(https?://[^\s"'\''()]+)}g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
 
 while IFS=: read -r file line content; do

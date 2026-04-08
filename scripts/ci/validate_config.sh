@@ -122,6 +122,12 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
     validate_optional_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
   fi
 
+  if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
+    while IFS= read -r host; do
+      validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
+    done < <(wp_plugin_base_csv_to_lines "$EXTRA_ALLOWED_HOSTS")
+  fi
+
   validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
   validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'

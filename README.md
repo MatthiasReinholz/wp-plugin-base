@@ -165,6 +165,8 @@ Release publishing now emits three independent trust artifacts:
 - CycloneDX SBOM for the packaged release contents
 - Sigstore keyless bundle for the released blob
 
+Use `bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh <owner/repo> <artifact-path> <bundle-path> plugin` for strict consumer verification against the expected release workflows.
+
 The foundation repository also runs an OpenSSF `scorecard` workflow on the default branch and publishes SARIF findings to GitHub code scanning.
 
 ## Recommended GitHub Actions Policy
@@ -212,6 +214,8 @@ Optional keys:
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
 - `WOOCOMMERCE_QIT_ENABLED`
+- `EXTRA_ALLOWED_HOSTS`
+- `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`
 - `PACKAGE_INCLUDE`
 - `PACKAGE_EXCLUDE`
 - `CHANGELOG_HEADING`
@@ -226,11 +230,15 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 
 `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack with PHPCS, PHPStan, PHPUnit, and Composer audit checks.
 
-`WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks REST routes that use `permission_callback => __return_true`, and audits root Composer/npm runtime dependencies when lock files are present.
+`WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
+
+Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) to declare intentional public endpoint exceptions with mandatory justification.
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 
-`WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and defaults to a pinned `woocommerce/qit-cli` version.
+`WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
+
+`EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
 ## WordPress.org Deploy
 
@@ -246,7 +254,7 @@ To enable it in your project:
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
 
-For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. Readiness validation now warns when WordPress.org deploy is enabled but the environment cannot be verified or does not appear to require reviewers.
+For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. CI and release readiness checks now fail when WordPress.org deploy is enabled and reviewer protection cannot be verified.
 
 ## Guides
 
@@ -254,6 +262,7 @@ For stronger review on production publishing, protect the deployment environment
 - [Existing project migration](docs/existing-project-migration.md)
 - [Product layers](docs/layers.md)
 - [Security model](docs/security-model.md)
+- [Secure plugin coding contract](docs/secure-plugin-coding-contract.md)
 - [Compatibility and public contract](docs/compatibility.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Changelog policy](docs/changelog-policy.md)

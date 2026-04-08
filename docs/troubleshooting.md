@@ -52,6 +52,16 @@ In that case, an organization owner must allow it first:
 
 If you do not have organization admin access, ask an organization owner to make that change.
 
+## Readiness Fails On Deployment Environment Protection
+
+When `WP_ORG_DEPLOY_ENABLED=true`, CI/release readiness now enforces deployment environment protection in strict mode.
+
+If readiness fails with reviewer-protection errors:
+
+- confirm `PRODUCTION_ENVIRONMENT` exists in the repository
+- require at least one reviewer on that environment
+- ensure the readiness step has `GH_TOKEN` available so it can query environment protection rules
+
 ## Foundation Self-Update Cannot Open A PR
 
 If `update-foundation` detects a newer version but fails during pull request creation, check both of these:

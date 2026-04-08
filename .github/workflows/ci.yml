@@ -121,18 +121,37 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
           GH_TOKEN: ${{ github.token }}
+          WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP: 'true'
+          WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION: 'true'
           WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
         run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
 
+      - name: Run Semgrep security scan
+        if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        id: semgrep
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          tools_dir="$RUNNER_TEMP/wp-plugin-base-tools"
+          bash .wp-plugin-base/scripts/ci/install_lint_tools.sh "$tools_dir" semgrep
+          export PATH="$tools_dir:$PATH"
+          bash .wp-plugin-base/scripts/ci/run_semgrep_security.sh "${{ inputs.config_path }}" "dist/semgrep-security.sarif"
+
       - name: Assert Semgrep SARIF exists
-        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
         run: test -s dist/semgrep-security.sarif
 
       - name: Upload Semgrep SARIF
-        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
         uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc
         with:
           sarif_file: dist/semgrep-security.sarif
+
+      - name: Fail when Semgrep reports findings
+        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' && steps.semgrep.outcome != 'success' }}
+        run: |
+          echo "Semgrep reported security findings. Review uploaded SARIF results." >&2
+          exit 1
 
   php-runtime-smoke:
     name: PHP runtime smoke (PHP ${{ matrix.php-version }})

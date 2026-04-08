@@ -25,3 +25,5 @@ Do not hand-edit those files in your project unless you are intentionally diverg
 `finalize-release.yml` is the standard automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` keeps GitHub Actions pins moving through reviewable PRs. `.github/CODEOWNERS` is optional so projects can choose whether workflow, script, and dependency-file changes require explicit reviewer ownership.
 
 If a project does not already have a `CHANGELOG.md`, sync also seeds one from the child template. After that initial creation, the project owns its changelog content.
+
+If a project does not already have `.wp-plugin-base-security-suppressions.json`, sync seeds it with an empty suppression set. After that initial creation, the project owns suppression entries and justifications.

@@ -50,6 +50,10 @@ if [ ! -f "$ROOT_DIR/CHANGELOG.md" ] && [ -f "$TEMPLATE_DIR/CHANGELOG.md" ]; the
   render_template "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
 fi
 
+if [ ! -f "$ROOT_DIR/.wp-plugin-base-security-suppressions.json" ] && [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
+  render_template "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" "$ROOT_DIR/.wp-plugin-base-security-suppressions.json"
+fi
+
 while IFS= read -r template_file; do
   [ -n "$template_file" ] || continue
   relative_path="${template_file#"$TEMPLATE_DIR"/}"

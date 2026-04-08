@@ -8,10 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 EXTENSION_SLUG="${1:-}"
 TEST_SUITES="${2:-activation,security,validation,phpcompatibility,phpstan}"
-QIT_CLI_CONSTRAINT="${3:-1.1.8}"
+QIT_CLI_VERSION='1.1.8'
 
 if [ -z "$EXTENSION_SLUG" ]; then
-  echo "Usage: $0 <extension-slug> [test-suites] [qit-cli-constraint]" >&2
+  echo "Usage: $0 <extension-slug> [test-suites]" >&2
   exit 1
 fi
 
@@ -36,7 +36,7 @@ trap cleanup EXIT
 export COMPOSER_HOME="$COMPOSER_HOME_DIR"
 export PATH="$COMPOSER_HOME_DIR/vendor/bin:$PATH"
 
-composer global require --no-interaction --no-progress "woocommerce/qit-cli:${QIT_CLI_CONSTRAINT}" >/dev/null
+composer global require --no-interaction --no-progress "woocommerce/qit-cli:${QIT_CLI_VERSION}" >/dev/null
 
 while IFS= read -r suite; do
   [ -n "$suite" ] || continue

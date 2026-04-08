@@ -2,6 +2,9 @@
 /.wp-plugin-base export-ignore
 /.wp-plugin-base.env export-ignore
 /.wp-plugin-base-quality-pack export-ignore
+/.wp-plugin-base-security-pack export-ignore
+/.phpcs-security.xml.dist export-ignore
+/.wp-plugin-base-security-suppressions.json export-ignore
 /bin export-ignore
 /dist export-ignore
 /node_modules export-ignore

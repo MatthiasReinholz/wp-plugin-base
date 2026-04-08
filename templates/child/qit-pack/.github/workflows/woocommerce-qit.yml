@@ -12,11 +12,6 @@ on:
         required: false
         default: 'activation,security,validation,phpcompatibility,phpstan'
         type: string
-      qit_cli_constraint:
-        description: 'Composer constraint for woocommerce/qit-cli'
-        required: false
-        default: '1.1.8'
-        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -47,5 +42,4 @@ jobs:
         run: |
           bash .wp-plugin-base/scripts/ci/run_woocommerce_qit.sh \
             "${{ github.event.inputs.extension_slug }}" \
-            "${{ github.event.inputs.test_suites }}" \
-            "${{ github.event.inputs.qit_cli_constraint }}"
+            "${{ github.event.inputs.test_suites }}"

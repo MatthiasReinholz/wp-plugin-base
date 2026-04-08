@@ -62,6 +62,9 @@ The hardened baseline only allows workflow/script references to:
 - `github.com`
 - `uploads.github.com`
 - `plugins.svn.wordpress.org`
+- `token.actions.githubusercontent.com`
+
+Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only and keep this list minimal.
 
 Ubuntu package mirrors are only expected indirectly when the workflow installs Subversion with `apt-get`.
 
@@ -92,18 +95,47 @@ Release workflows now also attach a CycloneDX SBOM for the packaged artifact con
 - SBOM answers "what dependencies and packages were present in the released contents?"
 - cosign bundle answers "can I verify this exact release blob independently with Sigstore tooling?"
 
-Example verification flow for a released plugin ZIP:
+Strict verification flow for a released plugin ZIP:
 
 ```bash
 gh release download <tag> --pattern '<plugin-zip>' --pattern '<plugin-zip>.sigstore.json'
-cosign verify-blob \
-  --bundle <plugin-zip>.sigstore.json \
-  --certificate-identity-regexp '^https://github.com/<owner>/<repo>/.github/workflows/.+@refs/.+$' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  <plugin-zip>
+bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh \
+  <owner>/<repo> \
+  <plugin-zip> \
+  <plugin-zip>.sigstore.json \
+  plugin
 ```
 
+The strict verifier only trusts signatures produced by the expected release workflows on `refs/heads/main` or `refs/heads/master`. The broader identity regex remains limited to foundation smoke tests that intentionally simulate multiple invocation contexts.
+
 The foundation repository's `scorecard` workflow publishes Scorecard SARIF results to the GitHub Security tab on the default branch. That provides an external, machine-generated view of branch protection, token permissions, dependency update posture, and related repository hygiene.
+
+## Public Endpoint Suppressions
+
+`scripts/ci/scan_wordpress_authorization_patterns.sh` blocks risky public endpoint patterns by default:
+
+- `wp_ajax_nopriv_*`
+- `admin_post_nopriv_*`
+- REST routes with `permission_callback => __return_true`
+
+Intentional exceptions must be declared in `.wp-plugin-base-security-suppressions.json` (or a custom path via `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) using this structure:
+
+```json
+{
+  "suppressions": [
+    {
+      "kind": "wp_ajax_nopriv",
+      "identifier": "my_public_action",
+      "path": "includes/class-public-endpoints.php",
+      "justification": "Explain why public access is required and what guards make it safe."
+    }
+  ]
+}
+```
+
+Suppressions without non-empty justifications are rejected. Supported `kind` values are `wp_ajax_nopriv`, `admin_post_nopriv`, and `rest_permission_callback_true`.
+
+For agent-oriented implementation guidance, see [Secure plugin coding contract](secure-plugin-coding-contract.md).
 
 ## Secrets And Environments
 

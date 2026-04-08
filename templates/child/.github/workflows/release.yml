@@ -73,6 +73,7 @@ jobs:
         if: ${{ steps.config.outputs.wordpress_readiness_enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION: 'true'
           WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
         run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh ".wp-plugin-base.env"
 

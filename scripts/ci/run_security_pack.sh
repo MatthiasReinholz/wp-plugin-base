@@ -24,11 +24,14 @@ TOOLS_DIR="$ROOT_DIR/.wp-plugin-base-security-pack"
 COMPOSER_WORK_DIR="$(mktemp -d)"
 COMPOSER_CACHE_DIR="$(mktemp -d)"
 NPM_CACHE_DIR="$(mktemp -d)"
-SEMGREP_TOOLS_DIR="$(mktemp -d)"
+SEMGREP_TOOLS_DIR=''
 SEMGREP_SARIF_PATH="$ROOT_DIR/dist/semgrep-security.sarif"
 
 cleanup() {
-  rm -rf "$COMPOSER_WORK_DIR" "$COMPOSER_CACHE_DIR" "$NPM_CACHE_DIR" "$SEMGREP_TOOLS_DIR"
+  rm -rf "$COMPOSER_WORK_DIR" "$COMPOSER_CACHE_DIR" "$NPM_CACHE_DIR"
+  if [ -n "$SEMGREP_TOOLS_DIR" ]; then
+    rm -rf "$SEMGREP_TOOLS_DIR"
+  fi
 }
 
 trap cleanup EXIT
@@ -54,14 +57,18 @@ docker run --rm \
   "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
   install --no-interaction --no-progress --prefer-dist >/dev/null
 
-bash "$SCRIPT_DIR/install_lint_tools.sh" "$SEMGREP_TOOLS_DIR" semgrep >/dev/null
-export PATH="$SEMGREP_TOOLS_DIR:$PATH"
-
 php "$COMPOSER_WORK_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs-security.xml.dist"
-bash "$SCRIPT_DIR/run_semgrep_security.sh" "$CONFIG_OVERRIDE" "$SEMGREP_SARIF_PATH"
-if [ ! -s "$SEMGREP_SARIF_PATH" ]; then
-  echo "Security pack did not produce the expected Semgrep SARIF report: $SEMGREP_SARIF_PATH" >&2
-  exit 1
+if wp_plugin_base_is_true "${WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP:-false}"; then
+  echo "Semgrep pass is delegated to a separate step; skipping Semgrep execution in security pack."
+else
+  SEMGREP_TOOLS_DIR="$(mktemp -d)"
+  bash "$SCRIPT_DIR/install_lint_tools.sh" "$SEMGREP_TOOLS_DIR" semgrep >/dev/null
+  export PATH="$SEMGREP_TOOLS_DIR:$PATH"
+  bash "$SCRIPT_DIR/run_semgrep_security.sh" "$CONFIG_OVERRIDE" "$SEMGREP_SARIF_PATH"
+  if [ ! -s "$SEMGREP_SARIF_PATH" ]; then
+    echo "Security pack did not produce the expected Semgrep SARIF report: $SEMGREP_SARIF_PATH" >&2
+    exit 1
+  fi
 fi
 bash "$SCRIPT_DIR/scan_wordpress_authorization_patterns.sh" "$CONFIG_OVERRIDE"
 
