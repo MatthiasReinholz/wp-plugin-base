@@ -10,13 +10,14 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker
 
 quality_fixture=""
+strict_plugin_check_fixture=""
 metadata_fixture=""
 deploy_fixture=""
 wp_build_fixture=""
 pot_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
 }
 
 trap cleanup EXIT
@@ -29,6 +30,17 @@ mkdir -p "$quality_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$quality_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
+
+strict_plugin_check_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$strict_plugin_check_fixture/"
+mkdir -p "$strict_plugin_check_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$strict_plugin_check_fixture/.wp-plugin-base/"
+cat >> "$strict_plugin_check_fixture/.wp-plugin-base.env" <<'EOF'
+WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
+WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES=security
+EOF
+WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
 
 metadata_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$metadata_fixture/"

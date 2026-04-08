@@ -168,6 +168,7 @@ Release publishing now emits three independent trust artifacts:
 Use `bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh <owner/repo> <artifact-path> <bundle-path> plugin` for strict consumer verification against the expected release workflows.
 
 The foundation repository also runs an OpenSSF `scorecard` workflow on the default branch and publishes SARIF findings to GitHub code scanning.
+It also includes a scheduled `update-plugin-check` workflow that proposes PRs for compatible new `WordPress/plugin-check` releases.
 
 ## Recommended GitHub Actions Policy
 
@@ -214,6 +215,14 @@ Optional keys:
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
 - `WOOCOMMERCE_QIT_ENABLED`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY`
+- `WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY`
 - `EXTRA_ALLOWED_HOSTS`
 - `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`
 - `PACKAGE_INCLUDE`
@@ -233,6 +242,15 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
 Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) to declare intentional public endpoint exceptions with mandatory justification.
+
+`WP_PLUGIN_BASE_PLUGIN_CHECK_*` keys provide optional policy controls for Plugin Check execution during WordPress readiness validation:
+
+- `..._CHECKS` runs only specific checks.
+- `..._EXCLUDE_CHECKS` excludes specific checks.
+- `..._CATEGORIES` filters checks by categories such as `plugin_repo,security`.
+- `..._IGNORE_CODES` ignores specific Plugin Check result codes.
+- `..._STRICT_WARNINGS=true` fails readiness validation on warnings in addition to errors.
+- `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 

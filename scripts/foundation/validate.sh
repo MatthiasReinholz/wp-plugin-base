@@ -14,6 +14,8 @@ forbidden_fixture=""
 managed_security_child=""
 authorization_fixture=""
 deploy_protection_fixture=""
+plugin_check_release_fixture=""
+plugin_check_resolve_output=""
 
 while IFS= read -r file; do
   bash -n "$file"
@@ -57,7 +59,7 @@ for fixture_name in standard-plugin nonstandard-plugin; do
 done
 
 managed_child="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output"' EXIT
 mkdir -p "$managed_child/.wp-plugin-base"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$managed_child/"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_child/.wp-plugin-base/"
@@ -108,6 +110,45 @@ grep -Fq 'Run Semgrep security scan' "$managed_security_child/.github/workflows/
 grep -Fq "if: \${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}" "$managed_security_child/.github/workflows/ci.yml"
 grep -Fq "WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP: 'true'" "$managed_security_child/.github/workflows/ci.yml"
 grep -Fq 'php-runtime-smoke:' "$managed_security_child/.github/workflows/ci.yml"
+grep -Fq '/plugin-check/cli.php' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
+grep -Fq -- '--require="$plugin_check_cli_bootstrap"' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
+grep -Fq 'resolve_latest_plugin_check_version.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
+
+plugin_check_release_fixture="$(mktemp)"
+cat > "$plugin_check_release_fixture" <<'EOF'
+[
+  {
+    "tag_name": "1.9.0",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "1.9.1",
+    "draft": true,
+    "prerelease": false
+  },
+  {
+    "tag_name": "1.10.0",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "2.0.0",
+    "draft": false,
+    "prerelease": false
+  }
+]
+EOF
+
+plugin_check_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+grep -Fxq 'update_needed=true' "$plugin_check_resolve_output"
+grep -Fxq 'version=1.10.0' "$plugin_check_resolve_output"
+
+plugin_check_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.10.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
+grep -Fxq 'version=' "$plugin_check_resolve_output"
 
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
@@ -329,7 +370,7 @@ fi
 rm -rf "$zip_fixture"
 
 forbidden_fixture="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output"' EXIT
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$forbidden_fixture/"
 mkdir -p "$forbidden_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"
