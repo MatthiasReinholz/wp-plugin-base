@@ -1,28 +1,21 @@
 # Changelog
 
-## v1.3.0
-
-* feat: finalize PR17 security hardening and release readiness
-* fix: isolate Python CI tools in a virtualenv
-* fix: exclude managed dev dotfiles from plugin packages
-* fix: discover installed Python tool paths dynamically
-* fix: support dist-packages in lint tool installer
-* feat: strengthen child plugin security validation
-* tooling updates
-* Relax rg dependency in foundation validation
-* Add WordPress readiness, quality pack, and supply-chain hardening
-
 ## Unreleased
 
-* Make Semgrep SARIF upload reliable by splitting scan/upload/fail phases in CI and preserving SARIF even when findings occur.
-* Minimize the security pack toolchain and lockfile footprint to keep security validation focused and lightweight.
-* Add strict Sigstore bundle verification tooling and documentation for consumers, and tighten verifier identity matching.
-* Enforce strict deployment environment reviewer checks in CI/release readiness paths.
-* Introduce justified suppression flow for intentional public endpoints and tighten authorization-pattern scanning semantics.
-* Add configurable workflow URL host allowlist extensions via `EXTRA_ALLOWED_HOSTS` while keeping strict defaults.
-* Remove mutable WooCommerce QIT CLI version input to preserve reproducibility and pinned dependency behavior.
-* Improve packaging hygiene for child templates (`export-ignore` and dist exclusions for security-pack internals).
-* Add coding-agent-first secure plugin coding contract guidance for Codex/Claude style agent workflows.
+* No unreleased changes yet.
+
+## v1.3.0
+
+* Strengthen WordPress plugin security validation with Semgrep SARIF reporting, high-signal authorization pattern checks, and justified suppression workflow.
+* Introduce a minimal, focused security pack and reduce toolchain/lockfile bloat for faster, clearer security checks.
+* Add strict Sigstore consumer verification tooling and tighten release identity verification contracts.
+* Enforce deployment-environment reviewer protection in strict CI/release readiness mode.
+* Add SBOM and release-signing smoke validation in foundation CI.
+* Extend workflow URL-host audit policy with controlled `EXTRA_ALLOWED_HOSTS` overrides.
+* Remove mutable WooCommerce QIT CLI version input to improve reproducibility.
+* Improve packaging hygiene for child templates and managed security artifacts.
+* Add coding-agent-first secure plugin coding contract documentation for Codex/Claude style workflows.
+* Improve CI tooling robustness (Python tool isolation, safer lint/install handling, and readiness regression coverage).
 
 ## v1.2.3
 
