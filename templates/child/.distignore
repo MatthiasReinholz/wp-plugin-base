@@ -8,6 +8,8 @@
 /scripts
 /.distignore
 /.gitignore
+/.gitattributes
+/.editorconfig
 /CONTRIBUTING.md
 /README.md
 /bin
