@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.0
+
+* feat: finalize PR17 security hardening and release readiness
+* fix: isolate Python CI tools in a virtualenv
+* fix: exclude managed dev dotfiles from plugin packages
+* fix: discover installed Python tool paths dynamically
+* fix: support dist-packages in lint tool installer
+* feat: strengthen child plugin security validation
+* tooling updates
+* Relax rg dependency in foundation validation
+* Add WordPress readiness, quality pack, and supply-chain hardening
+
 ## Unreleased
 
 * Make Semgrep SARIF upload reliable by splitting scan/upload/fail phases in CI and preserving SARIF even when findings occur.
