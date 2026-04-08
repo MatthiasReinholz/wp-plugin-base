@@ -100,10 +100,10 @@ fi
 mkdir -p "$DEST_DIR"
 TMP_DIR="$(mktemp -d)"
 PYTHON_PREFIX_DIR="$DEST_DIR/.python-tools"
+PYTHON_VENV_DIR="$DEST_DIR/.python-tools-venv"
 NODE_TOOLS_DIR="$DEST_DIR/.node-tools"
 PIP_CACHE_DIR="$TMP_DIR/pip-cache"
 NPM_CACHE_DIR="$TMP_DIR/npm-cache"
-PYTHON_SITE_PACKAGES_DIR=''
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -113,6 +113,7 @@ trap cleanup EXIT
 
 rm -rf "$PYTHON_PREFIX_DIR"
 mkdir -p "$PYTHON_PREFIX_DIR"
+rm -rf "$PYTHON_VENV_DIR"
 rm -rf "$NODE_TOOLS_DIR"
 mkdir -p "$NODE_TOOLS_DIR"
 
@@ -167,6 +168,7 @@ if tool_requested gitleaks; then
 fi
 
 if tool_requested yamllint || tool_requested codespell || tool_requested semgrep; then
+  python3 -m venv "$PYTHON_VENV_DIR"
   python_packages=()
   if tool_requested yamllint; then
     python_packages+=("yamllint==${YAMLLINT_VERSION}")
@@ -178,10 +180,9 @@ if tool_requested yamllint || tool_requested codespell || tool_requested semgrep
     python_packages+=("semgrep==${SEMGREP_VERSION}")
   fi
 
-  python3 -m pip install \
+  "$PYTHON_VENV_DIR/bin/python" -m pip install \
     --disable-pip-version-check \
     --no-input \
-    --prefix "$PYTHON_PREFIX_DIR" \
     --cache-dir "$PIP_CACHE_DIR" \
     "${python_packages[@]}" >/dev/null
 fi
@@ -193,30 +194,11 @@ if tool_requested markdownlint-cli2; then
   )
 fi
 
-if tool_requested yamllint || tool_requested codespell || tool_requested semgrep; then
-  PYTHON_SITE_PACKAGES_DIR="$(
-    python3 - <<'EOF' "$PYTHON_PREFIX_DIR"
-import pathlib
-import sys
-
-prefix = pathlib.Path(sys.argv[1])
-module_markers = ("yamllint", "codespell_lib", "semgrep")
-
-for candidate in sorted(prefix.rglob("*")):
-    if candidate.name in module_markers and candidate.is_dir():
-        print(candidate.parent)
-        raise SystemExit(0)
-
-raise SystemExit("Unable to locate installed Python tool modules under prefix")
-EOF
-  )"
-fi
-
 if tool_requested yamllint; then
   cat > "$DEST_DIR/yamllint" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-PYTHONPATH="$PYTHON_SITE_PACKAGES_DIR\${PYTHONPATH:+:\$PYTHONPATH}" exec python3 -m yamllint "\$@"
+exec "$PYTHON_VENV_DIR/bin/yamllint" "\$@"
 EOF
   chmod +x "$DEST_DIR/yamllint"
 fi
@@ -225,7 +207,7 @@ if tool_requested semgrep; then
   cat > "$DEST_DIR/semgrep" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-PATH="$PYTHON_PREFIX_DIR/bin:\$PATH" PYTHONPATH="$PYTHON_SITE_PACKAGES_DIR\${PYTHONPATH:+:\$PYTHONPATH}" exec python3 "$PYTHON_PREFIX_DIR/bin/semgrep" "\$@"
+exec "$PYTHON_VENV_DIR/bin/semgrep" "\$@"
 EOF
   chmod +x "$DEST_DIR/semgrep"
 fi
@@ -234,7 +216,7 @@ if tool_requested codespell; then
   cat > "$DEST_DIR/codespell" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-PYTHONPATH="$PYTHON_SITE_PACKAGES_DIR\${PYTHONPATH:+:\$PYTHONPATH}" exec python3 -m codespell_lib "\$@"
+exec "$PYTHON_VENV_DIR/bin/codespell" "\$@"
 EOF
   chmod +x "$DEST_DIR/codespell"
 fi
