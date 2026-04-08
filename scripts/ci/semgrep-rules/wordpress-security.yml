@@ -1,0 +1,44 @@
+rules:
+  - id: wp-rest-permission-callback-true-string
+    languages:
+      - php
+    message: REST routes should not use permission_callback => '__return_true' without explicit security review.
+    severity: ERROR
+    patterns:
+      - pattern: register_rest_route(..., [..., 'permission_callback' => '__return_true', ...], ...)
+
+  - id: wp-rest-permission-callback-true-callback
+    languages:
+      - php
+    message: REST routes should not use a permission callback that unconditionally returns true.
+    severity: ERROR
+    patterns:
+      - pattern: |
+          register_rest_route(
+            ...,
+            [
+              ...,
+              'permission_callback' => function (...) {
+                ...
+                return true;
+              },
+              ...,
+            ],
+            ...
+          )
+
+  - id: wp-ajax-nopriv-handler-review
+    languages:
+      - php
+    message: Public wp_ajax_nopriv_* handlers require explicit nonce, validation, and capability review.
+    severity: ERROR
+    patterns:
+      - pattern: add_action('wp_ajax_nopriv_$ACTION', ...)
+
+  - id: wp-admin-post-nopriv-handler-review
+    languages:
+      - php
+    message: Public admin_post_nopriv_* handlers require explicit nonce, validation, and capability review.
+    severity: ERROR
+    patterns:
+      - pattern: add_action('admin_post_nopriv_$ACTION', ...)

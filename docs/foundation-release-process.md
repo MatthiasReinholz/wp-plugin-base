@@ -19,6 +19,9 @@ The foundation now uses the same staged release model as the plugin repos.
 4. `finalize-foundation-release` creates the annotated tag and publishes the GitHub Release in the same workflow.
 5. The finalize workflow also uploads a signed release-metadata asset and GitHub build attestation for update provenance checks.
 6. `release-foundation` is only the manual recovery workflow for an already existing tag.
+7. Review the generated changelog entry before merge and expand it when the default notes are too thin for downstream consumers.
+
+For plugin repositories that set `POT_FILE`, release preparation also regenerates the translation template before the release PR is opened.
 
 Only after the GitHub Release exists should projects auto-update to that version.
 

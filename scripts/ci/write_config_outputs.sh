@@ -37,10 +37,13 @@ case "$OUTPUT_SCOPE" in
       echo "plugin_name=${PLUGIN_NAME}"
       echo "zip_file=${ZIP_FILE}"
       echo "php_version=${PHP_VERSION}"
+      echo "php_runtime_matrix=${PHP_RUNTIME_MATRIX}"
+      echo "php_runtime_matrix_mode=${PHP_RUNTIME_MATRIX_MODE}"
       echo "node_version=${NODE_VERSION}"
       echo "wordpress_org_slug=${WORDPRESS_ORG_SLUG:-}"
       echo "wordpress_readiness_enabled=${WORDPRESS_READINESS_ENABLED}"
       echo "wordpress_quality_pack_enabled=${WORDPRESS_QUALITY_PACK_ENABLED}"
+      echo "wordpress_security_pack_enabled=${WORDPRESS_SECURITY_PACK_ENABLED}"
     } >> "$OUTPUT_PATH"
     ;;
   foundation)

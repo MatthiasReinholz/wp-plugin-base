@@ -29,6 +29,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: ${{ inputs.production_environment }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
@@ -72,6 +73,7 @@ jobs:
         if: ${{ steps.config.outputs.wordpress_readiness_enabled == 'true' }}
         env:
           BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          GH_TOKEN: ${{ github.token }}
           WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
         run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
 
@@ -93,6 +95,23 @@ jobs:
 
       - name: Generate GitHub release body
         run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}" > dist/release-body.md
+
+      - name: Install SBOM and signing tools
+        run: |
+          bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
+      - name: Generate package SBOM
+        run: |
+          bash .wp-plugin-base/scripts/release/generate_sbom.sh \
+            "dist/package/${{ steps.config.outputs.plugin_slug }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json"
+
+      - name: Sign release package
+        run: |
+          bash .wp-plugin-base/scripts/release/sign_release.sh \
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -138,7 +157,9 @@ jobs:
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \
             dist/release-body.md \
-            "dist/${{ steps.config.outputs.zip_file }}"
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
 
       - name: Install Subversion
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}

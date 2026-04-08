@@ -55,6 +55,15 @@ docker run --rm \
   "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
   install --no-interaction --no-progress --prefer-dist >/dev/null
 
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+  -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+  -v "$COMPOSER_WORK_DIR":/workspace \
+  -w /workspace \
+  "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+  audit --locked --no-interaction --no-dev
+
 cat > "$PHPSTAN_CONFIG" <<EOF
 includes:
   - '$COMPOSER_WORK_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon'

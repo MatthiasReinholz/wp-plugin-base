@@ -13,6 +13,7 @@ If that fails before any repo checks run, the most common causes are:
 - a missing command such as `ruby`, `jq`, `rsync`, `zip`, `gh`, or `svn`
 - an invalid `.wp-plugin-base.env` value
 - a missing `MAIN_PLUGIN_FILE`, `README_FILE`, or optional `POT_FILE`
+- forbidden repository files such as `.DS_Store`, `Thumbs.db`, `.idea/`, `.vscode/`, or transient debug logs
 
 The validation scripts now fail fast and identify the missing tool or invalid config key directly.
 

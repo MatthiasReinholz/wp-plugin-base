@@ -33,6 +33,7 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 
 - Set `VERSION_CONSTANT_NAME` when the plugin stores its version in a named constant.
 - Set `POT_FILE` and `POT_PROJECT_NAME` when the translation template exists and should be updated during release prep.
+- Keep project-local `.gitignore` aligned with the managed ignore template so transient files such as `.DS_Store`, editor metadata, and debug logs never enter the repository.
 - Set `PACKAGE_INCLUDE` when packaging must be restricted to a specific subset of repo files.
 - Set `PACKAGE_EXCLUDE` when repo-specific development paths must stay out of the install ZIP.
 

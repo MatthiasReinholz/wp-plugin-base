@@ -14,5 +14,10 @@
 /phpstan.neon.dist
 /phpunit.xml.dist
 /.phpcs.xml.dist
+/.phpcs-security.xml.dist
 /.wp-plugin-base-quality-pack
+/.wp-plugin-base-security-pack
+/uninstall.php.example
 /tests
+/packages
+/routes

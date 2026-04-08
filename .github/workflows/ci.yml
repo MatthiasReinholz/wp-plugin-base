@@ -18,12 +18,16 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       plugin_slug: ${{ steps.config.outputs.plugin_slug }}
       zip_file: ${{ steps.config.outputs.zip_file }}
       php_version: ${{ steps.config.outputs.php_version }}
+      php_runtime_matrix: ${{ steps.config.outputs.php_runtime_matrix }}
+      php_runtime_matrix_json: ${{ steps.matrix.outputs.php_runtime_matrix_json }}
       node_version: ${{ steps.config.outputs.node_version }}
       wordpress_readiness_enabled: ${{ steps.config.outputs.wordpress_readiness_enabled }}
+      wordpress_security_pack_enabled: ${{ steps.config.outputs.wordpress_security_pack_enabled }}
 
     steps:
       - name: Checkout
@@ -33,6 +37,19 @@ jobs:
         id: config
         shell: bash
         run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project "${{ inputs.config_path }}" "$GITHUB_OUTPUT"
+
+      - name: Resolve PHP runtime matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='${{ steps.config.outputs.php_runtime_matrix }}'
+          if [ -z "$raw" ]; then
+            echo 'php_runtime_matrix_json=[]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          json="$(printf '%s\n' "$raw" | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -cs .)"
+          echo "php_runtime_matrix_json=$json" >> "$GITHUB_OUTPUT"
 
       - name: Set up PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
@@ -56,12 +73,35 @@ jobs:
           path: dist/${{ steps.config.outputs.zip_file }}
           if-no-files-found: error
 
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install gitleaks
+        run: |
+          bash .wp-plugin-base/scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools" gitleaks
+          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
+
+      - name: Scan for secrets
+        env:
+          WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
+        run: bash .wp-plugin-base/scripts/ci/scan_secrets.sh "${{ inputs.config_path }}"
+
   wordpress-readiness:
     name: WordPress readiness
     if: ${{ needs.validate.outputs.wordpress_readiness_enabled == 'true' }}
     needs:
       - validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout
@@ -80,5 +120,47 @@ jobs:
       - name: Validate WordPress readiness
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
           WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
         run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
+
+      - name: Assert Semgrep SARIF exists
+        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        run: test -s dist/semgrep-security.sarif
+
+      - name: Upload Semgrep SARIF
+        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc
+        with:
+          sarif_file: dist/semgrep-security.sarif
+
+  php-runtime-smoke:
+    name: PHP runtime smoke (PHP ${{ matrix.php-version }})
+    if: ${{ needs.validate.outputs.php_runtime_matrix_json != '[]' }}
+    needs:
+      - validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ${{ fromJson(needs.validate.outputs.php_runtime_matrix_json) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: ${{ needs.validate.outputs.node_version }}
+
+      - name: Run PHP runtime smoke checks
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: bash .wp-plugin-base/scripts/ci/run_php_runtime_smoke.sh "${{ inputs.config_path }}" "$BRANCH_NAME"

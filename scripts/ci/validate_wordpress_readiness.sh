@@ -28,7 +28,12 @@ if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED"; then
   bash "$SCRIPT_DIR/run_quality_pack.sh" "$CONFIG_OVERRIDE"
 fi
 
+if wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED"; then
+  bash "$SCRIPT_DIR/run_security_pack.sh" "$CONFIG_OVERRIDE"
+fi
+
 if wp_plugin_base_is_true "${WP_ORG_DEPLOY_ENABLED:-false}"; then
+  bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "$CONFIG_OVERRIDE"
   version="$(wp_plugin_base_read_header_value "$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")" 'Version')"
   bash "$SCRIPT_DIR/../release/validate_wordpress_org_deploy.sh" "$version" "$CONFIG_OVERRIDE" "$ROOT_DIR/dist/package/$PLUGIN_SLUG"
 fi

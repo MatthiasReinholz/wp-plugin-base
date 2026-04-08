@@ -111,16 +111,19 @@ wp_plugin_base_load_config() {
     key="${BASH_REMATCH[1]}"
     raw_value="${BASH_REMATCH[2]}"
     parsed_value="$(wp_plugin_base_parse_config_value "$raw_value" "$CONFIG_PATH" "$line_number")"
-    printf -v "$key" '%s' "$parsed_value"
-    export "$key"
+    export "$key=$parsed_value"
   done < "$CONFIG_PATH"
 
   README_FILE="${README_FILE:-readme.txt}"
   CHANGELOG_HEADING="${CHANGELOG_HEADING:-Changelog}"
   DISTIGNORE_FILE="${DISTIGNORE_FILE:-.distignore}"
   PRODUCTION_ENVIRONMENT="${PRODUCTION_ENVIRONMENT:-production}"
+  PHP_RUNTIME_MATRIX="${PHP_RUNTIME_MATRIX:-}"
+  PHP_RUNTIME_MATRIX_MODE="${PHP_RUNTIME_MATRIX_MODE:-smoke}"
   WORDPRESS_READINESS_ENABLED="${WORDPRESS_READINESS_ENABLED:-false}"
   WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
+  WORDPRESS_SECURITY_PACK_ENABLED="${WORDPRESS_SECURITY_PACK_ENABLED:-false}"
+  WOOCOMMERCE_QIT_ENABLED="${WOOCOMMERCE_QIT_ENABLED:-false}"
 }
 
 wp_plugin_base_require_vars() {

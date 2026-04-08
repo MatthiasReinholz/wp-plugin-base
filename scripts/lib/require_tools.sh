@@ -37,11 +37,17 @@ wp_plugin_base_require_commands() {
         node)
           echo "- node: required for JavaScript syntax validation."
           ;;
+        npm)
+          echo "- npm: required for wordpress-env tooling installation and audit verification."
+          ;;
         perl)
           echo "- perl: required for template rendering and metadata rewriting."
           ;;
         php)
           echo "- php: required for PHP syntax validation."
+          ;;
+        python3)
+          echo "- python3: required for WordPress.org deployment credential handling."
           ;;
         rg)
           echo "- rg: required for workflow policy scans."

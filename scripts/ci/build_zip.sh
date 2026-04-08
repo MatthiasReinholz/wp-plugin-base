@@ -93,7 +93,8 @@ if [ ! -f "$ZIP_PATH" ]; then
 fi
 
 if command -v unzip >/dev/null 2>&1; then
-  if ! unzip -Z1 "$ZIP_PATH" | grep -q "^$PLUGIN_SLUG/$MAIN_PLUGIN_FILE$"; then
+  zip_listing="$(unzip -Z1 "$ZIP_PATH")"
+  if ! printf '%s\n' "$zip_listing" | grep -q "^$PLUGIN_SLUG/$MAIN_PLUGIN_FILE$"; then
     echo "Zip archive does not contain the expected plugin root structure." >&2
     exit 1
   fi

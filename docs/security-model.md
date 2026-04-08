@@ -21,6 +21,8 @@ The current hardened baseline allows only these external actions:
 - `actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f`
 - `actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f`
 - `actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32`
+- `github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc`
+- `ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a`
 - `shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f`
 
 The foundation intentionally does not depend on `peter-evans/create-pull-request`, `softprops/action-gh-release`, or `10up/action-wordpress-plugin-deploy`. Those duties are handled by repo-local scripts using `gh` or `svn`.
@@ -75,6 +77,33 @@ Before `update-foundation` opens a PR, it verifies:
 - the tagged commit is reachable from the foundation repository's `main`
 - the tagged commit was produced by a merged `release/vX.Y.Z` or `hotfix/vX.Y.Z` pull request into `main`
 - the release author is on the allowed author list
+
+Consumers can also verify a released plugin ZIP independently after downloading it from GitHub Releases:
+
+```bash
+gh attestation verify --owner <github-owner> path/to/plugin.zip
+```
+
+That verifies the GitHub build attestation attached to the published release artifact without relying on local trust in the release notes alone.
+
+Release workflows now also attach a CycloneDX SBOM for the packaged artifact contents and a Sigstore keyless bundle for the released blob. Those cover different trust questions:
+
+- attestation answers "was this built by the expected GitHub workflow?"
+- SBOM answers "what dependencies and packages were present in the released contents?"
+- cosign bundle answers "can I verify this exact release blob independently with Sigstore tooling?"
+
+Example verification flow for a released plugin ZIP:
+
+```bash
+gh release download <tag> --pattern '<plugin-zip>' --pattern '<plugin-zip>.sigstore.json'
+cosign verify-blob \
+  --bundle <plugin-zip>.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/<owner>/<repo>/.github/workflows/.+@refs/.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  <plugin-zip>
+```
+
+The foundation repository's `scorecard` workflow publishes Scorecard SARIF results to the GitHub Security tab on the default branch. That provides an external, machine-generated view of branch protection, token permissions, dependency update posture, and related repository hygiene.
 
 ## Secrets And Environments
 

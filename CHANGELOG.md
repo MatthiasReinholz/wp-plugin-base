@@ -2,7 +2,9 @@
 
 ## v1.2.3
 
-* supply chain hardening
+* Harden workflow and release infrastructure with stricter action pinning, tighter workflow audit coverage, and stronger foundation update provenance verification.
+* Add WordPress readiness validation, Plugin Check integration, and an opt-in PHP quality pack for child plugin repositories.
+* Make the foundation more portable by relaxing the `rg` requirement in validation paths and carrying the `tools/wordpress-env/.npmrc` policy with temporary installs.
 
 ## v1.2.2
 
