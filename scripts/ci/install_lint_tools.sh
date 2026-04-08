@@ -200,19 +200,14 @@ import pathlib
 import sys
 
 prefix = pathlib.Path(sys.argv[1])
-lib_dir = prefix / "lib"
+module_markers = ("yamllint", "codespell_lib", "semgrep")
 
-for candidate in sorted(lib_dir.glob("python*/site-packages")):
-    if candidate.exists():
-        print(candidate)
+for candidate in sorted(prefix.rglob("*")):
+    if candidate.name in module_markers and candidate.is_dir():
+        print(candidate.parent)
         raise SystemExit(0)
 
-for candidate in sorted(lib_dir.glob("python*/dist-packages")):
-    if candidate.exists():
-        print(candidate)
-        raise SystemExit(0)
-
-raise SystemExit("Unable to locate Python site-packages directory under prefix")
+raise SystemExit("Unable to locate installed Python tool modules under prefix")
 EOF
   )"
 fi
