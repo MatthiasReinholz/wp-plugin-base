@@ -73,3 +73,26 @@ wp_plugin_base_require_commands() {
 
   exit 1
 }
+
+wp_plugin_base_run_with_retry() {
+  local attempts="$1"
+  local delay_seconds="$2"
+  local context="$3"
+  shift 3
+
+  local attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+
+    if [ "$attempt" -ge "$attempts" ]; then
+      echo "${context} failed after ${attempts} attempts." >&2
+      return 1
+    fi
+
+    echo "${context} failed on attempt ${attempt}/${attempts}; retrying in ${delay_seconds}s." >&2
+    sleep "$delay_seconds"
+    attempt=$((attempt + 1))
+  done
+}
