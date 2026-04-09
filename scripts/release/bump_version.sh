@@ -32,7 +32,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-perl -0pi -e "s/^ \\* Version: .*\$/ * Version: $VERSION/m" "$PLUGIN_FILE"
+perl -0pi -e "s/^ \\* Version: .*\$/ * Version: $VERSION/m; s/^Version: .*\$/Version: $VERSION/m" "$PLUGIN_FILE"
 
 if grep -q "^Version: " "$README_PATH"; then
   perl -0pi -e "s/^Version: .*\$/Version: $VERSION/m" "$README_PATH"

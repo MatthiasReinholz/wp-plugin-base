@@ -30,10 +30,10 @@ fi
 
 case "$VERIFICATION_SCOPE" in
   plugin)
-    identity_regex="^https://github.com/${REPOSITORY}/.github/workflows/(finalize-release|release)\\.yml@refs/heads/(main|master)$"
+    identity_regex="^https://github.com/${REPOSITORY}/.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$"
     ;;
   foundation)
-    identity_regex="^https://github.com/${REPOSITORY}/.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/(main|master)$"
+    identity_regex="^https://github.com/${REPOSITORY}/.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$"
     ;;
   *)
     echo "Unsupported verification scope: $VERIFICATION_SCOPE" >&2

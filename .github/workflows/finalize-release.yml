@@ -147,21 +147,6 @@ jobs:
       - name: Create annotated tag locally
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
 
-      - name: Push tag
-        run: git push origin "${{ steps.release.outputs.version }}"
-
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          bash .wp-plugin-base/scripts/release/publish_github_release.sh \
-            "${{ steps.release.outputs.version }}" \
-            "${{ steps.release.outputs.version }}" \
-            dist/release-body.md \
-            "dist/${{ steps.config.outputs.zip_file }}" \
-            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
-            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
-
       - name: Install Subversion
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y subversion
@@ -176,3 +161,18 @@ jobs:
             "${{ steps.release.outputs.version }}" \
             "${{ inputs.config_path }}" \
             "dist/package/${{ steps.config.outputs.plugin_slug }}"
+
+      - name: Push tag
+        run: git push origin "${{ steps.release.outputs.version }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+            "${{ steps.release.outputs.version }}" \
+            "${{ steps.release.outputs.version }}" \
+            dist/release-body.md \
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"

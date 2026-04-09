@@ -106,7 +106,9 @@ bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh \
   plugin
 ```
 
-The strict verifier only trusts signatures produced by the expected release workflows on `refs/heads/main` or `refs/heads/master`. The broader identity regex remains limited to foundation smoke tests that intentionally simulate multiple invocation contexts.
+The strict verifier only trusts signatures produced by the expected release workflows on `refs/heads/main`. Foundation update verification also downloads the signed `dist-foundation-release.json` metadata asset and its Sigstore bundle, verifies the bundle, and compares the repository, version, and commit fields against the selected release before any vendored code is refreshed.
+
+If you intentionally need a different branch policy, treat it as an explicit policy change and document it in the repository that consumes the verifier.
 
 The foundation repository's `scorecard` workflow publishes Scorecard SARIF results to the GitHub Security tab on the default branch. That provides an external, machine-generated view of branch protection, token permissions, dependency update posture, and related repository hygiene.
 

@@ -6,14 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "foundation release provenance verification" curl git jq
+wp_plugin_base_require_commands "foundation release provenance verification" curl jq
 
 REPOSITORY="${1:-}"
 VERSION="${2:-}"
-FOUNDATION_DIR="${3:-}"
 
-if [ -z "$REPOSITORY" ] || [ -z "$VERSION" ] || [ -z "$FOUNDATION_DIR" ]; then
-  echo "Usage: $0 repository version foundation-dir" >&2
+if [ -z "$REPOSITORY" ] || [ -z "$VERSION" ]; then
+  echo "Usage: $0 repository version" >&2
   exit 1
 fi
 
@@ -24,6 +23,13 @@ if [ -z "$TOKEN" ]; then
 fi
 
 allowed_authors="${FOUNDATION_ALLOWED_RELEASE_AUTHORS:-github-actions[bot]}"
+WORK_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$WORK_DIR"
+}
+
+trap cleanup EXIT
 
 api() {
   local path="$1"
@@ -32,6 +38,33 @@ api() {
     -H "Authorization: Bearer ${TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "https://api.github.com${path}"
+}
+
+download_release_asset() {
+  local release_json="$1"
+  local asset_name="$2"
+  local destination_path="$3"
+  local asset_url
+
+  asset_url="$(
+    printf '%s' "$release_json" | jq -r --arg name "$asset_name" '
+      .assets[]
+      | select(.name == $name)
+      | .url
+    ' | head -n 1
+  )"
+
+  if [ -z "$asset_url" ] || [ "$asset_url" = "null" ]; then
+    echo "Foundation release ${VERSION} is missing required asset: ${asset_name}" >&2
+    exit 1
+  fi
+
+  curl -fsSL \
+    -H "Accept: application/octet-stream" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "$asset_url" \
+    -o "$destination_path"
 }
 
 release_json="$(api "/repos/${REPOSITORY}/releases/tags/${VERSION}")"
@@ -71,9 +104,44 @@ else
   commit_sha="$tag_object_sha"
 fi
 
-git -C "$FOUNDATION_DIR" fetch --depth 1 origin main >/dev/null 2>&1
-if ! git -C "$FOUNDATION_DIR" merge-base --is-ancestor "$commit_sha" FETCH_HEAD; then
-  echo "Foundation release ${VERSION} does not point to a commit on origin/main." >&2
+compare_json="$(
+  api "/repos/${REPOSITORY}/compare/${commit_sha}...main"
+)"
+compare_status="$(printf '%s' "$compare_json" | jq -r '.status')"
+
+if [ "$compare_status" != "behind" ] && [ "$compare_status" != "identical" ]; then
+  echo "Foundation release ${VERSION} does not point to a commit on main." >&2
+  exit 1
+fi
+
+metadata_path="$WORK_DIR/dist-foundation-release.json"
+sigstore_path="$WORK_DIR/dist-foundation-release.json.sigstore.json"
+
+download_release_asset "$release_json" "dist-foundation-release.json" "$metadata_path"
+download_release_asset "$release_json" "dist-foundation-release.json.sigstore.json" "$sigstore_path"
+
+bash "$SCRIPT_DIR/../release/verify_sigstore_bundle.sh" \
+  "$REPOSITORY" \
+  "$metadata_path" \
+  "$sigstore_path" \
+  foundation
+
+metadata_repository="$(jq -r '.repository // empty' "$metadata_path")"
+metadata_version="$(jq -r '.version // empty' "$metadata_path")"
+metadata_commit="$(jq -r '.commit // empty' "$metadata_path")"
+
+if [ "$metadata_repository" != "$REPOSITORY" ]; then
+  echo "Foundation release metadata repository ${metadata_repository} does not match ${REPOSITORY}." >&2
+  exit 1
+fi
+
+if [ "$metadata_version" != "$VERSION" ]; then
+  echo "Foundation release metadata version ${metadata_version} does not match ${VERSION}." >&2
+  exit 1
+fi
+
+if [ "$metadata_commit" != "$commit_sha" ]; then
+  echo "Foundation release metadata commit ${metadata_commit} does not match ${commit_sha}." >&2
   exit 1
 fi
 
