@@ -183,4 +183,6 @@ The scheduled `update-plugin-check` workflow uses a narrower trust model because
 - the release author is on the allowed author list
 - the release has aged past the configured stabilization window before automation proposes it
 
-That keeps the updater automated without treating raw release metadata as equivalent to first-party provenance.
+External GitHub dependency update workflows should use the shared PR-body helper and declare their trust mode explicitly. When first-party provenance cannot be verified automatically, the framework still allows automation but adds a standardized reviewer warning to the PR telling reviewers to verify the upstream repository, tag, release notes, and release assets before merge.
+
+That keeps external dependency updaters automated without treating raw release metadata as equivalent to first-party provenance.

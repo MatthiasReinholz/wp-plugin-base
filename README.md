@@ -176,7 +176,7 @@ Release publishing now emits three independent trust artifacts:
 Use `bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh <owner/repo> <artifact-path> <bundle-path> plugin` for strict consumer verification against the expected release workflows.
 
 The foundation repository also runs an OpenSSF `scorecard` workflow on the default branch and publishes SARIF findings to GitHub code scanning.
-It also includes a scheduled `update-plugin-check` workflow for reviewed `WordPress/plugin-check` pin bumps. That updater only proposes releases from the current major series after they are published, non-draft, non-prerelease, authored by the reviewed allowlist, and past a 7-day stabilization window.
+It also includes a scheduled `update-plugin-check` workflow for reviewed `WordPress/plugin-check` pin bumps. That updater only proposes releases from the current major series after they are published, non-draft, non-prerelease, authored by the reviewed allowlist, and past a 7-day stabilization window. External GitHub dependency update PRs use a shared framework notice: if first-party provenance cannot be verified automatically, the PR stays automated but includes a standardized reviewer warning that the upstream release must be checked manually before merge.
 
 ## Recommended GitHub Actions Policy
 
