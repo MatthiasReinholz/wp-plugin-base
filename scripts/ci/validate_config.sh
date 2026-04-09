@@ -56,39 +56,20 @@ validate_file() {
   fi
 }
 
-validate_optional_paths() {
-  local raw_paths="$1"
-  local label="$2"
-  local path
-  local resolved_path
-
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    resolved_path="$(wp_plugin_base_resolve_path "$path")"
-    wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
-    if [ ! -e "$resolved_path" ]; then
-      echo "${label} path not found: ${path}" >&2
-      exit 1
-    fi
-  done < <(wp_plugin_base_csv_to_lines "$raw_paths")
-}
-
-normalize_repo_relative_path() {
-  local path="$1"
-  path="${path#./}"
-  path="${path#/}"
-  printf '%s\n' "$path"
-}
-
 validate_repo_relative_paths() {
   local raw_paths="$1"
   local label="$2"
+  local require_exists="${3:-false}"
   local path
   local normalized_path
   local resolved_path
 
   while IFS= read -r path; do
     [ -n "$path" ] || continue
+    if [[ "$path" = /* ]]; then
+      echo "${label} must use repo-relative paths: ${path}" >&2
+      exit 1
+    fi
     normalized_path="$(normalize_repo_relative_path "$path")"
     if [ -z "$normalized_path" ]; then
       echo "${label} must use repo-relative paths: ${path}" >&2
@@ -104,7 +85,30 @@ validate_repo_relative_paths() {
     fi
     resolved_path="$(wp_plugin_base_resolve_path "$normalized_path")"
     wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
+    if [ "$require_exists" = "true" ] && [ ! -e "$resolved_path" ]; then
+      echo "${label} path not found: ${path}" >&2
+      exit 1
+    fi
   done < <(wp_plugin_base_csv_to_lines "$raw_paths")
+}
+
+normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
+validate_distignore_path() {
+  local relative_path="$1"
+  local normalized_path
+
+  validate_repo_relative_paths "$relative_path" "DISTIGNORE_FILE"
+  normalized_path="$(normalize_repo_relative_path "$relative_path")"
+  if [[ ! "$normalized_path" =~ (^|/)(\.distignore|[^/]+\.distignore)$ ]]; then
+    echo "DISTIGNORE_FILE must point to a repo-relative *.distignore file: ${relative_path}" >&2
+    exit 1
+  fi
 }
 
 validate_output_path() {
@@ -138,16 +142,16 @@ validate_output_path() {
 
 case "$CONFIG_SCOPE" in
   sync|foundation)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
+    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION
     ;;
   project|ci|readiness|release)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION PRODUCTION_ENVIRONMENT
+    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION
     ;;
   deploy-structure)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION PRODUCTION_ENVIRONMENT WORDPRESS_ORG_SLUG
+    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION WORDPRESS_ORG_SLUG
     ;;
   deploy)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION PRODUCTION_ENVIRONMENT WORDPRESS_ORG_SLUG SVN_USERNAME SVN_PASSWORD
+    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION WORDPRESS_ORG_SLUG
     ;;
   *)
     echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
@@ -181,8 +185,10 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
     validate_output_path "$POT_FILE" "POT file"
   fi
 
+  validate_distignore_path "$DISTIGNORE_FILE"
+
   if [ -n "${PACKAGE_INCLUDE:-}" ]; then
-    validate_optional_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
+    validate_repo_relative_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE" true
   fi
 
   validate_repo_relative_paths "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" "WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"

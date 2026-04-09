@@ -48,6 +48,7 @@ jobs:
     environment: ${{ inputs.production_environment || github.event.inputs.production_environment || 'production' }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+      WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY: ${{ vars.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY }}
 
     steps:
       - name: Resolve inputs
@@ -66,10 +67,21 @@ jobs:
           echo "config_path=$config_path" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
+      - name: Verify target tag exists on origin
+        env:
+          REPOSITORY_GIT_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          VERSION: ${{ steps.resolved.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --tags "$REPOSITORY_GIT_URL" "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "Release tag ${VERSION} does not exist on origin." >&2
+            exit 1
+          fi
+
+      - name: Checkout existing tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ steps.resolved.outputs.version }}
+          ref: refs/tags/${{ steps.resolved.outputs.version }}
           fetch-depth: 0
 
       - name: Read config
@@ -151,15 +163,19 @@ jobs:
           subject-path: dist/${{ steps.config.outputs.zip_file }}
 
       - name: Validate WordPress.org deploy configuration
-        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY == 'true' }}
         run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.resolved.outputs.version }}" "${{ steps.resolved.outputs.config_path }}" "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
+      - name: Report skipped WordPress.org redeploy
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY != 'true' }}
+        run: echo "Manual release recovery skips WordPress.org redeploy unless WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true is set for an intentional repair of the latest repository release tag."
+
       - name: Install Subversion
-        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y subversion
 
       - name: Deploy to WordPress.org
-        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY == 'true' }}
         env:
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}

@@ -46,10 +46,11 @@ For the foundation repo itself, run:
 
 ```bash
 bash scripts/foundation/validate.sh
+bash scripts/foundation/validate.sh --mode strict-local
 bash scripts/foundation/validate-full.sh
 ```
 
-`validate.sh` is the fast local suite. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
+`validate.sh` defaults to `fast-local` mode, which tolerates missing foundation-only lint/security tools and reports reduced assurance explicitly. Use `bash scripts/foundation/validate.sh --mode strict-local` when you want the local run to fail if any required foundation lint/security tool is missing. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
 
 ## Local Tooling Contract
 
@@ -86,13 +87,13 @@ On macOS, install the binary tools locally with:
 brew install shellcheck actionlint editorconfig-checker gitleaks
 ```
 
-Install Markdown linting separately with:
+Install the local Markdown linting bundle with the committed lockfile:
 
 ```bash
-npm install -g markdownlint-cli2
+npm ci --prefix tools/markdownlint --ignore-scripts --no-audit --no-fund
 ```
 
-`tools/wordpress-env` is a separate lockfile-backed npm tooling bundle. Shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`, and the local `.npmrc` now travels with that temp install so the Node engine policy stays explicit.
+Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`.
 
 ## Security Model
 
@@ -160,7 +161,7 @@ That command enforces the generated managed-file surface, not just `.github/work
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
-If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` as explicit repo-relative path lists. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
+If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, and `DISTIGNORE_FILE` as explicit repo-relative paths. Absolute paths are rejected. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
 
 The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
 
@@ -214,6 +215,7 @@ Required keys in `.wp-plugin-base.env`:
 Optional keys:
 
 - `PHP_RUNTIME_MATRIX`
+- `PHP_RUNTIME_MATRIX_MODE`
 - `VERSION_CONSTANT_NAME`
 - `POT_FILE`
 - `POT_PROJECT_NAME`
@@ -234,6 +236,7 @@ Optional keys:
 - `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`
 - `PACKAGE_INCLUDE`
 - `PACKAGE_EXCLUDE`
+- `DISTIGNORE_FILE`
 - `CHANGELOG_HEADING`
 - `PRODUCTION_ENVIRONMENT`
 - `CODEOWNERS_REVIEWERS`
@@ -241,6 +244,8 @@ Optional keys:
 Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`. `ZIP_FILE` must be a simple `.zip` filename, not a path.
 
 `.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
+
+`PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, `DISTIGNORE_FILE`, and `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` must stay repo-relative. `DISTIGNORE_FILE` must point to a `*.distignore` file. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
 
 Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
 
@@ -269,7 +274,7 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
-Local `validate.sh` runs the shared release-security smoke path in `local-lite` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports and skips Sigstore/OIDC-only checks when local release-signing prerequisites are unavailable. GitHub `foundation-ci` is the authoritative strict execution path for those checks.
+Local `validate.sh` defaults to `fast-local` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports which checks were skipped when local prerequisites are unavailable. Use `--mode strict-local` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for Sigstore/OIDC-sensitive checks.
 
 ## WordPress.org Deploy
 
@@ -281,11 +286,13 @@ To enable it in your project:
    - a GitHub Actions repository variable in the repository settings, or
    - a GitHub Actions environment variable on the selected deployment environment
 2. set `WORDPRESS_ORG_SLUG` in `.wp-plugin-base.env`
-3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets on the protected deployment environment when possible
+3. provide `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions deployment-environment secrets
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
 
 For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. CI and release readiness checks now fail when WordPress.org deploy is enabled and reviewer protection cannot be verified.
+
+The manual `release.yml` workflow is a recovery path for an already existing Git tag. It verifies that the tag exists remotely, checks out that exact tag, and skips WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Guides
 

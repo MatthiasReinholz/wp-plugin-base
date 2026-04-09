@@ -65,5 +65,6 @@ fi
 
 gh release create "$TAG_NAME" "$@" \
   --repo "${GITHUB_REPOSITORY}" \
+  --verify-tag \
   --title "$RELEASE_TITLE" \
   --notes-file "$NOTES_FILE"

@@ -21,7 +21,7 @@ The current hardened baseline allows only these external actions:
 - `actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f`
 - `actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f`
 - `actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32`
-- `github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc`
+- `github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13`
 - `ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a`
 - `shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f`
 
@@ -61,7 +61,7 @@ That audit fails if it finds:
 
 ## Allowed Network Destinations
 
-The hardened baseline only allows workflow/script references to:
+The hardened baseline audits literal workflow and repo-local-script references to these hosts:
 
 - `api.github.com`
 - `github.com`
@@ -72,6 +72,8 @@ The hardened baseline only allows workflow/script references to:
 Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only and keep this list minimal.
 
 Dynamic URL construction inside workflow or local-action `run:` bodies is intentionally out of contract. Those contexts must use literal auditable hosts or delegate the network call to a reviewed repo-local script.
+
+This allowlist is not a full runner egress firewall. Package-manager traffic and other tool-internal network access are controlled separately by the reviewed bootstrap scripts. Foundation CI installs the Python lint toolchain from hash-pinned requirements files and the Node lint toolchain from a committed `package-lock.json`.
 
 Ubuntu package mirrors are only expected indirectly when the workflow installs Subversion with `apt-get`.
 
@@ -151,7 +153,7 @@ For agent-oriented implementation guidance, see [Secure plugin coding contract](
 
 - Prefer `GITHUB_TOKEN` over personal access tokens
 - Do not add PAT-based automation to projects using this foundation unless there is no GitHub-native alternative
-- Keep WordPress.org credentials in GitHub Actions environment secrets when possible, not repository-wide secrets
+- Keep WordPress.org credentials in GitHub Actions deployment-environment secrets, not in `.wp-plugin-base.env` or repository-wide secrets
 - Protect the production deployment environment and require at least one reviewer before deploy jobs can access those credentials
 
 ## Governance

@@ -24,10 +24,21 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Verify target tag exists on origin
+        env:
+          REPOSITORY_GIT_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --tags "$REPOSITORY_GIT_URL" "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "Foundation tag ${VERSION} does not exist on origin." >&2
+            exit 1
+          fi
+
+      - name: Checkout existing tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ inputs.version }}
+          ref: refs/tags/${{ inputs.version }}
           fetch-depth: 0
 
       - name: Validate target version

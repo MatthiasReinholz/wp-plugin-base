@@ -22,11 +22,12 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 6. Set optional values only if the repo layout differs from the defaults.
    Keep `ZIP_FILE` as a simple filename such as `example-plugin.zip`, not a path.
    If your install ZIP needs files from `packages/` or `routes/`, add them explicitly through `PACKAGE_INCLUDE` and remove only the repo-relative paths that must stay out of the package through `PACKAGE_EXCLUDE`.
+   Keep `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, and `DISTIGNORE_FILE` repo-relative. `DISTIGNORE_FILE` must point to a `*.distignore` file.
 7. If you want release-time translation template generation, set `POT_FILE` to a repo-relative path now so release prep can generate the file when missing. Also add a `Domain Path` plugin header, typically `/languages/`, if `POT_FILE` is configured or the repo will contain a `languages/` directory.
 8. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 9. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 10. Commit the vendored foundation, config, and generated managed files, including `.github/dependabot.yml`.
-11. Add GitHub Actions settings. Configure `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets on the deployment environment if WordPress.org deploy will be enabled. Set `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable.
+11. Add GitHub Actions settings. Configure `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions deployment-environment secrets if WordPress.org deploy will be enabled. Set `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable.
 12. In GitHub, open `Settings` -> `Actions` -> `General`.
 13. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
 14. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
@@ -35,7 +36,7 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 17. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
 18. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
 19. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
-20. If you plan to use WordPress.org deploy, protect the `PRODUCTION_ENVIRONMENT` environment in GitHub and require at least one reviewer before deployments can access secrets.
+20. If you plan to use WordPress.org deploy, protect the `PRODUCTION_ENVIRONMENT` environment in GitHub and require at least one reviewer before deployments can access secrets. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
 21. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
 
 ## Default Layout Assumptions
@@ -46,7 +47,7 @@ The simplest setup assumes:
 - `readme.txt` is at repo root
 - the plugin version is stored in the plugin header and `readme.txt`
 - changelog sections use `= x.y.z =`
-- packaging can start from repo root and exclude development files via `.distignore`
+- packaging can start from repo root and exclude development files via the managed distignore path
 - `packages/` and `routes/` are build-time workspaces and are excluded from the default install ZIP and translation scan unless you explicitly include them
 
 If your repo matches those assumptions, the only optional value most projects need is `WORDPRESS_ORG_SLUG`.
@@ -77,3 +78,5 @@ That command validates:
 Workflow files must use the `.yml` extension. `.yaml` workflow files are rejected by project and foundation validation.
 
 For WordPress.org deploy-enabled repos, local validation warns when GitHub environment protection cannot be queried yet. The generated CI workflows enforce that check strictly once the repository is running in GitHub Actions.
+
+The manual `release.yml` recovery workflow skips WordPress.org redeploy by default so an existing SVN tag is not rewritten during a repair run. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.

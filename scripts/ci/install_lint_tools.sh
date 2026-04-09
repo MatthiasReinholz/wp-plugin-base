@@ -4,14 +4,11 @@ set -euo pipefail
 
 DEST_DIR="${1:-}"
 TOOL_SELECTION="${2:-all}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SHELLCHECK_VERSION='0.10.0'
 ACTIONLINT_VERSION='1.7.7'
-YAMLLINT_VERSION='1.38.0'
-CODESPELL_VERSION='2.4.2'
-MARKDOWNLINT_VERSION='0.22.0'
 EDITORCONFIG_CHECKER_VERSION='3.6.1'
 GITLEAKS_VERSION='8.30.1'
-SEMGREP_VERSION='1.145.0'
 
 if [ -z "$DEST_DIR" ]; then
   echo "Usage: $0 <destination-dir> [all|tool1,tool2,...]" >&2
@@ -99,11 +96,13 @@ fi
 
 mkdir -p "$DEST_DIR"
 TMP_DIR="$(mktemp -d)"
-PYTHON_PREFIX_DIR="$DEST_DIR/.python-tools"
 PYTHON_VENV_DIR="$DEST_DIR/.python-tools-venv"
 NODE_TOOLS_DIR="$DEST_DIR/.node-tools"
 PIP_CACHE_DIR="$TMP_DIR/pip-cache"
 NPM_CACHE_DIR="$TMP_DIR/npm-cache"
+PYTHON_LINT_REQUIREMENTS="$ROOT_DIR/tools/python-lint-tools/requirements.txt"
+PYTHON_SEMGREP_REQUIREMENTS="$ROOT_DIR/tools/python-semgrep/requirements.txt"
+MARKDOWNLINT_TOOLS_DIR="$ROOT_DIR/tools/markdownlint"
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -111,8 +110,6 @@ cleanup() {
 
 trap cleanup EXIT
 
-rm -rf "$PYTHON_PREFIX_DIR"
-mkdir -p "$PYTHON_PREFIX_DIR"
 rm -rf "$PYTHON_VENV_DIR"
 rm -rf "$NODE_TOOLS_DIR"
 mkdir -p "$NODE_TOOLS_DIR"
@@ -169,28 +166,45 @@ fi
 
 if tool_requested yamllint || tool_requested codespell || tool_requested semgrep; then
   python3 -m venv "$PYTHON_VENV_DIR"
-  python_packages=()
-  if tool_requested yamllint; then
-    python_packages+=("yamllint==${YAMLLINT_VERSION}")
-  fi
-  if tool_requested codespell; then
-    python_packages+=("codespell==${CODESPELL_VERSION}")
-  fi
-  if tool_requested semgrep; then
-    python_packages+=("semgrep==${SEMGREP_VERSION}")
+
+  if tool_requested yamllint || tool_requested codespell; then
+    if [ ! -f "$PYTHON_LINT_REQUIREMENTS" ]; then
+      echo "Committed Python lint tool lock file is missing." >&2
+      exit 1
+    fi
+    "$PYTHON_VENV_DIR/bin/python" -m pip install \
+      --disable-pip-version-check \
+      --no-input \
+      --cache-dir "$PIP_CACHE_DIR" \
+      --require-hashes \
+      -r "$PYTHON_LINT_REQUIREMENTS" >/dev/null
   fi
 
-  "$PYTHON_VENV_DIR/bin/python" -m pip install \
-    --disable-pip-version-check \
-    --no-input \
-    --cache-dir "$PIP_CACHE_DIR" \
-    "${python_packages[@]}" >/dev/null
+  if tool_requested semgrep; then
+    if [ ! -f "$PYTHON_SEMGREP_REQUIREMENTS" ]; then
+      echo "Committed Semgrep lock file is missing." >&2
+      exit 1
+    fi
+    "$PYTHON_VENV_DIR/bin/python" -m pip install \
+      --disable-pip-version-check \
+      --no-input \
+      --cache-dir "$PIP_CACHE_DIR" \
+      --require-hashes \
+      -r "$PYTHON_SEMGREP_REQUIREMENTS" >/dev/null
+  fi
 fi
 
 if tool_requested markdownlint-cli2; then
+  if [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package.json" ] || [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package-lock.json" ]; then
+    echo "Committed markdown lint lock files are missing." >&2
+    exit 1
+  fi
+
+  cp "$MARKDOWNLINT_TOOLS_DIR/package.json" "$NODE_TOOLS_DIR/package.json"
+  cp "$MARKDOWNLINT_TOOLS_DIR/package-lock.json" "$NODE_TOOLS_DIR/package-lock.json"
   (
     cd "$NODE_TOOLS_DIR"
-    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm install --no-audit --no-fund --no-package-lock "markdownlint-cli2@${MARKDOWNLINT_VERSION}" >/dev/null
+    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm ci --ignore-scripts --no-audit --no-fund >/dev/null
   )
 fi
 
