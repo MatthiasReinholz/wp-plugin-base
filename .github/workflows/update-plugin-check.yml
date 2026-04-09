@@ -1,8 +1,6 @@
 name: update-plugin-check
 
 on:
-  schedule:
-    - cron: '43 6 * * 1'
   workflow_dispatch:
 
 env:
@@ -73,9 +71,11 @@ jobs:
           Verification performed before proposing this update:
           - selected from published, non-draft, non-prerelease releases
           - constrained to the current major version series
+          - release author matched the reviewed allowlist
           - full foundation validation suite executed after the pin bump
 
-          This update keeps plugin-check managed centrally in `wp-plugin-base`, so child repos receive it through normal foundation update PRs.
+          This workflow is manual-only until upstream release provenance is stronger than the current metadata and author checks.
+          The plugin-check pin remains managed centrally in `wp-plugin-base`, so child repos receive it through normal foundation update PRs.
           EOF
 
       - name: Create plugin-check update PR
