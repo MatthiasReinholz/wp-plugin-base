@@ -294,6 +294,8 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.ym
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'cron: '\''17 5 * * 1'\''' "update-plugin-check workflow must remain scheduled."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar' "update-plugin-check workflow must pin the reviewed plugin-check release author allowlist."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS: '\''7'\''' "update-plugin-check workflow must enforce the plugin-check stabilization window."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'write_external_github_dependency_pr_body.sh' "update-plugin-check workflow must use the shared external dependency PR-body helper."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_DEPENDENCY_TRUST_MODE: metadata-only' "update-plugin-check workflow must declare metadata-only trust for the external dependency PR warning."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Root update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Root update-foundation workflow must use the verified foundation version output."
@@ -399,6 +401,33 @@ WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="davidperezgar" \
   bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
 grep -Fxq 'update_needed=true' "$plugin_check_resolve_output"
 grep -Fxq 'version=1.10.0' "$plugin_check_resolve_output"
+
+external_dependency_pr_body="$(mktemp)"
+WP_PLUGIN_BASE_DEPENDENCY_NAME="plugin-check" \
+  WP_PLUGIN_BASE_DEPENDENCY_SOURCE_REPOSITORY="WordPress/plugin-check" \
+  WP_PLUGIN_BASE_DEPENDENCY_CURRENT_VERSION="1.9.0" \
+  WP_PLUGIN_BASE_DEPENDENCY_TARGET_VERSION="1.10.0" \
+  WP_PLUGIN_BASE_DEPENDENCY_PURPOSE="used by WordPress readiness validation" \
+  WP_PLUGIN_BASE_DEPENDENCY_TRUST_MODE="metadata-only" \
+  WP_PLUGIN_BASE_DEPENDENCY_TRUST_CHECKS=$'selected from published, non-draft, non-prerelease releases\nrelease author matched the reviewed allowlist' \
+  bash "$ROOT_DIR/scripts/update/write_external_github_dependency_pr_body.sh" "$external_dependency_pr_body"
+grep -Fq 'Reviewer warning:' "$external_dependency_pr_body"
+grep -Fq 'review the upstream repository, tag, release notes, and release assets' "$external_dependency_pr_body"
+
+external_dependency_pr_body="$(mktemp)"
+WP_PLUGIN_BASE_DEPENDENCY_NAME="example-dependency" \
+  WP_PLUGIN_BASE_DEPENDENCY_SOURCE_REPOSITORY="example/dependency" \
+  WP_PLUGIN_BASE_DEPENDENCY_CURRENT_VERSION="2.0.0" \
+  WP_PLUGIN_BASE_DEPENDENCY_TARGET_VERSION="2.1.0" \
+  WP_PLUGIN_BASE_DEPENDENCY_PURPOSE="used by example validation" \
+  WP_PLUGIN_BASE_DEPENDENCY_TRUST_MODE="verified-provenance" \
+  WP_PLUGIN_BASE_DEPENDENCY_TRUST_CHECKS=$'verified GitHub attestation\nvalidated signed release bundle' \
+  bash "$ROOT_DIR/scripts/update/write_external_github_dependency_pr_body.sh" "$external_dependency_pr_body"
+grep -Fq 'Trust level:' "$external_dependency_pr_body"
+if grep -Fq 'Reviewer warning:' "$external_dependency_pr_body"; then
+  echo "Verified external dependency PR body unexpectedly included a metadata-only reviewer warning." >&2
+  exit 1
+fi
 
 foundation_release_fixture="$(mktemp)"
 cat > "$foundation_release_fixture" <<'EOF'
