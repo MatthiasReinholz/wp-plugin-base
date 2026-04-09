@@ -24,6 +24,7 @@ if [ -z "$TOKEN" ]; then
 fi
 
 allowed_authors="${FOUNDATION_ALLOWED_RELEASE_AUTHORS:-github-actions[bot]}"
+verify_sigstore_script="${WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT:-$SCRIPT_DIR/../release/verify_sigstore_bundle.sh}"
 WORK_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -34,6 +35,35 @@ trap cleanup EXIT
 
 api() {
   local path="$1"
+  local fixture_path=""
+
+  case "$path" in
+    /repos/*/releases/tags/*)
+      fixture_path="${WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON:-}"
+      ;;
+    /repos/*/git/ref/tags/*)
+      fixture_path="${WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON:-}"
+      ;;
+    /repos/*/git/tags/*)
+      fixture_path="${WP_PLUGIN_BASE_FOUNDATION_TAG_OBJECT_JSON:-}"
+      ;;
+    /repos/*/compare/*)
+      fixture_path="${WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON:-}"
+      ;;
+    /repos/*/commits/*/pulls)
+      fixture_path="${WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON:-}"
+      ;;
+  esac
+
+  if [ -n "$fixture_path" ]; then
+    if [ ! -f "$fixture_path" ]; then
+      echo "Foundation API fixture not found: $fixture_path" >&2
+      exit 1
+    fi
+    cat "$fixture_path"
+    return
+  fi
+
   curl -fsSL \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -46,6 +76,25 @@ download_release_asset() {
   local asset_name="$2"
   local destination_path="$3"
   local asset_url
+  local override_path=""
+
+  case "$asset_name" in
+    dist-foundation-release.json)
+      override_path="${WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET:-}"
+      ;;
+    dist-foundation-release.json.sigstore.json)
+      override_path="${WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET:-}"
+      ;;
+  esac
+
+  if [ -n "$override_path" ]; then
+    if [ ! -f "$override_path" ]; then
+      echo "Foundation asset fixture not found: $override_path" >&2
+      exit 1
+    fi
+    cp "$override_path" "$destination_path"
+    return
+  fi
 
   asset_url="$(
     printf '%s' "$release_json" | jq -r --arg name "$asset_name" '
@@ -121,7 +170,7 @@ sigstore_path="$WORK_DIR/dist-foundation-release.json.sigstore.json"
 download_release_asset "$release_json" "dist-foundation-release.json" "$metadata_path"
 download_release_asset "$release_json" "dist-foundation-release.json.sigstore.json" "$sigstore_path"
 
-bash "$SCRIPT_DIR/../release/verify_sigstore_bundle.sh" \
+bash "$verify_sigstore_script" \
   "$REPOSITORY" \
   "$metadata_path" \
   "$sigstore_path" \
@@ -146,13 +195,7 @@ if [ "$metadata_commit" != "$commit_sha" ]; then
   exit 1
 fi
 
-pulls_json="$(
-  curl -fsSL \
-    -H "Accept: application/vnd.github.groot-preview+json" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    "https://api.github.com/repos/${REPOSITORY}/commits/${commit_sha}/pulls"
-)"
+pulls_json="$(api "/repos/${REPOSITORY}/commits/${commit_sha}/pulls")"
 
 matching_count="$(printf '%s' "$pulls_json" | jq -r --arg sha "$commit_sha" '
   map(
@@ -172,6 +215,7 @@ fi
 
 if [ -n "$OUTPUT_PATH" ]; then
   {
+    echo "version=$VERSION"
     echo "commit_sha=$commit_sha"
   } >> "$OUTPUT_PATH"
 fi

@@ -69,26 +69,29 @@ else
   done
 fi
 
-latest="$(
-  printf '%s\n' "$releases_json" | jq -r --arg major "$major" '
+candidates="$(
+  printf '%s\n' "$releases_json" | jq -r --arg major "$major" --arg current "$CURRENT_VERSION" '
     map(
       select(
         .draft == false and
         .prerelease == false and
-        (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
+        (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$")) and
+        ((.tag_name | split(".") | map(ltrimstr("v") | tonumber)) > ($current | split(".") | map(ltrimstr("v") | tonumber)))
       )
     )
     | map(.tag_name)
     | sort_by(split(".") | map(ltrimstr("v") | tonumber))
-    | last // empty
+    | reverse[]
   '
 )"
+latest="$(printf '%s\n' "$candidates" | head -n 1)"
 
 if [ -n "$OUTPUT_PATH" ]; then
   if [ -z "$latest" ] || [ "$latest" = "$CURRENT_VERSION" ]; then
     {
       echo "update_needed=false"
       echo "version="
+      echo "candidates="
     } >> "$OUTPUT_PATH"
     exit 0
   fi
@@ -96,6 +99,9 @@ if [ -n "$OUTPUT_PATH" ]; then
   {
     echo "update_needed=true"
     echo "version=$latest"
+    echo "candidates<<EOF"
+    printf '%s\n' "$candidates"
+    echo "EOF"
   } >> "$OUTPUT_PATH"
   exit 0
 fi
@@ -103,8 +109,12 @@ fi
 if [ -z "$latest" ] || [ "$latest" = "$CURRENT_VERSION" ]; then
   echo "update_needed=false"
   echo "version="
+  echo "candidates="
   exit 0
 fi
 
 echo "update_needed=true"
 echo "version=$latest"
+echo "candidates<<EOF"
+printf '%s\n' "$candidates"
+echo "EOF"

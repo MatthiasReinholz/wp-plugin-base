@@ -14,7 +14,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 concurrency:
-  group: foundation-ci-${{ github.event.pull_request.number || github.ref }}
+  group: foundation-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -91,6 +91,7 @@ jobs:
       - name: Validate full foundation
         env:
           WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
+          WP_PLUGIN_BASE_SKIP_FAST_VALIDATE: 'true'
         run: bash scripts/foundation/validate-full.sh
 
   release-security-smoke:

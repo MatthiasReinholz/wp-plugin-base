@@ -16,7 +16,7 @@ These files are intended to be generated from foundation templates in your proje
 - `SECURITY.md`
 - `CONTRIBUTING.md`
 - `uninstall.php.example`
-- `.phpcs.xml.dist` and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
 - `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`, when absent
@@ -33,4 +33,4 @@ If a project does not already have a `CHANGELOG.md`, sync also seeds one from th
 
 If a project does not already have the configured suppressions file, sync seeds it with an empty suppression set. After that initial creation, the project owns suppression entries and justifications.
 
-Managed workflow files use the `.yml` extension. `.yaml` workflow files are rejected by foundation validation.
+Managed workflow files use the `.yml` extension. `.yaml` workflow files are rejected by project and foundation validation.

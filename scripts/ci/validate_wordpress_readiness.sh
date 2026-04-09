@@ -41,7 +41,11 @@ if wp_plugin_base_is_true "${WP_ORG_DEPLOY_ENABLED:-false}"; then
     deploy_env_check_args+=("$CONFIG_OVERRIDE")
   fi
 
-  bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "${deploy_env_check_args[@]}"
+  if [ "${#deploy_env_check_args[@]}" -gt 0 ]; then
+    bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "${deploy_env_check_args[@]}"
+  else
+    bash "$SCRIPT_DIR/check_deploy_environment_protection.sh"
+  fi
   version="$(wp_plugin_base_read_header_value "$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")" 'Version')"
   bash "$SCRIPT_DIR/../release/validate_wordpress_org_deploy.sh" "$version" "$CONFIG_OVERRIDE" "$ROOT_DIR/dist/package/$PLUGIN_SLUG"
 fi

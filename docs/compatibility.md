@@ -7,7 +7,7 @@
 These surfaces should be treated as public API:
 
 - `.wp-plugin-base.env` keys and semantics
-- generated managed files in `.github/`, `.distignore`, and `CONTRIBUTING.md`
+- generated managed files in `.github/`, root-managed policy files, the configured suppressions file path, and any enabled quality/security/QIT pack files
 - workflow names and their permission contracts
 - child-repo branch conventions: `feature/*`, `release/*`, `hotfix/*`
 - child-repo semver tags in `x.y.z` format

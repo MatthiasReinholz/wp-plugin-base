@@ -49,7 +49,7 @@ bash scripts/foundation/validate.sh
 bash scripts/foundation/validate-full.sh
 ```
 
-`validate.sh` is the fast local suite. `validate-full.sh` requires Docker and also runs the WordPress readiness and Plugin Check fixtures.
+`validate.sh` is the fast local suite. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
 
 ## Local Tooling Contract
 
@@ -160,7 +160,7 @@ That command enforces the generated managed-file surface, not just `.github/work
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
-If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` repo-relative. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
+If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` as explicit repo-relative path lists. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
 
 The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
 
@@ -252,7 +252,7 @@ Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURIT
 
 If `POT_FILE` is configured, release preparation generates it when it is missing. The path still needs to stay inside the repository and point at a writable location. Translation support also requires a `Domain Path` plugin header, typically `/languages/`, when `POT_FILE` is configured or a `languages/` directory is present.
 
-Managed workflow files use the `.yml` extension. `.yaml` workflow files are rejected by foundation validation.
+Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by project and foundation validation.
 
 `WP_PLUGIN_BASE_PLUGIN_CHECK_*` keys provide optional policy controls for Plugin Check execution during WordPress readiness validation:
 
@@ -268,6 +268,8 @@ Managed workflow files use the `.yml` extension. `.yaml` workflow files are reje
 `WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
+
+Local `validate.sh` runs the shared release-security smoke path in `local-lite` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports and skips Sigstore/OIDC-only checks when local release-signing prerequisites are unavailable. GitHub `foundation-ci` is the authoritative strict execution path for those checks.
 
 ## WordPress.org Deploy
 

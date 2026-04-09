@@ -73,6 +73,40 @@ validate_optional_paths() {
   done < <(wp_plugin_base_csv_to_lines "$raw_paths")
 }
 
+normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
+validate_repo_relative_paths() {
+  local raw_paths="$1"
+  local label="$2"
+  local path
+  local normalized_path
+  local resolved_path
+
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    normalized_path="$(normalize_repo_relative_path "$path")"
+    if [ -z "$normalized_path" ]; then
+      echo "${label} must use repo-relative paths: ${path}" >&2
+      exit 1
+    fi
+    if [[ "$normalized_path" =~ [[:space:]] ]]; then
+      echo "${label} paths must not contain whitespace: ${path}" >&2
+      exit 1
+    fi
+    if [[ "$normalized_path" =~ [*?\[\]\{\}] ]]; then
+      echo "${label} must use explicit repo-relative paths, not glob patterns: ${path}" >&2
+      exit 1
+    fi
+    resolved_path="$(wp_plugin_base_resolve_path "$normalized_path")"
+    wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
+  done < <(wp_plugin_base_csv_to_lines "$raw_paths")
+}
+
 validate_output_path() {
   local relative_path="$1"
   local label="$2"
@@ -90,6 +124,11 @@ validate_output_path() {
   while [ ! -d "$existing_dir" ] && [ "$existing_dir" != "/" ]; do
     existing_dir="$(dirname "$existing_dir")"
   done
+
+  if [ -e "$resolved_path" ] && [ ! -f "$resolved_path" ]; then
+    echo "${label} must point to a file path, not an existing non-file entry: ${relative_path}" >&2
+    exit 1
+  fi
 
   if [ ! -d "$existing_dir" ] || [ ! -w "$existing_dir" ]; then
     echo "${label} parent directory is not writable: ${relative_path}" >&2
@@ -144,6 +183,12 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
 
   if [ -n "${PACKAGE_INCLUDE:-}" ]; then
     validate_optional_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
+  fi
+
+  validate_repo_relative_paths "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" "WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
+
+  if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
+    validate_repo_relative_paths "$PACKAGE_EXCLUDE" "PACKAGE_EXCLUDE"
   fi
 
   if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then

@@ -14,6 +14,7 @@ wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars PLUGIN_SLUG MAIN_PLUGIN_FILE ZIP_FILE
 
 MAIN_PLUGIN_PATH="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
+README_PATH="$(wp_plugin_base_resolve_path "$README_FILE")"
 DISTIGNORE_PATH="$(wp_plugin_base_resolve_path "$DISTIGNORE_FILE")"
 DIST_DIR="$ROOT_DIR/dist"
 STAGE_ROOT="$DIST_DIR/package"
@@ -38,6 +39,7 @@ if [[ ! "$ZIP_FILE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$ ]]; then
 fi
 
 wp_plugin_base_assert_path_within_root "$MAIN_PLUGIN_PATH" "Main plugin file"
+wp_plugin_base_assert_path_within_root "$README_PATH" "Readme file"
 wp_plugin_base_assert_path_within_root "$DISTIGNORE_PATH" "Distignore file"
 
 cat <<'EOF' > "$EXCLUDES_FILE"
@@ -54,7 +56,27 @@ if [ -f "$DISTIGNORE_PATH" ]; then
   cat "$DISTIGNORE_PATH" >> "$EXCLUDES_FILE"
 fi
 
-wp_plugin_base_csv_to_lines "${PACKAGE_EXCLUDE:-}" >> "$EXCLUDES_FILE"
+normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
+managed_exclude_path="/$(normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
+printf '%s\n' "$managed_exclude_path" >> "$EXCLUDES_FILE"
+
+if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
+  while IFS= read -r exclude_path; do
+    [ -n "$exclude_path" ] || continue
+    printf '/%s\n' "$(normalize_repo_relative_path "$exclude_path")" >> "$EXCLUDES_FILE"
+  done < <(wp_plugin_base_csv_to_lines "$PACKAGE_EXCLUDE")
+fi
+
+configured_readme_path="/$(normalize_repo_relative_path "$README_FILE")"
+filtered_excludes_file="$(mktemp)"
+grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$filtered_excludes_file" || true
+mv "$filtered_excludes_file" "$EXCLUDES_FILE"
 
 rm -rf "$STAGE_ROOT" "$ZIP_PATH"
 mkdir -p "$STAGE_DIR"
@@ -86,8 +108,18 @@ if [ ! -f "$STAGE_DIR/$MAIN_PLUGIN_FILE" ]; then
   exit 1
 fi
 
+if [ ! -f "$STAGE_DIR/$README_FILE" ]; then
+  echo "Package is missing the configured readme file: $README_FILE" >&2
+  exit 1
+fi
+
 if [ -e "$STAGE_DIR/.wp-plugin-base" ] || [ -e "$STAGE_DIR/.github" ] || [ -e "$STAGE_DIR/.wp-plugin-base.env" ]; then
   echo "Package contains foundation or CI-only files." >&2
+  exit 1
+fi
+
+if [ -e "$STAGE_DIR/$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ]; then
+  echo "Package contains the configured security suppressions file: $WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" >&2
   exit 1
 fi
 

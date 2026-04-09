@@ -160,17 +160,32 @@ wp_plugin_base_resolve_path() {
 wp_plugin_base_canonicalize_path() {
   local path="$1"
   local directory
+  local existing_dir
+  local suffix=""
+  local canonical_directory
   local basename
 
-  directory="$(cd "$(dirname "$path")" && pwd -P)"
+  directory="$(dirname "$path")"
+  existing_dir="$directory"
+  while [ ! -d "$existing_dir" ] && [ "$existing_dir" != "/" ]; do
+    suffix="/$(basename "$existing_dir")${suffix}"
+    existing_dir="$(dirname "$existing_dir")"
+  done
+
+  if [ ! -d "$existing_dir" ]; then
+    echo "Unable to resolve path: $path" >&2
+    exit 1
+  fi
+
+  canonical_directory="$(cd "$existing_dir" && pwd -P)${suffix}"
   basename="$(basename "$path")"
 
   if [ "$basename" = "." ]; then
-    printf '%s\n' "$directory"
+    printf '%s\n' "$canonical_directory"
     return
   fi
 
-  printf '%s/%s\n' "$directory" "$basename"
+  printf '%s/%s\n' "$canonical_directory" "$basename"
 }
 
 wp_plugin_base_assert_path_within_root() {

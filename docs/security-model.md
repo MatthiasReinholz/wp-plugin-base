@@ -49,10 +49,12 @@ That audit fails if it finds:
 - an external action not pinned to a 40-character commit SHA
 - an external action outside the approved allowlist
 - a local action whose `runs.using` is not `composite`
+- a composite local action that dispatches to a repo-local helper script through `node`, `python`, `bash`, or another interpreter instead of inlining the audited commands
 - a workflow without explicit top-level `permissions`
 - a workflow with broader permissions than its policy allows
 - a custom workflow with privileged scopes outside the read-only policy, including `contents: write`, `pull-requests: write`, `id-token: write`, or `attestations: write`
-- `curl | bash`, `wget | sh`, or equivalent remote-script execution
+- `curl | bash`, `curl | python`, `wget | sh`, multiline download-then-exec payloads, or any equivalent remote-script execution
+- a workflow or local action run body that builds a download URL dynamically instead of using a literal auditable host
 - outbound URLs to hosts outside the documented allowlist
 - any `pull_request_target` workflow outside the audited managed finalize workflows
 - an audited `pull_request_target` workflow whose job condition differs from the exact reviewed merge-gating expression
@@ -68,6 +70,8 @@ The hardened baseline only allows workflow/script references to:
 - `token.actions.githubusercontent.com`
 
 Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only and keep this list minimal.
+
+Dynamic URL construction inside workflow or local-action `run:` bodies is intentionally out of contract. Those contexts must use literal auditable hosts or delegate the network call to a reviewed repo-local script.
 
 Ubuntu package mirrors are only expected indirectly when the workflow installs Subversion with `apt-get`.
 
@@ -110,7 +114,7 @@ bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh \
   plugin
 ```
 
-The strict verifier only trusts signatures produced by the expected release workflows on `refs/heads/main`. Foundation update verification also downloads the signed `dist-foundation-release.json` metadata asset and its Sigstore bundle, verifies the bundle, and compares the repository, version, and commit fields against the selected release before any vendored code is refreshed.
+The strict verifier only trusts signatures produced by the expected release workflows on `refs/heads/main`. Foundation update verification also downloads the signed `dist-foundation-release.json` metadata asset and its Sigstore bundle, verifies the bundle, and compares the repository, version, and commit fields against the selected release before any vendored code is refreshed. If the newest compatible release fails those checks, the updater falls back to the next older compatible published release instead of trusting the broken candidate.
 
 If you intentionally need a different branch policy, treat it as an explicit policy change and document it in the repository that consumes the verifier.
 

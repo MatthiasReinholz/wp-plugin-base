@@ -51,10 +51,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
-            "${{ steps.config.outputs.repository }}" \
-            "${{ steps.latest.outputs.version }}" \
-            "$GITHUB_OUTPUT"
+          set -euo pipefail
+          while IFS= read -r candidate_version; do
+            [ -n "$candidate_version" ] || continue
+            verify_output="$(mktemp)"
+            verify_log="$(mktemp)"
+            if bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
+              "${{ steps.config.outputs.repository }}" \
+              "$candidate_version" \
+              "$verify_output" >"$verify_log" 2>&1; then
+              cat "$verify_output" >> "$GITHUB_OUTPUT"
+              rm -f "$verify_output" "$verify_log"
+              exit 0
+            fi
+            cat "$verify_log" >&2
+            rm -f "$verify_output" "$verify_log"
+          done <<'EOF'
+          ${{ steps.latest.outputs.candidates }}
+          EOF
+
+          echo "No compatible foundation release passed provenance verification." >&2
+          exit 1
 
       - name: Clone target foundation version
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
@@ -75,7 +92,7 @@ jobs:
       - name: Update project config
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
-          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.latest.outputs.version }}/m" .wp-plugin-base.env
+          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.verify.outputs.version }}/m" .wp-plugin-base.env
 
       - name: Regenerate managed files
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
@@ -103,7 +120,7 @@ jobs:
           This PR updates the vendored foundation and regenerates the managed workflow and documentation files.
 
           Updated foundation version:
-          - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+          - `${{ steps.config.outputs.version }}` -> `${{ steps.verify.outputs.version }}`
 
           Security checks performed before proposing this update:
           - release is published and not draft/prerelease
@@ -122,10 +139,10 @@ jobs:
           GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
         run: |
           bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
-            "chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}" \
+            "chore/update-wp-plugin-base-${{ steps.verify.outputs.version }}" \
             "main" \
-            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
-            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
+            "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
+            "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
             "$RUNNER_TEMP/foundation-update-pr.md"
 
       - name: Report no update needed

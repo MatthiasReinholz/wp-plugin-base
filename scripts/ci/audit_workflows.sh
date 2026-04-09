@@ -78,6 +78,12 @@ if [ "${#workflow_files[@]}" -eq 0 ]; then
   exit 1
 fi
 
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  echo "Workflow files must use the .yml extension: $file" >&2
+  exit 1
+done < <(printf '%s\n' "${workflow_files[@]}" | grep -E '\.yaml$' || true)
+
 if [ "${#action_dirs[@]}" -gt 0 ]; then
   while IFS= read -r file; do
     action_files+=("$file")
@@ -221,22 +227,45 @@ normalize_condition = lambda do |value|
   value.to_s.gsub(/\s+/, " ").strip
 end
 
+script_interpreter_pattern = "(bash|sh|source|\\.|python(?:[0-9]+(?:\\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)"
+local_helper_pattern = %r{
+  \b(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b
+  [^\n]*
+  (?:
+    (?:\.\.?/)?[A-Za-z0-9_./-]+\.(?:sh|bash|py|js|mjs|cjs|pl|rb|php)
+  )
+}ix
+
 run_body_executes_remote_code = lambda do |label, body|
   normalized = body.to_s.gsub("\r\n", "\n")
   return if normalized.empty?
 
-  if normalized.match?(/curl[^\n]*\|[ \t]*(bash|sh)\b/i) ||
-    normalized.match?(/wget[^\n]*\|[ \t]*(bash|sh)\b/i) ||
-    normalized.match?(/(bash|sh|source|\.)[ \t]*<\([ \t]*(curl|wget)\b/i) ||
-    normalized.match?(/(curl|wget)[^\n]*(&&|;)[^\n]*\b(bash|sh|source)\b/i)
-    errors << "#{label}: remote script execution patterns such as curl|bash or wget|sh are not allowed"
+  if normalized.match?(/\b(curl|wget)[^\n|]*\|[ \t]*#{script_interpreter_pattern}\b/i) ||
+    normalized.match?(/#{script_interpreter_pattern}[ \t]*<\([ \t]*(curl|wget)\b/i) ||
+    normalized.match?(/\b(curl|wget)[^\n]*(&&|;)[^\n]*\b#{script_interpreter_pattern}\b/i)
+    errors << "#{label}: remote script execution patterns such as curl|bash, curl|python, or wget|sh are not allowed"
     return
   end
 
   has_download = normalized.match?(/\b(curl|wget)\b/i)
-  has_shell_exec = normalized.match?(/(^|\n)\s*(bash|sh|source|\.)\b/i)
-  if has_download && has_shell_exec
-    errors << "#{label}: run body combines remote download commands with shell execution"
+  has_interpreter_exec = normalized.match?(/(^|\n)\s*#{script_interpreter_pattern}\b/i)
+  if has_download && has_interpreter_exec
+    errors << "#{label}: run body combines remote download commands with interpreter execution"
+    return
+  end
+
+  if normalized.match?(/\b(curl|wget)\b[^\n]*\$/)
+    errors << "#{label}: workflow and local action run bodies must not build download URLs dynamically"
+    return
+  end
+end
+
+composite_action_invokes_local_helper = lambda do |label, body|
+  normalized = body.to_s.gsub("\r\n", "\n")
+  return if normalized.empty?
+
+  if normalized.match?(local_helper_pattern)
+    errors << "#{label}: composite local actions must inline commands and must not dispatch to repo-local helper scripts"
   end
 end
 
@@ -385,6 +414,7 @@ action_files.each do |file|
     next unless step["run"].is_a?(String)
 
     run_body_executes_remote_code.call("#{file}:step#{index + 1}", step["run"])
+    composite_action_invokes_local_helper.call("#{file}:step#{index + 1}", step["run"])
   end
 end
 
@@ -457,15 +487,19 @@ while IFS= read -r file; do
     */scripts/ci/audit_workflows.sh)
       continue
       ;;
+    */scripts/foundation/validate.sh|*/scripts/foundation/validate-full.sh)
+      # These harnesses embed intentionally malicious fixture content in heredocs.
+      continue
+      ;;
   esac
   scan_files+=("$file")
 done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '*.sh' \) | sort)
 
 remote_script_patterns=(
-  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
-  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
-  '(bash|sh|source|\.)[[:space:]]*<\([[:space:]]*(curl|wget)\b'
-  '(curl|wget)[^[:cntrl:]]*(&&|;)[^[:cntrl:]]*\b(bash|sh|source)\b'
+  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
+  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
+  '(bash|sh|source|\.|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)[[:space:]]*<\([[:space:]]*(curl|wget)\b'
+  '(curl|wget)[^[:cntrl:]]*(&&|;)[^[:cntrl:]]*\b(bash|sh|source|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
 )
 
 if command -v rg >/dev/null 2>&1; then
@@ -490,6 +524,27 @@ else
     grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}|${remote_script_patterns[2]}|${remote_script_patterns[3]}" "${scan_files[@]}" >&2
     exit 1
   fi
+fi
+
+if perl -0ne '
+  BEGIN { $failed = 0; }
+  my $normalized = $_;
+  $normalized =~ s/(?:'\'''\''|"")//g;
+  if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+    print "$ARGV\n";
+    $failed = 1;
+  }
+  END { exit($failed ? 0 : 1); }
+' "${scan_files[@]}" >/dev/null 2>&1; then
+  echo "Multiline download-then-execute patterns are not allowed in audited scripts or workflow files." >&2
+  perl -0ne '
+    my $normalized = $_;
+    $normalized =~ s/(?:'\'''\''|"")//g;
+    if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+      print "$ARGV\n";
+    }
+  ' "${scan_files[@]}" >&2
+  exit 1
 fi
 
 declare -a default_allowed_hosts=(
