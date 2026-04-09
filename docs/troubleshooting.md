@@ -21,6 +21,8 @@ The validation scripts now fail fast and identify the missing tool or invalid co
 If foundation validation passes in `fast-local` mode but you want CI-like tool enforcement locally, rerun:
 
 ```bash
+bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools"
+export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 ```
 

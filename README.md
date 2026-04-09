@@ -46,6 +46,8 @@ For the foundation repo itself, run:
 
 ```bash
 bash scripts/foundation/validate.sh
+bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools"
+export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 bash scripts/foundation/validate-full.sh
 ```
@@ -94,6 +96,14 @@ npm ci --prefix tools/markdownlint --ignore-scripts --no-audit --no-fund
 ```
 
 Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`.
+
+To bootstrap strict-local foundation validation from a clean clone, use:
+
+```bash
+bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools"
+export PATH="$PWD/.wp-plugin-base-tools:$PATH"
+bash scripts/foundation/validate.sh --mode strict-local
+```
 
 ## Security Model
 
@@ -245,6 +255,8 @@ Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example
 
 `.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
 
+The canonical machine-readable config contract is tracked in [`docs/config-schema.json`](docs/config-schema.json). Foundation validation enforces parity between that schema, `load_config.sh`, this README key list, and `templates/child/.wp-plugin-base.env.example`.
+
 `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, `DISTIGNORE_FILE`, and `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` must stay repo-relative. `DISTIGNORE_FILE` must point to a `*.distignore` file. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
 
 Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
@@ -306,3 +318,4 @@ The manual `release.yml` workflow is a recovery path for an already existing Git
 - [Changelog policy](docs/changelog-policy.md)
 - [Update model](docs/update-model.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Maintainer and agent map](docs/maintainer-agent-map.md)

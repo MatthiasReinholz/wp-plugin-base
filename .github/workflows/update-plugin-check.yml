@@ -12,6 +12,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: update-plugin-check-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update:
     name: Update plugin-check

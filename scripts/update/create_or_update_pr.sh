@@ -29,7 +29,15 @@ fi
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 OWNER="${GITHUB_REPOSITORY_OWNER:-${REPO%%/*}}"
 
-git checkout -B "$BRANCH_NAME" >/dev/null
+git fetch origin "$BRANCH_NAME" >/dev/null 2>&1 || true
+
+if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+  git checkout "$BRANCH_NAME" >/dev/null
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
+  git checkout -b "$BRANCH_NAME" --track "origin/$BRANCH_NAME" >/dev/null
+else
+  git checkout -b "$BRANCH_NAME" >/dev/null
+fi
 
 if [ -n "${GIT_ADD_PATHS:-}" ]; then
   declare -a stage_paths=()
@@ -55,7 +63,10 @@ changes_committed=false
 if ! git diff --cached --quiet; then
   git commit -m "$COMMIT_MESSAGE"
   changes_committed=true
-  git push --force-with-lease origin "HEAD:$BRANCH_NAME"
+  if ! git push origin "HEAD:$BRANCH_NAME" >/dev/null 2>&1; then
+    echo "Non-fast-forward push for $BRANCH_NAME; retrying with --force-with-lease." >&2
+    git push --force-with-lease origin "HEAD:$BRANCH_NAME"
+  fi
 fi
 
 pr_json="$(gh pr list --repo "$REPO" --state open --head "$OWNER:$BRANCH_NAME" --base "$BASE_BRANCH" --json number,url --limit 1)"

@@ -29,9 +29,12 @@ wp_env_config="$(mktemp)"
 wp_env_tools_dir="$(mktemp -d)"
 npm_cache_dir="$(mktemp -d)"
 buildx_config_dir="$(mktemp -d)"
-wp_env_port="$((20000 + (RANDOM % 10000)))"
-wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
+wp_env_port=''
+wp_env_tests_port=''
 plugin_check_cli_bootstrap="/var/www/html/wp-content/plugins/plugin-check/cli.php"
+max_attempts=3
+attempt=1
+start_success=false
 
 cleanup() {
   if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
@@ -42,26 +45,40 @@ cleanup() {
 
 trap cleanup EXIT
 
-WP_PLUGIN_BASE_TARGET_ROOT="$ROOT_DIR" \
-WP_PLUGIN_BASE_WP_ENV_PORT="$wp_env_port" \
-WP_PLUGIN_BASE_WP_ENV_TESTS_PORT="$wp_env_tests_port" \
-php -r '
-  $config = [
-    "plugins" => [getenv("WP_PLUGIN_BASE_TARGET_ROOT")],
-    "port" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_PORT"),
-    "testsPort" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_TESTS_PORT"),
-    "testsEnvironment" => false,
-  ];
-  file_put_contents($argv[1], json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
-' "$wp_env_config"
-
 NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_install_wordpress_env "$wp_env_tools_dir"
+while [ "$attempt" -le "$max_attempts" ]; do
+  wp_env_port="$((20000 + (RANDOM % 10000)))"
+  wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
 
-WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null
-WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin install plugin-check --version="$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" --activate >/dev/null
+  WP_PLUGIN_BASE_TARGET_ROOT="$ROOT_DIR" \
+  WP_PLUGIN_BASE_WP_ENV_PORT="$wp_env_port" \
+  WP_PLUGIN_BASE_WP_ENV_TESTS_PORT="$wp_env_tests_port" \
+  php -r '
+    $config = [
+      "plugins" => [getenv("WP_PLUGIN_BASE_TARGET_ROOT")],
+      "port" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_PORT"),
+      "testsPort" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_TESTS_PORT"),
+      "testsEnvironment" => false,
+    ];
+    file_put_contents($argv[1], json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+  ' "$wp_env_config"
 
-if ! WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin is-installed plugin-check >/dev/null 2>&1; then
-  echo "Failed to install plugin-check." >&2
+  if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null 2>&1; then
+    if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin install plugin-check --version="$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" --activate >/dev/null 2>&1; then
+      if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin is-installed plugin-check >/dev/null 2>&1; then
+        start_success=true
+        break
+      fi
+    fi
+  fi
+
+  echo "wp-env startup/install attempt ${attempt}/${max_attempts} failed (ports ${wp_env_port}/${wp_env_tests_port}); retrying." >&2
+  WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
+  attempt=$((attempt + 1))
+done
+
+if [ "$start_success" != true ]; then
+  echo "Failed to start wp-env and install plugin-check after ${max_attempts} attempts." >&2
   exit 1
 fi
 
@@ -137,27 +154,7 @@ raw_output="$(
     "${plugin_check_args[@]}"
 )"
 
-json_payload="$raw_output"
-
-if [ -z "$json_payload" ]; then
-  json_payload='[]'
-fi
-
-if printf '%s\n' "$json_payload" | tr -d '\r' | grep -Eq '^[[:space:]]*Success: Checks complete\. No errors found\.[[:space:]]*$'; then
-  json_payload='[]'
-fi
-
-if ! printf '%s\n' "$json_payload" | jq -e 'type == "array"' >/dev/null 2>&1; then
-  json_payload="$(
-    printf '%s\n' "$raw_output" | perl -0ne '
-      if (/(\[[\s\S]*\])(?:✔ Ran|\z)/) {
-        print $1;
-        exit 0;
-      }
-      exit 1;
-    '
-  )"
-fi
+json_payload="$(printf '%s\n' "$raw_output" | bash "$SCRIPT_DIR/normalize_plugin_check_output.sh")"
 
 printf '%s\n' "$json_payload" > "$REPORT_PATH"
 

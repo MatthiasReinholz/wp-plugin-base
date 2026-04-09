@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "dependencies": [
+    {
+      "id": "github-actions-workflows",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "github-actions",
+        "directory": "/"
+      }
+    },
+    {
+      "id": "wordpress-env-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/tools/wordpress-env"
+      },
+      "lockfile": "tools/wordpress-env/package-lock.json"
+    },
+    {
+      "id": "markdownlint-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/tools/markdownlint"
+      },
+      "lockfile": "tools/markdownlint/package-lock.json"
+    },
+    {
+      "id": "python-lint-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "pip",
+        "directory": "/tools/python-lint-tools"
+      },
+      "lockfile": "tools/python-lint-tools/requirements.txt"
+    },
+    {
+      "id": "python-semgrep-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "pip",
+        "directory": "/tools/python-semgrep"
+      },
+      "lockfile": "tools/python-semgrep/requirements.txt"
+    },
+    {
+      "id": "quality-pack-composer",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "composer",
+        "directory": "/templates/child/quality-pack/.wp-plugin-base-quality-pack"
+      },
+      "lockfile": "templates/child/quality-pack/.wp-plugin-base-quality-pack/composer.lock"
+    },
+    {
+      "id": "security-pack-composer",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "composer",
+        "directory": "/templates/child/security-pack/.wp-plugin-base-security-pack"
+      },
+      "lockfile": "templates/child/security-pack/.wp-plugin-base-security-pack/composer.lock"
+    },
+    {
+      "id": "plugin-check",
+      "tier": "metadata-only",
+      "update": {
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
+      },
+      "pin": {
+        "file": "scripts/lib/wordpress_tooling.sh",
+        "pattern": "WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='1.9.0'"
+      }
+    },
+    {
+      "id": "composer-docker-image",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/lib/wordpress_tooling.sh",
+        "pattern": "WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:743aebe48ca67097c36819040633ea77e44a561eca135e4fc84c002e63a1ba07'"
+      }
+    },
+    {
+      "id": "shellcheck-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/ci/install_lint_tools.sh",
+        "pattern": "SHELLCHECK_VERSION='0.10.0'"
+      }
+    },
+    {
+      "id": "actionlint-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/ci/install_lint_tools.sh",
+        "pattern": "ACTIONLINT_VERSION='1.7.7'"
+      }
+    },
+    {
+      "id": "editorconfig-checker-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/ci/install_lint_tools.sh",
+        "pattern": "EDITORCONFIG_CHECKER_VERSION='3.6.1'"
+      }
+    },
+    {
+      "id": "gitleaks-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/ci/install_lint_tools.sh",
+        "pattern": "GITLEAKS_VERSION='8.30.1'"
+      }
+    },
+    {
+      "id": "syft-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/release/install_release_security_tools.sh",
+        "pattern": "SYFT_VERSION='1.42.3'"
+      }
+    },
+    {
+      "id": "cosign-binary",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "scripts/release/install_release_security_tools.sh",
+        "pattern": "COSIGN_VERSION='3.0.6'"
+      }
+    }
+  ]
+}

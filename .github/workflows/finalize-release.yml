@@ -20,6 +20,10 @@ permissions:
   attestations: write
   id-token: write
 
+concurrency:
+  group: finalize-release-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Publish merged release
