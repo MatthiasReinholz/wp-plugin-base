@@ -226,9 +226,9 @@ run_body_executes_remote_code = lambda do |label, body|
   return if normalized.empty?
 
   if normalized.match?(/curl[^\n]*\|[ \t]*(bash|sh)\b/i) ||
-     normalized.match?(/wget[^\n]*\|[ \t]*(bash|sh)\b/i) ||
-     normalized.match?(/(bash|sh|source|\.)[ \t]*<\([ \t]*(curl|wget)\b/i) ||
-     normalized.match?(/(curl|wget)[^\n]*(&&|;)[^\n]*\b(bash|sh|source)\b/i)
+    normalized.match?(/wget[^\n]*\|[ \t]*(bash|sh)\b/i) ||
+    normalized.match?(/(bash|sh|source|\.)[ \t]*<\([ \t]*(curl|wget)\b/i) ||
+    normalized.match?(/(curl|wget)[^\n]*(&&|;)[^\n]*\b(bash|sh|source)\b/i)
     errors << "#{label}: remote script execution patterns such as curl|bash or wget|sh are not allowed"
     return
   end
