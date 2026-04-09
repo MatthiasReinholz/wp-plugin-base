@@ -35,14 +35,18 @@ if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist
 
   cp "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.json" "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.lock" "$composer_work_dir/"
 
-  docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-    -v "$composer_cache_dir":/tmp/composer-cache \
-    -v "$composer_work_dir":/workspace \
-    -w /workspace \
-    "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-    install --no-interaction --no-progress --prefer-dist >/dev/null
+  composer_install_command() {
+    docker run --rm \
+      -u "$(id -u):$(id -g)" \
+      -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+      -v "$composer_cache_dir":/tmp/composer-cache \
+      -v "$composer_work_dir":/workspace \
+      -w /workspace \
+      "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+      install --no-interaction --no-progress --prefer-dist >/dev/null
+  }
+
+  wp_plugin_base_run_with_retry 3 2 "PHP runtime smoke Composer install" composer_install_command
 
   php "$composer_work_dir/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
   rm -rf "$composer_work_dir" "$composer_cache_dir"

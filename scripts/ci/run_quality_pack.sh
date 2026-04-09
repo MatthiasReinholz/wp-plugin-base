@@ -46,14 +46,18 @@ done
 
 cp "$TOOLS_DIR/composer.json" "$TOOLS_DIR/composer.lock" "$COMPOSER_WORK_DIR/"
 
-docker run --rm \
-  -u "$(id -u):$(id -g)" \
-  -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-  -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
-  -v "$COMPOSER_WORK_DIR":/workspace \
-  -w /workspace \
-  "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-  install --no-interaction --no-progress --prefer-dist >/dev/null
+composer_install_command() {
+  docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+    -v "$COMPOSER_WORK_DIR":/workspace \
+    -w /workspace \
+    "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+    install --no-interaction --no-progress --prefer-dist >/dev/null
+}
+
+wp_plugin_base_run_with_retry 3 2 "Quality pack Composer install" composer_install_command
 
 docker run --rm \
   -u "$(id -u):$(id -g)" \
