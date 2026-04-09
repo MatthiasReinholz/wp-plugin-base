@@ -36,8 +36,8 @@ The foundation is designed for standard WordPress plugin repos, but it allows a 
 The foundation also exposes opt-in modes that change how strict the generated workflows are:
 
 - `WORDPRESS_READINESS_ENABLED=true` enables the stricter WordPress metadata and packaging contract for plugin repos that are already ready for release-grade validation.
-- `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack.
-- `WORDPRESS_SECURITY_PACK_ENABLED=true` enables the narrower security-focused pack and its public-endpoint scan.
+- `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack as a readiness submode.
+- `WORDPRESS_SECURITY_PACK_ENABLED=true` enables the narrower security-focused pack and its public-endpoint scan as a readiness submode.
 
 ## Intentional Non-Goals
 

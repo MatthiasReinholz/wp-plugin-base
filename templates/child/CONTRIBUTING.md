@@ -55,6 +55,8 @@ Managed workflow files:
 
 `finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` opens reviewable PRs for GitHub Actions version updates.
 Managed CI also runs a separate `gitleaks` secret-scan job by default.
+When `WORDPRESS_QUALITY_PACK_ENABLED=true` or `WORDPRESS_SECURITY_PACK_ENABLED=true`, treat those settings as readiness submodes. Both require `WORDPRESS_READINESS_ENABLED=true`.
+
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a focused WordPress security pack:
 
 - explicit `WordPress.Security` sniffs for escaping, nonce verification, and sanitized input
@@ -74,6 +76,8 @@ Before opening or merging changes, run:
 ```bash
 bash .wp-plugin-base/scripts/ci/validate_project.sh
 ```
+
+That command enforces the generated managed-file surface, not just `.github/workflows/*`. Managed workflow files also need to use the `.yml` extension; `.yaml` workflow files are rejected by foundation validation.
 
 `prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`.
 

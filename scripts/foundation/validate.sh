@@ -95,6 +95,8 @@ test -f "$managed_child/.wp-plugin-base-security-suppressions.json"
 test -f "$managed_child/CHANGELOG.md"
 test -f "$managed_child/SECURITY.md"
 test -f "$managed_child/uninstall.php.example"
+managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$managed_child" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh")"
+grep -Fxq '.wp-plugin-base-security-suppressions.json' <<<"$managed_paths_output"
 grep -Fq '/.wp-plugin-base-security-pack export-ignore' "$managed_child/.gitattributes"
 grep -Fq '/.phpcs-security.xml.dist export-ignore' "$managed_child/.gitattributes"
 grep -Fq 'secret-scan:' "$managed_child/.github/workflows/ci.yml"
@@ -126,6 +128,7 @@ mkdir -p "$managed_security_child/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_security_child/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$managed_security_child" bash "$managed_security_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
 test -f "$managed_security_child/.phpcs-security.xml.dist"
+test -f "$managed_security_child/.phpcs.xml.dist"
 test -f "$managed_security_child/.wp-plugin-base-security-pack/composer.json"
 test -f "$managed_security_child/.wp-plugin-base-security-pack/composer.lock"
 test -f "$managed_security_child/.github/workflows/woocommerce-qit.yml"
@@ -137,12 +140,17 @@ grep -Fq 'Run Semgrep security scan' "$managed_security_child/.github/workflows/
 grep -Fq "if: \${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}" "$managed_security_child/.github/workflows/ci.yml"
 grep -Fq "WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP: 'true'" "$managed_security_child/.github/workflows/ci.yml"
 grep -Fq 'php-runtime-smoke:' "$managed_security_child/.github/workflows/ci.yml"
+managed_security_paths_output="$(WP_PLUGIN_BASE_ROOT="$managed_security_child" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh")"
+grep -Fxq '.phpcs.xml.dist' <<<"$managed_security_paths_output"
+grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_security_paths_output"
+grep -Fxq '.github/workflows/woocommerce-qit.yml' <<<"$managed_security_paths_output"
 grep -Fq '/plugin-check/cli.php' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq -- '--require="$plugin_check_cli_bootstrap"' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq 'resolve_latest_plugin_check_version.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
 grep -Fq 'resolve_latest_foundation_version.sh' "$ROOT_DIR/.github/workflows/update-foundation.yml"
 grep -Fq 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
 grep -Fq 'publish_github_release.sh --repair' "$ROOT_DIR/.github/workflows/release-foundation.yml"
+bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-lite
 
 plugin_check_release_fixture="$(mktemp)"
 cat > "$plugin_check_release_fixture" <<'EOF'
@@ -414,6 +422,28 @@ rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
 
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a custom workflow with privileged id-token permissions." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
 cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
 name: ci
 on: !ruby/object:OpenStruct
@@ -472,6 +502,35 @@ fi
 rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
+mkdir -p "$audit_fixture/.github/actions/test-action"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/test-action
+EOF
+
+cat > "$audit_fixture/.github/actions/test-action/action.yml" <<'EOF'
+name: test-action
+runs:
+  using: node20
+  main: index.js
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a non-composite local action." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
 
 cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
 name: custom
@@ -489,6 +548,29 @@ EOF
 
 if ! bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
   echo "Audit unexpectedly failed for a valid custom workflow." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - run: |
+          curl -fsSL https://github.com/example/install.sh -o /tmp/install.sh
+          bash /tmp/install.sh
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a multiline download-then-execute payload." >&2
   exit 1
 fi
 
@@ -620,6 +702,11 @@ if ! WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_ROOT="$deploy_local_project_fixtu
   exit 1
 fi
 
+if GITHUB_ACTIONS=true GITHUB_REPOSITORY=example/repo WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_ROOT="$deploy_local_project_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" "release/1.2.3" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed in strict GitHub mode without deploy environment access." >&2
+  exit 1
+fi
+
 zip_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$zip_fixture/"
 mkdir -p "$zip_fixture/.wp-plugin-base"
@@ -639,16 +726,32 @@ git init --bare -q "$pr_stage_origin"
 git -C "$pr_stage_fixture" init -q
 git -C "$pr_stage_fixture" config user.email "fixture@example.com"
 git -C "$pr_stage_fixture" config user.name "Fixture"
+mkdir -p "$pr_stage_fixture/.security"
 mkdir -p "$pr_stage_fixture/.wp-plugin-base-security-pack"
 cat > "$pr_stage_fixture/.wp-plugin-base-security-pack/composer.json" <<'EOF'
 {"name":"fixture/security-pack"}
 EOF
-git -C "$pr_stage_fixture" add .wp-plugin-base-security-pack/composer.json
+cat > "$pr_stage_fixture/.phpcs-security.xml.dist" <<'EOF'
+<ruleset name="fixture-security"/>
+EOF
+cat > "$pr_stage_fixture/.phpcs.xml.dist" <<'EOF'
+<ruleset name="fixture-quality"/>
+EOF
+cat > "$pr_stage_fixture/.security/custom-security-suppressions.json" <<'EOF'
+{"suppressions":[]}
+EOF
+git -C "$pr_stage_fixture" add \
+  .wp-plugin-base-security-pack/composer.json \
+  .phpcs-security.xml.dist \
+  .phpcs.xml.dist \
+  .security/custom-security-suppressions.json
 git -C "$pr_stage_fixture" commit -qm "init"
 git -C "$pr_stage_fixture" branch -M main
 git -C "$pr_stage_fixture" remote add origin "$pr_stage_origin"
 git -C "$pr_stage_fixture" push -q -u origin main
 rm -rf "$pr_stage_fixture/.wp-plugin-base-security-pack"
+rm -f "$pr_stage_fixture/.phpcs-security.xml.dist" "$pr_stage_fixture/.phpcs.xml.dist"
+rm -f "$pr_stage_fixture/.security/custom-security-suppressions.json"
 cat > "$pr_stage_fixture/body.md" <<'EOF'
 fixture body
 EOF
@@ -674,7 +777,7 @@ pr_stage_output="$(mktemp)"
     GITHUB_REPOSITORY="example/repo" \
     GITHUB_REPOSITORY_OWNER="example" \
     GITHUB_OUTPUT="$pr_stage_output" \
-    GIT_ADD_PATHS=".wp-plugin-base-security-pack" \
+    GIT_ADD_PATHS=".wp-plugin-base-security-pack,.phpcs-security.xml.dist,.phpcs.xml.dist,.security/custom-security-suppressions.json" \
     bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
       "chore/fixture-removal" \
       "main" \
@@ -684,6 +787,18 @@ pr_stage_output="$(mktemp)"
 )
 if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.wp-plugin-base-security-pack/composer.json'; then
   echo "Explicit path staging unexpectedly failed to commit a managed deletion." >&2
+  exit 1
+fi
+if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.phpcs-security.xml.dist'; then
+  echo "Explicit path staging unexpectedly failed to commit a managed root-file deletion." >&2
+  exit 1
+fi
+if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.phpcs.xml.dist'; then
+  echo "Explicit path staging unexpectedly failed to commit a managed quality-file deletion." >&2
+  exit 1
+fi
+if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.security/custom-security-suppressions.json'; then
+  echo "Explicit path staging unexpectedly failed to commit a configured suppressions-file deletion." >&2
   exit 1
 fi
 

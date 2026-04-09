@@ -22,7 +22,7 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 6. Set optional values only if the repo layout differs from the defaults.
    Keep `ZIP_FILE` as a simple filename such as `example-plugin.zip`, not a path.
    If your install ZIP needs files from `packages/` or `routes/`, add them explicitly through `PACKAGE_INCLUDE` and remove only the paths that must stay out of the package through `PACKAGE_EXCLUDE`.
-7. If you want release-time translation template generation, set `POT_FILE` to a repo-relative path now so release prep can generate the file when missing.
+7. If you want release-time translation template generation, set `POT_FILE` to a repo-relative path now so release prep can generate the file when missing. Also add a `Domain Path` plugin header, typically `/languages/`, if `POT_FILE` is configured or the repo will contain a `languages/` directory.
 8. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 9. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 10. Commit the vendored foundation, config, and generated managed files, including `.github/dependabot.yml`.
@@ -67,11 +67,13 @@ That command validates:
 
 - required config keys and value formats
 - the plugin main file and `readme.txt` paths
-- managed workflow files in `.github/workflows/`
+- the generated managed-file surface, including root managed files, the configured suppressions file, and any enabled quality/security/QIT pack files
 - PHP and JavaScript syntax
 - workflow policy compliance
 - version alignment
 - release branch metadata when you provide a branch name
 - ZIP package creation
+
+Managed workflow files must use the `.yml` extension. `.yaml` workflow files are rejected by foundation validation.
 
 For WordPress.org deploy-enabled repos, local validation warns when GitHub environment protection cannot be queried yet. The generated CI workflows enforce that check strictly once the repository is running in GitHub Actions.

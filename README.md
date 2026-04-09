@@ -101,7 +101,7 @@ npm install -g markdownlint-cli2
 - workflows are local to your project and run against the checked-out repository
 - every external action must be pinned to a full commit SHA
 - only a small approved action allowlist is permitted
-- custom project workflows stay on read-oriented permissions by default; privileged write flows remain managed
+- custom project workflows stay read-only by default; privileged write flows remain managed
 - release and update workflows use repo-local shell scripts where practical instead of additional third-party actions
 - foundation self-updates only trust published foundation releases that pass provenance checks
 
@@ -155,6 +155,8 @@ Validate the repo contract locally with:
 ```bash
 bash .wp-plugin-base/scripts/ci/validate_project.sh
 ```
+
+That command enforces the generated managed-file surface, not just `.github/workflows/*`. A synced repo must keep the managed root files, the configured suppressions file, and any enabled quality/security/QIT pack files present as regular files.
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
@@ -242,13 +244,15 @@ Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example
 
 Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
 
-`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack with PHPCS, PHPStan, PHPUnit, and Composer audit checks.
+`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`.
 
-`WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
+`WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
 Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) to declare intentional public endpoint exceptions with mandatory justification.
 
-If `POT_FILE` is configured, release preparation generates it when it is missing. The path still needs to stay inside the repository and point at a writable location.
+If `POT_FILE` is configured, release preparation generates it when it is missing. The path still needs to stay inside the repository and point at a writable location. Translation support also requires a `Domain Path` plugin header, typically `/languages/`, when `POT_FILE` is configured or a `languages/` directory is present.
+
+Managed workflow files use the `.yml` extension. `.yaml` workflow files are rejected by foundation validation.
 
 `WP_PLUGIN_BASE_PLUGIN_CHECK_*` keys provide optional policy controls for Plugin Check execution during WordPress readiness validation:
 

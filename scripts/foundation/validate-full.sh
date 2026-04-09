@@ -62,7 +62,6 @@ test ! -e "$security_pack_skip_fixture/dist/semgrep-security.sarif"
 custom_suppressions_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$custom_suppressions_fixture/"
 mkdir -p "$custom_suppressions_fixture/.wp-plugin-base"
-mkdir -p "$custom_suppressions_fixture/.security"
 cat >> "$custom_suppressions_fixture/.wp-plugin-base.env" <<'EOF'
 WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE=.security/custom-security-suppressions.json
 EOF
@@ -70,6 +69,10 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_suppressions_fixture/.wp-plugin-
 WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 test -f "$custom_suppressions_fixture/.security/custom-security-suppressions.json"
 test ! -e "$custom_suppressions_fixture/.wp-plugin-base-security-suppressions.json"
+managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" ".wp-plugin-base.env")"
+grep -Fxq '.security/custom-security-suppressions.json' <<<"$managed_paths_output"
+grep -Fxq '.phpcs.xml.dist' <<<"$managed_paths_output"
+grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_paths_output"
 
 missing_workflow_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_workflow_fixture/"
@@ -93,6 +96,29 @@ if WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/c
   exit 1
 fi
 
+missing_managed_file_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_managed_file_fixture/"
+mkdir -p "$missing_managed_file_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_managed_file_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_managed_file_fixture/.github/dependabot.yml"
+mkdir -p "$missing_managed_file_fixture/.github/dependabot.yml"
+if WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a managed file path replaced by a directory." >&2
+  exit 1
+fi
+
+missing_managed_file_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_managed_file_fixture/"
+mkdir -p "$missing_managed_file_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_managed_file_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_managed_file_fixture/phpstan.neon.dist"
+if WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed quality-pack file." >&2
+  exit 1
+fi
+
 metadata_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$metadata_fixture/"
 mkdir -p "$metadata_fixture/.wp-plugin-base"
@@ -103,6 +129,24 @@ if WP_PLUGIN_BASE_ROOT="$metadata_fixture" bash "$ROOT_DIR/scripts/ci/validate_w
   echo "Readiness unexpectedly passed with invalid readme metadata." >&2
   exit 1
 fi
+
+deploy_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$deploy_fixture/"
+mkdir -p "$deploy_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$deploy_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_ORG_DEPLOY_ENABLED=true
+export WP_ORG_DEPLOY_ENABLED
+if ! WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" >/dev/null 2>&1; then
+  echo "Readiness unexpectedly failed locally for a deploy-enabled project." >&2
+  exit 1
+fi
+if GITHUB_ACTIONS=true GITHUB_REPOSITORY=example/repo WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" >/dev/null 2>&1; then
+  echo "Readiness unexpectedly passed in strict GitHub mode without deploy environment access." >&2
+  exit 1
+fi
+unset WP_ORG_DEPLOY_ENABLED
+rm -rf "$deploy_fixture"
 
 deploy_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$deploy_fixture/"

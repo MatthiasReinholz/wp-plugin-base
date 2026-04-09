@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/managed_files.sh
+. "$SCRIPT_DIR/../lib/managed_files.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
@@ -38,35 +40,21 @@ render_template() {
     "$source_file" > "$destination_file"
 }
 
-render_template "$TEMPLATE_DIR/.distignore" "$ROOT_DIR/.distignore"
-render_template "$TEMPLATE_DIR/.editorconfig" "$ROOT_DIR/.editorconfig"
-render_template "$TEMPLATE_DIR/.gitattributes" "$ROOT_DIR/.gitattributes"
-render_template "$TEMPLATE_DIR/.gitignore" "$ROOT_DIR/.gitignore"
-render_template "$TEMPLATE_DIR/SECURITY.md" "$ROOT_DIR/SECURITY.md"
-render_template "$TEMPLATE_DIR/CONTRIBUTING.md" "$ROOT_DIR/CONTRIBUTING.md"
-render_template "$TEMPLATE_DIR/uninstall.php.example" "$ROOT_DIR/uninstall.php.example"
+while IFS=$'\t' read -r source_file destination_path; do
+  [ -n "$source_file" ] || continue
+  if [ "$destination_path" = "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ] && [ -f "$ROOT_DIR/$destination_path" ]; then
+    continue
+  fi
+  render_template "$source_file" "$ROOT_DIR/$destination_path"
+done < <(wp_plugin_base_print_base_managed_template_pairs "$TEMPLATE_DIR")
+
+if [ -z "$CODEOWNERS_REVIEWERS" ]; then
+  rm -f "$ROOT_DIR/.github/CODEOWNERS"
+fi
 
 if [ ! -f "$ROOT_DIR/CHANGELOG.md" ] && [ -f "$TEMPLATE_DIR/CHANGELOG.md" ]; then
   render_template "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
 fi
-
-SECURITY_SUPPRESSIONS_PATH="$(wp_plugin_base_resolve_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
-wp_plugin_base_assert_path_within_root "$SECURITY_SUPPRESSIONS_PATH" "Security suppressions file"
-if [ ! -f "$SECURITY_SUPPRESSIONS_PATH" ] && [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
-  render_template "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" "$SECURITY_SUPPRESSIONS_PATH"
-fi
-
-while IFS= read -r template_file; do
-  [ -n "$template_file" ] || continue
-  relative_path="${template_file#"$TEMPLATE_DIR"/}"
-
-  if [ "$relative_path" = ".github/CODEOWNERS" ] && [ -z "$CODEOWNERS_REVIEWERS" ]; then
-    rm -f "$ROOT_DIR/$relative_path"
-    continue
-  fi
-
-  render_template "$template_file" "$ROOT_DIR/$relative_path"
-done < <(find "$TEMPLATE_DIR/.github" -type f | sort)
 
 QUALITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/quality-pack"
 SECURITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/security-pack"

@@ -35,7 +35,7 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 ## Common Migration Adjustments
 
 - Set `VERSION_CONSTANT_NAME` when the plugin stores its version in a named constant.
-- Set `POT_FILE` and `POT_PROJECT_NAME` when the translation template exists and should be updated during release prep.
+- Set `POT_FILE` and `POT_PROJECT_NAME` when the translation template exists and should be updated during release prep. Translation support also requires a `Domain Path` plugin header, typically `/languages/`, when `POT_FILE` is configured or the repo contains a `languages/` directory.
 - Keep project-local `.gitignore` aligned with the managed ignore template so transient files such as `.DS_Store`, editor metadata, and debug logs never enter the repository.
 - Use `.wp-plugin-base-security-suppressions.json` only for intentional public endpoints and always require explicit written justification for each suppression.
 - Set `PACKAGE_INCLUDE` when packaging must be restricted to a specific subset of repo files.
@@ -43,6 +43,7 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 - Keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` repo-relative so nested files stay nested in the ZIP.
 - Include `packages/` and `routes/` explicitly only when they are part of the shipped plugin; they are excluded from the default install ZIP and translation scan otherwise.
 - Treat `WORDPRESS_READINESS_ENABLED=true` as a contract change, not a cosmetic flag. It turns on the stricter metadata checks described in the readiness docs.
+- Treat `WORDPRESS_QUALITY_PACK_ENABLED=true` and `WORDPRESS_SECURITY_PACK_ENABLED=true` as readiness submodes, not standalone toggles. Both require `WORDPRESS_READINESS_ENABLED=true`.
 
 ## Safety Checks
 

@@ -87,12 +87,19 @@ fi
 export WP_PLUGIN_BASE_AUDIT_ROOT="$TARGET_ROOT"
 export WP_PLUGIN_BASE_AUDIT_WORKFLOWS
 WP_PLUGIN_BASE_AUDIT_WORKFLOWS="$(printf '%s\n' "${workflow_files[@]}")"
+export WP_PLUGIN_BASE_AUDIT_ACTIONS
+if [ "${#action_files[@]}" -gt 0 ]; then
+  WP_PLUGIN_BASE_AUDIT_ACTIONS="$(printf '%s\n' "${action_files[@]}")"
+else
+  WP_PLUGIN_BASE_AUDIT_ACTIONS=''
+fi
 
 ruby <<'RUBY'
 require "psych"
 
 root = ENV.fetch("WP_PLUGIN_BASE_AUDIT_ROOT")
 workflow_files = ENV.fetch("WP_PLUGIN_BASE_AUDIT_WORKFLOWS").split("\n").reject(&:empty?)
+action_files = ENV.fetch("WP_PLUGIN_BASE_AUDIT_ACTIONS", "").split("\n").reject(&:empty?)
 
 expected_permissions = {
   "foundation-ci.yml" => { "contents" => "read" },
@@ -146,10 +153,8 @@ expected_pull_request_target_conditions = {
 
 custom_permission_policy = {
   "actions" => "read",
-  "attestations" => "write",
   "checks" => "read",
   "contents" => "read",
-  "id-token" => "write",
   "issues" => "read",
   "pull-requests" => "read",
   "security-events" => "write"
@@ -214,6 +219,25 @@ end
 
 normalize_condition = lambda do |value|
   value.to_s.gsub(/\s+/, " ").strip
+end
+
+run_body_executes_remote_code = lambda do |label, body|
+  normalized = body.to_s.gsub("\r\n", "\n")
+  return if normalized.empty?
+
+  if normalized.match?(/curl[^\n]*\|[ \t]*(bash|sh)\b/i) ||
+     normalized.match?(/wget[^\n]*\|[ \t]*(bash|sh)\b/i) ||
+     normalized.match?(/(bash|sh|source|\.)[ \t]*<\([ \t]*(curl|wget)\b/i) ||
+     normalized.match?(/(curl|wget)[^\n]*(&&|;)[^\n]*\b(bash|sh|source)\b/i)
+    errors << "#{label}: remote script execution patterns such as curl|bash or wget|sh are not allowed"
+    return
+  end
+
+  has_download = normalized.match?(/\b(curl|wget)\b/i)
+  has_shell_exec = normalized.match?(/(^|\n)\s*(bash|sh|source|\.)\b/i)
+  if has_download && has_shell_exec
+    errors << "#{label}: run body combines remote download commands with shell execution"
+  end
 end
 
 workflow_files.each do |file|
@@ -309,6 +333,58 @@ workflow_files.each do |file|
         errors << "#{file}:#{job_name}: pull_request_target jobs must use the exact audited merge-gating condition"
       end
     end
+  end
+
+  jobs.each do |job_name, job_data|
+    next unless job_data.is_a?(Hash)
+    steps = job_data["steps"]
+    next unless steps.is_a?(Array)
+
+    steps.each_with_index do |step, index|
+      next unless step.is_a?(Hash)
+      next unless step["run"].is_a?(String)
+
+      run_body_executes_remote_code.call("#{file}:#{job_name}:step#{index + 1}", step["run"])
+    end
+  end
+end
+
+action_files.each do |file|
+  begin
+    data = Psych.safe_load(File.read(file), permitted_classes: [], permitted_symbols: [], aliases: false, filename: file) || {}
+  rescue Psych::Exception => e
+    errors << "#{file}: invalid or unsafe YAML: #{e.message}"
+    next
+  end
+
+  unless data.is_a?(Hash)
+    errors << "#{file}: action root must be a mapping"
+    next
+  end
+
+  runs = data["runs"]
+  unless runs.is_a?(Hash)
+    errors << "#{file}: local actions must define a runs block"
+    next
+  end
+
+  using = runs["using"].to_s
+  unless using == "composite"
+    errors << "#{file}: local actions must use runs.using: composite"
+    next
+  end
+
+  steps = runs["steps"]
+  unless steps.is_a?(Array) && !steps.empty?
+    errors << "#{file}: composite local actions must define at least one step"
+    next
+  end
+
+  steps.each_with_index do |step, index|
+    next unless step.is_a?(Hash)
+    next unless step["run"].is_a?(String)
+
+    run_body_executes_remote_code.call("#{file}:step#{index + 1}", step["run"])
   end
 end
 

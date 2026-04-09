@@ -48,9 +48,10 @@ That audit fails if it finds:
 
 - an external action not pinned to a 40-character commit SHA
 - an external action outside the approved allowlist
+- a local action whose `runs.using` is not `composite`
 - a workflow without explicit top-level `permissions`
 - a workflow with broader permissions than its policy allows
-- a custom workflow with write-capable repository scopes such as `contents: write` or `pull-requests: write`
+- a custom workflow with privileged scopes outside the read-only policy, including `contents: write`, `pull-requests: write`, `id-token: write`, or `attestations: write`
 - `curl | bash`, `wget | sh`, or equivalent remote-script execution
 - outbound URLs to hosts outside the documented allowlist
 - any `pull_request_target` workflow outside the audited managed finalize workflows

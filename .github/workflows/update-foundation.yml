@@ -89,6 +89,21 @@ jobs:
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh "${{ inputs.config_path }}"
 
+      - name: Resolve managed staging paths
+        id: managed-paths
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          managed_paths="$(
+            {
+              printf '%s\n' ".wp-plugin-base"
+              printf '%s\n' "${{ inputs.config_path }}"
+              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage "${{ inputs.config_path }}"
+            } | awk '!seen[$0]++' | paste -sd, -
+          )"
+          echo "value=$managed_paths" >> "$GITHUB_OUTPUT"
+
       - name: Write foundation update pull request body
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
@@ -114,7 +129,7 @@ jobs:
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          GIT_ADD_PATHS: .wp-plugin-base,.wp-plugin-base.env,.github,.distignore,.editorconfig,.gitattributes,.gitignore,SECURITY.md,CONTRIBUTING.md,uninstall.php.example,CHANGELOG.md,bin,tests,.wp-plugin-base-quality-pack,.wp-plugin-base-security-pack
+          GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
         run: |
           bash scripts/update/create_or_update_pr.sh \
             "chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}" \
