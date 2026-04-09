@@ -176,3 +176,11 @@ If a GitHub Action or automation dependency is reported compromised:
 3. rotate any credentials that may have been exposed
 4. cut a new foundation release with the replacement or removal
 5. use `update-foundation` or a manual sync PR to roll the fix into project repositories
+The scheduled `update-plugin-check` workflow uses a narrower trust model because `WordPress/plugin-check` is an external dependency rather than a foundation release. It only proposes automated pin bumps when:
+
+- the release is published, non-draft, and non-prerelease
+- the tag stays within the current major version series
+- the release author is on the allowed author list
+- the release has aged past the configured stabilization window before automation proposes it
+
+That keeps the updater automated without treating raw release metadata as equivalent to first-party provenance.

@@ -23,8 +23,20 @@ if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 allowed_authors="${WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS:-}"
+minimum_release_age_days="${WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS:-0}"
 major="${CURRENT_VERSION%%.*}"
 releases_json=''
+
+if [[ ! "$minimum_release_age_days" =~ ^[0-9]+$ ]]; then
+  echo "WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS must be a non-negative integer: $minimum_release_age_days" >&2
+  exit 1
+fi
+
+current_epoch="${WP_PLUGIN_BASE_PLUGIN_CHECK_NOW_EPOCH:-$(date -u +%s)}"
+if [[ ! "$current_epoch" =~ ^[0-9]+$ ]]; then
+  echo "WP_PLUGIN_BASE_PLUGIN_CHECK_NOW_EPOCH must be a Unix epoch timestamp: $current_epoch" >&2
+  exit 1
+fi
 
 if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON:-}" ]; then
   if [ ! -f "$WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON" ]; then
@@ -71,7 +83,11 @@ else
 fi
 
 latest="$(
-  printf '%s\n' "$releases_json" | jq -r --arg major "$major" --arg allowed_authors "$allowed_authors" '
+  printf '%s\n' "$releases_json" | jq -r \
+    --arg major "$major" \
+    --arg allowed_authors "$allowed_authors" \
+    --argjson minimum_release_age_days "$minimum_release_age_days" \
+    --argjson current_epoch "$current_epoch" '
     map(
       select(
         .draft == false and
@@ -79,6 +95,13 @@ latest="$(
         (
           $allowed_authors == "" or
           ((.author.login // "") as $author | ($allowed_authors | split(",") | map(gsub("^[[:space:]]+|[[:space:]]+$"; "")) | index($author)) != null)
+        ) and
+        (
+          $minimum_release_age_days == 0 or
+          (
+            (.published_at // "") != "" and
+            (($current_epoch - (.published_at | fromdateiso8601)) >= ($minimum_release_age_days * 86400))
+          )
         ) and
         (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
       )
