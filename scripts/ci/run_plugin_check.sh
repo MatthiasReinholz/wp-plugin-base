@@ -130,6 +130,7 @@ fi
 
 repo_basename="$(basename "$ROOT_DIR")"
 plugin_path="/var/www/html/wp-content/plugins/${repo_basename}/dist/package/${PLUGIN_SLUG}"
+wp_env_bin="$wp_env_tools_dir/node_modules/.bin/wp-env"
 plugin_check_args=(
   wp
   --require="$plugin_check_cli_bootstrap"
@@ -167,7 +168,7 @@ if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" ]; then
 fi
 
 plugin_check_command=(
-  wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" --
+  "$wp_env_bin" run cli --config="$wp_env_config" --
   "${plugin_check_args[@]}"
 )
 
