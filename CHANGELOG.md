@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.3.1
+
+* chore(deps): bump semgrep in /tools/python-semgrep (#31)
+* fix distignore negative fixture in validate-full (#34)
+* fix ci regressions in markdown and plugin-check timeout (#33)
+* harden release and api reliability controls (#32)
+* harden foundation validation and update controls (#29)
+* standardize external dependency trust notices
+* automate plugin-check updates with age gate
+* make plugin-check updater manual-only
+* harden composer-backed validation retries
+* chore: checkpoint outstanding local changes
+* harden config validation and update safety
+* fix: harden workflow audit and release trust paths (#23)
+* ci(audit): allow updated github/codeql-action upload-sarif pin
+* chore(deps-dev): bump @wordpress/env in /tools/wordpress-env
+* chore(deps): bump github/codeql-action from 4.34.1 to 4.35.1
+
 ## Unreleased
 
 * No unreleased changes yet.
