@@ -87,6 +87,11 @@ jobs:
       - name: Bump foundation version metadata
         run: bash scripts/foundation/bump_version.sh "${{ steps.version.outputs.value }}"
 
+      - name: Validate release version contracts
+        run: |
+          bash scripts/foundation/check_version.sh "${{ steps.version.outputs.value }}"
+          bash scripts/foundation/check_version_contract_surfaces.sh "${{ steps.version.outputs.value }}"
+
       - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -117,7 +122,7 @@ jobs:
         id: cpr
         env:
           GH_TOKEN: ${{ github.token }}
-          GIT_ADD_PATHS: VERSION,CHANGELOG.md
+          GIT_ADD_PATHS: VERSION,CHANGELOG.md,templates/child/.wp-plugin-base.env.example
         run: |
           bash scripts/update/create_or_update_pr.sh \
             "release/${{ steps.version.outputs.value }}" \

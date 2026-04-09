@@ -51,6 +51,9 @@ jobs:
       - name: Validate foundation version metadata
         run: bash scripts/foundation/check_version.sh "${{ steps.release.outputs.version }}"
 
+      - name: Validate version contract surfaces
+        run: bash scripts/foundation/check_version_contract_surfaces.sh "${{ steps.release.outputs.version }}"
+
       - name: Generate GitHub release body
         run: bash scripts/foundation/generate_github_release_body.sh "${{ steps.release.outputs.version }}" > dist-foundation-release.md
 
