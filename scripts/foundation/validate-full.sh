@@ -7,6 +7,39 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
+ASSURANCE_MODE="${WP_PLUGIN_BASE_ASSURANCE_MODE:-}"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --mode)
+      if [ "$#" -lt 2 ]; then
+        echo "--mode requires a value." >&2
+        exit 1
+      fi
+      ASSURANCE_MODE="$2"
+      shift 2
+      ;;
+    --mode=*)
+      ASSURANCE_MODE="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [--mode fast-local|strict-local|ci]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$ASSURANCE_MODE" ]; then
+  if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+    ASSURANCE_MODE="ci"
+  elif [ "${WP_PLUGIN_BASE_STRICT_LINTERS:-false}" = "true" ]; then
+    ASSURANCE_MODE="strict-local"
+  else
+    ASSURANCE_MODE="fast-local"
+  fi
+fi
+
 wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker
 
 quality_fixture=""
@@ -31,7 +64,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${WP_PLUGIN_BASE_SKIP_FAST_VALIDATE:-false}" != "true" ]; then
-  bash "$ROOT_DIR/scripts/foundation/validate.sh"
+  bash "$ROOT_DIR/scripts/foundation/validate.sh" --mode "$ASSURANCE_MODE"
 fi
 
 quality_fixture="$(mktemp -d)"
@@ -245,4 +278,4 @@ WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/update/sync_child_rep
 WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/release/generate_pot.sh"
 test -f "$pot_fixture/languages/custom-plugin.pot"
 
-echo "Validated full foundation repository at $ROOT_DIR"
+echo "Validated full foundation repository at $ROOT_DIR ($ASSURANCE_MODE)"

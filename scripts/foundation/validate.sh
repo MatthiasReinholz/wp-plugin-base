@@ -7,7 +7,84 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
+ASSURANCE_MODE="${WP_PLUGIN_BASE_ASSURANCE_MODE:-}"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --mode)
+      if [ "$#" -lt 2 ]; then
+        echo "--mode requires a value." >&2
+        exit 1
+      fi
+      ASSURANCE_MODE="$2"
+      shift 2
+      ;;
+    --mode=*)
+      ASSURANCE_MODE="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [--mode fast-local|strict-local|ci]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$ASSURANCE_MODE" ]; then
+  if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+    ASSURANCE_MODE="ci"
+  elif [ "${WP_PLUGIN_BASE_STRICT_LINTERS:-false}" = "true" ]; then
+    ASSURANCE_MODE="strict-local"
+  else
+    ASSURANCE_MODE="fast-local"
+  fi
+fi
+
+case "$ASSURANCE_MODE" in
+  fast-local)
+    export WP_PLUGIN_BASE_STRICT_LINTERS='false'
+    ;;
+  strict-local|ci)
+    export WP_PLUGIN_BASE_STRICT_LINTERS='true'
+    ;;
+  *)
+    echo "Unsupported assurance mode: $ASSURANCE_MODE" >&2
+    exit 1
+    ;;
+esac
+
 wp_plugin_base_require_commands "foundation validation" git php node ruby perl rsync zip unzip jq
+
+declare -a optional_lint_tools=(
+  shellcheck
+  actionlint
+  yamllint
+  markdownlint-cli2
+  codespell
+  editorconfig-checker
+  gitleaks
+)
+declare -a missing_optional_lint_tools=()
+
+for tool in "${optional_lint_tools[@]}"; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    missing_optional_lint_tools+=("$tool")
+  fi
+done
+
+echo "Foundation assurance mode: $ASSURANCE_MODE"
+if [ "${#missing_optional_lint_tools[@]}" -gt 0 ]; then
+  missing_tools_csv="$(printf '%s, ' "${missing_optional_lint_tools[@]}")"
+  missing_tools_csv="${missing_tools_csv%, }"
+
+  if [ "$ASSURANCE_MODE" = "fast-local" ]; then
+    echo "Optional foundation tools not installed; fast-local mode will skip: $missing_tools_csv"
+  else
+    echo "Assurance mode $ASSURANCE_MODE requires these installed foundation tools: $missing_tools_csv" >&2
+    exit 1
+  fi
+fi
+
 audit_fixture=""
 zip_fixture=""
 forbidden_fixture=""
@@ -31,6 +108,9 @@ foundation_verify_sigstore_json=""
 pr_stage_fixture=""
 pr_stage_origin=""
 pr_stage_output=""
+pr_stage_helper_dir=""
+release_publish_fixture=""
+release_publish_output=""
 
 assert_regular_file() {
   local path="$1"
@@ -128,7 +208,7 @@ for fixture_name in standard-plugin nonstandard-plugin; do
 done
 
 managed_child="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output"' EXIT
 mkdir -p "$managed_child/.wp-plugin-base"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$managed_child/"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_child/.wp-plugin-base/"
@@ -153,6 +233,14 @@ grep -Fq '/.wp-plugin-base-security-pack export-ignore' "$managed_child/.gitattr
 grep -Fq '/.phpcs-security.xml.dist export-ignore' "$managed_child/.gitattributes"
 grep -Fq 'secret-scan:' "$managed_child/.github/workflows/ci.yml"
 test ! -f "$managed_child/.github/CODEOWNERS"
+
+cat >> "$managed_child/.wp-plugin-base.env" <<'EOF'
+CODEOWNERS_REVIEWERS="@example/platform @example/reviewer"
+EOF
+WP_PLUGIN_BASE_ROOT="$managed_child" bash "$managed_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
+assert_regular_file "$managed_child/.github/CODEOWNERS" "Managed child CODEOWNERS file was not generated for CODEOWNERS_REVIEWERS."
+assert_file_contains_literal "$managed_child/.github/CODEOWNERS" "@example/platform @example/reviewer" "Managed child CODEOWNERS file did not preserve multiple reviewers."
+
 if find "$managed_child/.github/workflows" -type f -name '*.yaml' | grep -q .; then
   echo "Managed child workflows must use .yml, not .yaml." >&2
   find "$managed_child/.github/workflows" -type f -name '*.yaml' >&2
@@ -203,10 +291,19 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.ym
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Root update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Root update-foundation workflow must use the verified foundation version output."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'Validate updated child repository' "Root update-foundation workflow must validate the regenerated child repository before opening a PR."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Child update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Child update-foundation workflow must use the verified foundation version output."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'Validate updated child repository' "Child update-foundation workflow must validate the regenerated child repository before opening a PR."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "update-plugin-check workflow must stage the managed wordpress_tooling helper."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'publish_github_release.sh --repair' "release-foundation workflow must publish in explicit repair mode."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Root CI workflow must pin upload-sarif to the reviewed SHA."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Child CI workflow must pin upload-sarif to the reviewed SHA."
+assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Security documentation must advertise the reviewed upload-sarif SHA."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Workflow audit allowlist must include the reviewed upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Child CI workflow must not carry the stale upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Security documentation must not carry a stale upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Workflow audit allowlist must not accept stale upload-sarif SHAs."
 grep -Fxq "FOUNDATION_VERSION=$(tr -d '\n' < "$ROOT_DIR/VERSION")" "$ROOT_DIR/templates/child/.wp-plugin-base.env.example" || {
   echo "Child env example FOUNDATION_VERSION must match the repository VERSION." >&2
   exit 1
@@ -392,6 +489,56 @@ GH_TOKEN=dummy \
 grep -Fxq 'version=v1.2.3' "$foundation_verify_output"
 grep -Fxq 'commit_sha=1111111111111111111111111111111111111111' "$foundation_verify_output"
 
+cat > "$foundation_verify_release_json" <<'EOF'
+{
+  "draft": false,
+  "prerelease": false,
+  "author": {
+    "login": "github-actions[bot]"
+  },
+  "assets": [
+    {
+      "name": "dist-foundation-release.json",
+      "url": "https://api.github.com/assets/metadata"
+    }
+  ]
+}
+EOF
+
+if GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed with a missing Sigstore asset." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_release_json" <<'EOF'
+{
+  "draft": false,
+  "prerelease": false,
+  "author": {
+    "login": "github-actions[bot]"
+  },
+  "assets": [
+    {
+      "name": "dist-foundation-release.json",
+      "url": "https://api.github.com/assets/metadata"
+    },
+    {
+      "name": "dist-foundation-release.json.sigstore.json",
+      "url": "https://api.github.com/assets/sigstore"
+    }
+  ]
+}
+EOF
+
 cat > "$foundation_verify_metadata_json" <<'EOF'
 {
   "repository": "MatthiasReinholz/wp-plugin-base",
@@ -412,6 +559,28 @@ if GH_TOKEN=dummy \
     "MatthiasReinholz/wp-plugin-base" \
     "v1.2.3" >/dev/null 2>&1; then
   echo "Foundation provenance verification unexpectedly passed with mismatched metadata." >&2
+  exit 1
+fi
+
+cat > "$foundation_verify_metadata_json" <<'EOF'
+{
+  "version": "v1.2.3",
+  "commit": "1111111111111111111111111111111111111111"
+}
+EOF
+
+if GH_TOKEN=dummy \
+  WP_PLUGIN_BASE_FOUNDATION_RELEASE_JSON="$foundation_verify_release_json" \
+  WP_PLUGIN_BASE_FOUNDATION_TAG_REF_JSON="$foundation_verify_tag_ref_json" \
+  WP_PLUGIN_BASE_FOUNDATION_COMPARE_JSON="$foundation_verify_compare_json" \
+  WP_PLUGIN_BASE_FOUNDATION_PULLS_JSON="$foundation_verify_pulls_json" \
+  WP_PLUGIN_BASE_FOUNDATION_METADATA_ASSET="$foundation_verify_metadata_json" \
+  WP_PLUGIN_BASE_FOUNDATION_SIGSTORE_ASSET="$foundation_verify_sigstore_json" \
+  WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT="$foundation_verify_verify_script" \
+  bash "$ROOT_DIR/scripts/update/verify_foundation_release.sh" \
+    "MatthiasReinholz/wp-plugin-base" \
+    "v1.2.3" >/dev/null 2>&1; then
+  echo "Foundation provenance verification unexpectedly passed with malformed metadata." >&2
   exit 1
 fi
 
@@ -1158,16 +1327,15 @@ fi
 
 deploy_protection_fixture="$(mktemp -d)"
 cat > "$deploy_protection_fixture/.wp-plugin-base.env" <<'EOF'
-WP_ORG_DEPLOY_ENABLED=true
 PRODUCTION_ENVIRONMENT=production
 EOF
 
-if ! WP_PLUGIN_BASE_ROOT="$deploy_protection_fixture" bash "$ROOT_DIR/scripts/ci/check_deploy_environment_protection.sh" >/dev/null 2>&1; then
+if ! WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_ROOT="$deploy_protection_fixture" bash "$ROOT_DIR/scripts/ci/check_deploy_environment_protection.sh" >/dev/null 2>&1; then
   echo "Deploy environment protection check unexpectedly failed in non-strict mode." >&2
   exit 1
 fi
 
-if WP_PLUGIN_BASE_ROOT="$deploy_protection_fixture" bash "$ROOT_DIR/scripts/ci/check_deploy_environment_protection.sh" --strict >/dev/null 2>&1; then
+if WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_ROOT="$deploy_protection_fixture" bash "$ROOT_DIR/scripts/ci/check_deploy_environment_protection.sh" --strict >/dev/null 2>&1; then
   echo "Deploy environment protection check unexpectedly passed in strict mode without GitHub environment context." >&2
   exit 1
 fi
@@ -1193,6 +1361,16 @@ zip_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$zip_fixture/"
 mkdir -p "$zip_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$zip_fixture/.wp-plugin-base/"
+cat >> "$zip_fixture/.wp-plugin-base.env" <<'EOF'
+UNKNOWN_CONFIG_KEY=true
+EOF
+
+if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" >/dev/null 2>&1; then
+  echo "Config validation unexpectedly accepted an unknown config key." >&2
+  exit 1
+fi
+
+perl -0pi -e 's/^UNKNOWN_CONFIG_KEY=.*\n//m' "$zip_fixture/.wp-plugin-base.env"
 perl -0pi -e 's/^ZIP_FILE=.*/ZIP_FILE=..\/outside.zip/m' "$zip_fixture/.wp-plugin-base.env"
 
 if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" >/dev/null 2>&1; then
@@ -1234,14 +1412,24 @@ git -C "$pr_stage_fixture" push -q -u origin main
 rm -rf "$pr_stage_fixture/.wp-plugin-base-security-pack"
 rm -f "$pr_stage_fixture/.phpcs-security.xml.dist" "$pr_stage_fixture/.phpcs.xml.dist"
 rm -f "$pr_stage_fixture/.security/custom-security-suppressions.json"
-cat > "$pr_stage_fixture/body.md" <<'EOF'
+pr_stage_helper_dir="$(mktemp -d)"
+cat > "$pr_stage_helper_dir/body.md" <<'EOF'
 fixture body
 EOF
-mkdir -p "$pr_stage_fixture/bin"
-cat > "$pr_stage_fixture/bin/gh" <<'EOF'
+mkdir -p "$pr_stage_helper_dir/bin"
+cat > "$pr_stage_helper_dir/bin/gh" <<'EOF'
 #!/usr/bin/env bash
+log_file="${PR_STAGE_GH_LOG:?}"
+printf '%s\n' "$*" >> "$log_file"
 if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  if [ "${PR_STAGE_EXISTING_PR:-false}" = "true" ]; then
+    echo '[{"number":1,"url":"https://github.com/example/repo/pull/1"}]'
+    exit 0
+  fi
   echo '[]'
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "edit" ]; then
   exit 0
 fi
 if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
@@ -1251,11 +1439,13 @@ fi
 echo "Unexpected gh invocation: $*" >&2
 exit 1
 EOF
-chmod +x "$pr_stage_fixture/bin/gh"
+chmod +x "$pr_stage_helper_dir/bin/gh"
+PR_STAGE_GH_LOG="$pr_stage_helper_dir/gh.log"
+export PR_STAGE_GH_LOG
 pr_stage_output="$(mktemp)"
 (
   cd "$pr_stage_fixture"
-  PATH="$pr_stage_fixture/bin:$PATH" \
+  PATH="$pr_stage_helper_dir/bin:$PATH" \
     GITHUB_REPOSITORY="example/repo" \
     GITHUB_REPOSITORY_OWNER="example" \
     GITHUB_OUTPUT="$pr_stage_output" \
@@ -1265,7 +1455,7 @@ pr_stage_output="$(mktemp)"
       "main" \
       "fixture removal" \
       "fixture removal" \
-      "$pr_stage_fixture/body.md"
+      "$pr_stage_helper_dir/body.md"
 )
 if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.wp-plugin-base-security-pack/composer.json'; then
   echo "Explicit path staging unexpectedly failed to commit a managed deletion." >&2
@@ -1283,9 +1473,114 @@ if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.security/
   echo "Explicit path staging unexpectedly failed to commit a configured suppressions-file deletion." >&2
   exit 1
 fi
+: > "$PR_STAGE_GH_LOG"
+clean_head="$(git -C "$pr_stage_fixture" rev-parse HEAD)"
+(
+  cd "$pr_stage_fixture"
+  : > "$pr_stage_output"
+  PATH="$pr_stage_helper_dir/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_stage_output" \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/no-changes" \
+      "main" \
+      "fixture no changes" \
+      "fixture no changes" \
+      "$pr_stage_helper_dir/body.md"
+)
+grep -Fxq 'pull_request_operation=none' "$pr_stage_output"
+if grep -Fq 'pr create' "$PR_STAGE_GH_LOG"; then
+  echo "PR automation unexpectedly attempted to create a PR when there were no staged changes." >&2
+  exit 1
+fi
+if [ "$(git -C "$pr_stage_fixture" rev-parse HEAD)" != "$clean_head" ]; then
+  echo "PR automation unexpectedly created a commit when there were no staged changes." >&2
+  exit 1
+fi
+if (
+  cd "$pr_stage_fixture"
+  PATH="$pr_stage_helper_dir/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_stage_output" \
+    GIT_ADD_PATHS="missing-path" \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/no-matches" \
+      "main" \
+      "fixture no matches" \
+      "fixture no matches" \
+      "$pr_stage_helper_dir/body.md"
+); then
+  echo "PR automation unexpectedly accepted a GIT_ADD_PATHS list with no matching paths." >&2
+  exit 1
+fi
+
+release_publish_fixture="$(mktemp -d)"
+cat > "$release_publish_fixture/notes.md" <<'EOF'
+fixture release notes
+EOF
+cat > "$release_publish_fixture/asset.txt" <<'EOF'
+asset
+EOF
+mkdir -p "$release_publish_fixture/bin"
+cat > "$release_publish_fixture/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+log_file="${RELEASE_PUBLISH_LOG:?}"
+printf '%s\n' "$*" >> "$log_file"
+if [ "$1" = "release" ] && [ "$2" = "view" ]; then
+  if [ "${RELEASE_ALREADY_EXISTS:-false}" = "true" ]; then
+    exit 0
+  fi
+  exit 1
+fi
+if [ "$1" = "release" ] && { [ "$2" = "edit" ] || [ "$2" = "upload" ] || [ "$2" = "create" ]; }; then
+  exit 0
+fi
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$release_publish_fixture/bin/gh"
+release_publish_output="$release_publish_fixture/gh.log"
+: > "$release_publish_output"
+if (
+  cd "$release_publish_fixture"
+  PATH="$release_publish_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_PUBLISH_LOG="$release_publish_output" \
+    RELEASE_ALREADY_EXISTS=true \
+    bash "$ROOT_DIR/scripts/release/publish_github_release.sh" \
+      "v1.2.3" \
+      "Release v1.2.3" \
+      "$release_publish_fixture/notes.md" \
+      "$release_publish_fixture/asset.txt"
+); then
+  echo "Release publication unexpectedly passed without --repair when the release already existed." >&2
+  exit 1
+fi
+: > "$release_publish_output"
+(
+  cd "$release_publish_fixture"
+  PATH="$release_publish_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_PUBLISH_LOG="$release_publish_output" \
+    RELEASE_ALREADY_EXISTS=true \
+    bash "$ROOT_DIR/scripts/release/publish_github_release.sh" \
+      --repair \
+      "v1.2.3" \
+      "Release v1.2.3" \
+      "$release_publish_fixture/notes.md" \
+      "$release_publish_fixture/asset.txt"
+)
+grep -Fq 'release edit v1.2.3' "$release_publish_output"
+grep -Fq 'release upload v1.2.3' "$release_publish_output"
+if grep -Fq 'release create' "$release_publish_output"; then
+  echo "Release repair unexpectedly recreated the release instead of editing it." >&2
+  exit 1
+fi
 
 forbidden_fixture="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output"' EXIT
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$forbidden_fixture/"
 mkdir -p "$forbidden_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"
@@ -1295,4 +1590,4 @@ if WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_for
   exit 1
 fi
 
-echo "Validated foundation repository at $ROOT_DIR"
+echo "Validated foundation repository at $ROOT_DIR ($ASSURANCE_MODE)"

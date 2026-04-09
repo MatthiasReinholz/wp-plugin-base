@@ -55,7 +55,7 @@ jobs:
       - name: Validate foundation
         env:
           WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
-        run: bash scripts/foundation/validate.sh
+        run: bash scripts/foundation/validate.sh --mode ci
 
   validate-full:
     name: Validate full foundation suite (PHP ${{ matrix.php-version }})
@@ -92,7 +92,7 @@ jobs:
         env:
           WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
           WP_PLUGIN_BASE_SKIP_FAST_VALIDATE: 'true'
-        run: bash scripts/foundation/validate-full.sh
+        run: bash scripts/foundation/validate-full.sh --mode ci
 
   release-security-smoke:
     name: Release security smoke

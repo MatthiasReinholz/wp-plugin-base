@@ -106,6 +106,10 @@ jobs:
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh "${{ inputs.config_path }}"
 
+      - name: Validate updated child repository
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: bash .wp-plugin-base/scripts/ci/validate_project.sh "${{ inputs.config_path }}"
+
       - name: Resolve managed staging paths
         id: managed-paths
         if: ${{ steps.latest.outputs.update_needed == 'true' }}

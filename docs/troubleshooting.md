@@ -10,13 +10,21 @@ bash .wp-plugin-base/scripts/ci/validate_project.sh
 
 If that fails before any repo checks run, the most common causes are:
 
-- a missing command such as `ruby`, `jq`, `rsync`, `zip`, `gh`, or `svn`
+- a missing command such as `ruby`, `jq`, `rsync`, `zip`, or `unzip`
 - an invalid `.wp-plugin-base.env` value
 - a missing `MAIN_PLUGIN_FILE` or `README_FILE`
 - an invalid `POT_FILE` path or parent directory when POT generation is configured
 - forbidden repository files such as `.DS_Store`, `Thumbs.db`, `.idea/`, `.vscode/`, or transient debug logs
 
-The validation scripts now fail fast and identify the missing tool or invalid config key directly.
+The validation scripts now fail fast and identify the missing tool or invalid config key directly. Unknown `.wp-plugin-base.env` keys are rejected so typos do not silently degrade behavior.
+
+If foundation validation passes in `fast-local` mode but you want CI-like tool enforcement locally, rerun:
+
+```bash
+bash scripts/foundation/validate.sh --mode strict-local
+```
+
+`gh`, `svn`, and similar tools are still required for release, update, or deploy flows, but they are not baseline prerequisites for `validate_project.sh`.
 
 If you are bootstrapping a blank repo, create the plugin main file and `readme.txt` before the first sync. The foundation expects those files to exist before validation can pass.
 
@@ -40,7 +48,7 @@ If the setting is visible in the repository settings, enable it:
 4. Enable `Allow GitHub Actions to create and approve pull requests`.
 5. Save the change and rerun the failed workflow.
 
-Without that setting, workflows can still run, but workflows that use `create-pull-request` cannot open or update pull requests.
+Without that setting, workflows can still run, but workflows that use the foundation's `gh pr` automation cannot open or update pull requests.
 
 ### Case 2: The Setting Is Greyed Out
 

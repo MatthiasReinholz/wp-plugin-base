@@ -46,10 +46,11 @@ For the foundation repo itself, run:
 
 ```bash
 bash scripts/foundation/validate.sh
+bash scripts/foundation/validate.sh --mode strict-local
 bash scripts/foundation/validate-full.sh
 ```
 
-`validate.sh` is the fast local suite. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
+`validate.sh` defaults to `fast-local` mode, which tolerates missing foundation-only lint/security tools and reports reduced assurance explicitly. Use `bash scripts/foundation/validate.sh --mode strict-local` when you want the local run to fail if any required foundation lint/security tool is missing. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
 
 ## Local Tooling Contract
 
@@ -214,6 +215,7 @@ Required keys in `.wp-plugin-base.env`:
 Optional keys:
 
 - `PHP_RUNTIME_MATRIX`
+- `PHP_RUNTIME_MATRIX_MODE`
 - `VERSION_CONSTANT_NAME`
 - `POT_FILE`
 - `POT_PROJECT_NAME`
@@ -269,7 +271,7 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
-Local `validate.sh` runs the shared release-security smoke path in `local-lite` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports and skips Sigstore/OIDC-only checks when local release-signing prerequisites are unavailable. GitHub `foundation-ci` is the authoritative strict execution path for those checks.
+Local `validate.sh` runs the shared release-security smoke path in `local-lite` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports and skips Sigstore/OIDC-only checks when local release-signing prerequisites are unavailable. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for those checks.
 
 ## WordPress.org Deploy
 
