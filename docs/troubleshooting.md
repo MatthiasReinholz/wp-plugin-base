@@ -12,10 +12,13 @@ If that fails before any repo checks run, the most common causes are:
 
 - a missing command such as `ruby`, `jq`, `rsync`, `zip`, `gh`, or `svn`
 - an invalid `.wp-plugin-base.env` value
-- a missing `MAIN_PLUGIN_FILE`, `README_FILE`, or optional `POT_FILE`
+- a missing `MAIN_PLUGIN_FILE` or `README_FILE`
+- an invalid `POT_FILE` path or parent directory when POT generation is configured
 - forbidden repository files such as `.DS_Store`, `Thumbs.db`, `.idea/`, `.vscode/`, or transient debug logs
 
 The validation scripts now fail fast and identify the missing tool or invalid config key directly.
+
+If you are bootstrapping a blank repo, create the plugin main file and `readme.txt` before the first sync. The foundation expects those files to exist before validation can pass.
 
 ## Pull Request Creation Fails
 
@@ -61,6 +64,16 @@ If readiness fails with reviewer-protection errors:
 - confirm `PRODUCTION_ENVIRONMENT` exists in the repository
 - require at least one reviewer on that environment
 - ensure the readiness step has `GH_TOKEN` available so it can query environment protection rules
+
+## Install ZIP Is Missing Nested Files
+
+If the generated ZIP drops files from `packages/` or `routes/`, check the package include and exclude settings first.
+
+- `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` are repo-relative paths
+- `packages/` and `routes/` are excluded by default
+- include those directories explicitly only if they are part of the shipped plugin
+
+If the ZIP root looks flattened, check that file entries in `PACKAGE_INCLUDE` are being preserved as repo-relative paths.
 
 ## Foundation Self-Update Cannot Open A PR
 

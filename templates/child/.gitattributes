@@ -4,7 +4,7 @@
 /.wp-plugin-base-quality-pack export-ignore
 /.wp-plugin-base-security-pack export-ignore
 /.phpcs-security.xml.dist export-ignore
-/.wp-plugin-base-security-suppressions.json export-ignore
+/__WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE__ export-ignore
 /bin export-ignore
 /dist export-ignore
 /node_modules export-ignore

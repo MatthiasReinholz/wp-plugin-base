@@ -49,12 +49,15 @@ Managed workflow files:
 - `.distignore`
 - `SECURITY.md`
 - `uninstall.php.example`
-- `.phpcs.xml.dist` and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
+- `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`, when absent
 
 `finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` opens reviewable PRs for GitHub Actions version updates.
 Managed CI also runs a separate `gitleaks` secret-scan job by default.
+When `WORDPRESS_QUALITY_PACK_ENABLED=true` or `WORDPRESS_SECURITY_PACK_ENABLED=true`, treat those settings as readiness submodes. Both require `WORDPRESS_READINESS_ENABLED=true`.
+
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a focused WordPress security pack:
 
 - explicit `WordPress.Security` sniffs for escaping, nonce verification, and sanitized input
@@ -74,6 +77,8 @@ Before opening or merging changes, run:
 ```bash
 bash .wp-plugin-base/scripts/ci/validate_project.sh
 ```
+
+That command enforces the generated managed-file surface, not just `.github/workflows/*`. Managed workflow files also need to use the `.yml` extension; `.yaml` workflow files are rejected by project and foundation validation.
 
 `prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`.
 
@@ -95,7 +100,7 @@ Set `WP_ORG_DEPLOY_ENABLED` in GitHub Actions settings as either:
 - a repository variable for the whole repository, or
 - an environment variable on the deployment environment used by the release workflow
 
-If WordPress.org deploy is enabled, keep `SVN_USERNAME` and `SVN_PASSWORD` in GitHub Actions environment secrets when possible, and protect the `PRODUCTION_ENVIRONMENT` environment with at least one reviewer. Readiness validation warns when that environment cannot be verified or does not appear to require reviewers.
+If WordPress.org deploy is enabled, keep `SVN_USERNAME` and `SVN_PASSWORD` in GitHub Actions environment secrets when possible, and protect the `PRODUCTION_ENVIRONMENT` environment with at least one reviewer. Readiness validation warns locally when that environment cannot be verified yet, and the generated GitHub Actions workflows fail strictly when deploy protection cannot be verified in CI.
 
 ## Security Expectations
 

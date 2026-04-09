@@ -83,7 +83,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash scripts/release/publish_github_release.sh \
+          bash scripts/release/publish_github_release.sh --repair \
             "${{ steps.version.outputs.value }}" \
             "${{ steps.version.outputs.value }}" \
             dist-foundation-release.md \

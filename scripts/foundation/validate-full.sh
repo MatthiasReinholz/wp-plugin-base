@@ -10,18 +10,29 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker
 
 quality_fixture=""
+strict_plugin_check_fixture=""
+security_pack_skip_fixture=""
+custom_suppressions_fixture=""
+missing_workflow_fixture=""
+missing_managed_file_fixture=""
+managed_directory_fixture=""
+missing_pack_fixture=""
 metadata_fixture=""
 deploy_fixture=""
 wp_build_fixture=""
 pot_fixture=""
+yaml_workflow_fixture=""
+custom_readme_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture"
 }
 
 trap cleanup EXIT
 
-bash "$ROOT_DIR/scripts/foundation/validate.sh"
+if [ "${WP_PLUGIN_BASE_SKIP_FAST_VALIDATE:-false}" != "true" ]; then
+  bash "$ROOT_DIR/scripts/foundation/validate.sh"
+fi
 
 quality_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$quality_fixture/"
@@ -29,6 +40,121 @@ mkdir -p "$quality_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$quality_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
+
+strict_plugin_check_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$strict_plugin_check_fixture/"
+mkdir -p "$strict_plugin_check_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$strict_plugin_check_fixture/.wp-plugin-base/"
+cat >> "$strict_plugin_check_fixture/.wp-plugin-base.env" <<'EOF'
+WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
+WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES=security
+EOF
+WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
+
+security_pack_skip_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$security_pack_skip_fixture/"
+mkdir -p "$security_pack_skip_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$security_pack_skip_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$security_pack_skip_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+skip_output="$(
+WP_PLUGIN_BASE_ROOT="$security_pack_skip_fixture" \
+    WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP=true \
+    bash "$ROOT_DIR/scripts/ci/run_security_pack.sh" ""
+)"
+grep -Fq 'Semgrep pass is delegated to a separate step; skipping Semgrep execution in security pack.' <<<"$skip_output"
+test ! -e "$security_pack_skip_fixture/dist/semgrep-security.sarif"
+
+custom_suppressions_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$custom_suppressions_fixture/"
+mkdir -p "$custom_suppressions_fixture/.wp-plugin-base"
+cat >> "$custom_suppressions_fixture/.wp-plugin-base.env" <<'EOF'
+WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE=.security/custom-security-suppressions.json
+EOF
+rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_suppressions_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+test -f "$custom_suppressions_fixture/.security/custom-security-suppressions.json"
+test ! -e "$custom_suppressions_fixture/.wp-plugin-base-security-suppressions.json"
+managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" ".wp-plugin-base.env")"
+grep -Fxq '.security/custom-security-suppressions.json' <<<"$managed_paths_output"
+grep -Fxq '.phpcs.xml.dist' <<<"$managed_paths_output"
+grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_paths_output"
+grep -Fq '/.security/custom-security-suppressions.json' "$custom_suppressions_fixture/.distignore"
+grep -Fq '/.security/custom-security-suppressions.json export-ignore' "$custom_suppressions_fixture/.gitattributes"
+WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ".wp-plugin-base.env"
+custom_suppressions_zip="$(find "$custom_suppressions_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$custom_suppressions_zip"
+custom_suppressions_listing="$(unzip -Z1 "$custom_suppressions_zip")"
+if grep -Fq 'quality-ready-plugin/.security/custom-security-suppressions.json' <<<"$custom_suppressions_listing"; then
+  echo "Package unexpectedly included the configured custom suppressions file." >&2
+  exit 1
+fi
+
+yaml_workflow_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$yaml_workflow_fixture/"
+mkdir -p "$yaml_workflow_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$yaml_workflow_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$yaml_workflow_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+cat > "$yaml_workflow_fixture/.github/workflows/custom.yaml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+if WP_PLUGIN_BASE_ROOT="$yaml_workflow_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a .yaml workflow file." >&2
+  exit 1
+fi
+
+missing_workflow_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_workflow_fixture/"
+mkdir -p "$missing_workflow_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_workflow_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_workflow_fixture/.github/workflows/update-foundation.yml"
+if WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed workflow." >&2
+  exit 1
+fi
+
+missing_managed_file_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_managed_file_fixture/"
+mkdir -p "$missing_managed_file_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_managed_file_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_managed_file_fixture/.github/dependabot.yml"
+if WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed file." >&2
+  exit 1
+fi
+
+managed_directory_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$managed_directory_fixture/"
+mkdir -p "$managed_directory_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_directory_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$managed_directory_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$managed_directory_fixture/.github/dependabot.yml"
+mkdir -p "$managed_directory_fixture/.github/dependabot.yml"
+if WP_PLUGIN_BASE_ROOT="$managed_directory_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a managed file path replaced by a directory." >&2
+  exit 1
+fi
+
+missing_pack_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_pack_fixture/"
+mkdir -p "$missing_pack_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_pack_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_pack_fixture/phpstan.neon.dist"
+if WP_PLUGIN_BASE_ROOT="$missing_pack_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed quality-pack file." >&2
+  exit 1
+fi
 
 metadata_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$metadata_fixture/"
@@ -40,6 +166,25 @@ if WP_PLUGIN_BASE_ROOT="$metadata_fixture" bash "$ROOT_DIR/scripts/ci/validate_w
   echo "Readiness unexpectedly passed with invalid readme metadata." >&2
   exit 1
 fi
+
+deploy_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$deploy_fixture/"
+mkdir -p "$deploy_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$deploy_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_ORG_DEPLOY_ENABLED=true
+export WP_ORG_DEPLOY_ENABLED
+if ! env -u GITHUB_ACTIONS -u GITHUB_REPOSITORY -u GH_TOKEN -u GITHUB_TOKEN \
+  WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" >/dev/null 2>&1; then
+  echo "Readiness unexpectedly failed locally for a deploy-enabled project." >&2
+  exit 1
+fi
+if GITHUB_ACTIONS=true GITHUB_REPOSITORY=example/repo WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" >/dev/null 2>&1; then
+  echo "Readiness unexpectedly passed in strict GitHub mode without deploy environment access." >&2
+  exit 1
+fi
+unset WP_ORG_DEPLOY_ENABLED
+rm -rf "$deploy_fixture"
 
 deploy_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$deploy_fixture/"
@@ -67,11 +212,35 @@ test -d "$wp_build_fixture/dist/package/build-ready-plugin/build"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/packages"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/routes"
 
+cat >> "$wp_build_fixture/.wp-plugin-base.env" <<'EOF'
+PACKAGE_INCLUDE=build-ready-plugin.php,readme.txt,package.json,build,packages/example/index.js,routes/example/index.js
+EOF
+WP_PLUGIN_BASE_ROOT="$wp_build_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ""
+package_zip="$(find "$wp_build_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$package_zip"
+zip_listing="$(unzip -Z1 "$package_zip")"
+grep -Fq 'build-ready-plugin/packages/example/index.js' <<<"$zip_listing"
+grep -Fq 'build-ready-plugin/routes/example/index.js' <<<"$zip_listing"
+
+custom_readme_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$custom_readme_fixture/"
+mkdir -p "$custom_readme_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_readme_fixture/.wp-plugin-base/"
+mv "$custom_readme_fixture/readme.txt" "$custom_readme_fixture/README.md"
+perl -0pi -e 's/^README_FILE=.*/README_FILE=README.md/m' "$custom_readme_fixture/.wp-plugin-base.env"
+WP_PLUGIN_BASE_ROOT="$custom_readme_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_PLUGIN_BASE_ROOT="$custom_readme_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ""
+custom_readme_zip="$(find "$custom_readme_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$custom_readme_zip"
+custom_readme_listing="$(unzip -Z1 "$custom_readme_zip")"
+grep -Fq 'standard-plugin/README.md' <<<"$custom_readme_listing"
+
 pot_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/nonstandard-plugin/." "$pot_fixture/"
 mkdir -p "$pot_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$pot_fixture/.wp-plugin-base/"
 rm -f "$pot_fixture/languages/custom-plugin.pot"
+test ! -e "$pot_fixture/languages/custom-plugin.pot"
 WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/release/generate_pot.sh"
 test -f "$pot_fixture/languages/custom-plugin.pot"

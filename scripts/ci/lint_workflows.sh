@@ -23,7 +23,7 @@ fi
 workflow_files=()
 while IFS= read -r file; do
   workflow_files+=("$file")
-done < <(find "$ROOT_DIR/.github/workflows" "$ROOT_DIR/templates/child/.github/workflows" -type f -name '*.yml' | sort)
+done < <(find "$ROOT_DIR/.github/workflows" "$ROOT_DIR/templates/child/.github/workflows" -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
 
 if [ "${#workflow_files[@]}" -eq 0 ]; then
   echo "No workflow files found."

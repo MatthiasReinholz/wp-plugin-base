@@ -71,14 +71,31 @@ jobs:
       - name: Sign foundation release metadata
         run: bash scripts/release/sign_release.sh dist-foundation-release.json dist-foundation-release.json.sigstore.json
 
-      - name: Ensure tag does not already exist
+      - name: Inspect foundation release tag state
+        id: tag
         env:
           VERSION: ${{ steps.release.outputs.version }}
+          EXPECTED_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null 2>&1; then
-            echo "Tag ${VERSION} already exists." >&2
+          set -euo pipefail
+          git fetch --tags origin
+          if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$(git cat-file -t "refs/tags/${VERSION}")" != "tag" ]; then
+            echo "Tag ${VERSION} already exists but is not an annotated tag." >&2
             exit 1
           fi
+
+          tag_commit="$(git rev-list -n 1 "${VERSION}")"
+          if [ "$tag_commit" != "$EXPECTED_COMMIT" ]; then
+            echo "Tag ${VERSION} already exists on ${tag_commit}, expected ${EXPECTED_COMMIT}." >&2
+            exit 1
+          fi
+
+          echo "exists=true" >> "$GITHUB_OUTPUT"
 
       - name: Configure git identity
         run: |
@@ -86,16 +103,23 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Create annotated tag locally
+        if: ${{ steps.tag.outputs.exists != 'true' }}
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Foundation release ${{ steps.release.outputs.version }}"
 
       - name: Push tag
+        if: ${{ steps.tag.outputs.exists != 'true' }}
         run: git push origin "${{ steps.release.outputs.version }}"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          repair_args=()
+          if [ "${{ steps.tag.outputs.exists }}" = "true" ]; then
+            repair_args+=(--repair)
+          fi
           bash scripts/release/publish_github_release.sh \
+            "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \
             dist-foundation-release.md \

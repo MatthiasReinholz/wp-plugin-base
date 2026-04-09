@@ -73,6 +73,69 @@ validate_optional_paths() {
   done < <(wp_plugin_base_csv_to_lines "$raw_paths")
 }
 
+normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
+validate_repo_relative_paths() {
+  local raw_paths="$1"
+  local label="$2"
+  local path
+  local normalized_path
+  local resolved_path
+
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    normalized_path="$(normalize_repo_relative_path "$path")"
+    if [ -z "$normalized_path" ]; then
+      echo "${label} must use repo-relative paths: ${path}" >&2
+      exit 1
+    fi
+    if [[ "$normalized_path" =~ [[:space:]] ]]; then
+      echo "${label} paths must not contain whitespace: ${path}" >&2
+      exit 1
+    fi
+    if [[ "$normalized_path" =~ [*?\[\]\{\}] ]]; then
+      echo "${label} must use explicit repo-relative paths, not glob patterns: ${path}" >&2
+      exit 1
+    fi
+    resolved_path="$(wp_plugin_base_resolve_path "$normalized_path")"
+    wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
+  done < <(wp_plugin_base_csv_to_lines "$raw_paths")
+}
+
+validate_output_path() {
+  local relative_path="$1"
+  local label="$2"
+  local resolved_path
+  local parent_dir
+  local existing_dir
+
+  resolved_path="$(wp_plugin_base_resolve_path "$relative_path")"
+  wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
+
+  parent_dir="$(dirname "$resolved_path")"
+  wp_plugin_base_assert_path_within_root "$parent_dir" "${label} parent directory"
+
+  existing_dir="$parent_dir"
+  while [ ! -d "$existing_dir" ] && [ "$existing_dir" != "/" ]; do
+    existing_dir="$(dirname "$existing_dir")"
+  done
+
+  if [ -e "$resolved_path" ] && [ ! -f "$resolved_path" ]; then
+    echo "${label} must point to a file path, not an existing non-file entry: ${relative_path}" >&2
+    exit 1
+  fi
+
+  if [ ! -d "$existing_dir" ] || [ ! -w "$existing_dir" ]; then
+    echo "${label} parent directory is not writable: ${relative_path}" >&2
+    exit 1
+  fi
+}
+
 case "$CONFIG_SCOPE" in
   sync|foundation)
     wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
@@ -115,11 +178,17 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
   fi
 
   if [ -n "${POT_FILE:-}" ]; then
-    validate_file "$POT_FILE" "POT file"
+    validate_output_path "$POT_FILE" "POT file"
   fi
 
   if [ -n "${PACKAGE_INCLUDE:-}" ]; then
     validate_optional_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
+  fi
+
+  validate_repo_relative_paths "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" "WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
+
+  if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
+    validate_repo_relative_paths "$PACKAGE_EXCLUDE" "PACKAGE_EXCLUDE"
   fi
 
   if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
@@ -132,6 +201,14 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
   validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
   validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}" '^(true|false)$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY'
+  validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY'
 
   if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
     echo "WORDPRESS_QUALITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2

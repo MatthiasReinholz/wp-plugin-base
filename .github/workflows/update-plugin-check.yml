@@ -1,0 +1,95 @@
+name: update-plugin-check
+
+on:
+  schedule:
+    - cron: '43 6 * * 1'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update plugin-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve current plugin-check version
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(sed -n "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='\([0-9][0-9.]*\)'$/\1/p" scripts/lib/wordpress_tooling.sh)"
+          if [ -z "$current" ]; then
+            echo "Unable to resolve WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION from scripts/lib/wordpress_tooling.sh" >&2
+            exit 1
+          fi
+          echo "version=$current" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve latest compatible plugin-check version
+        id: latest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/update/resolve_latest_plugin_check_version.sh \
+            "${{ steps.current.outputs.version }}" \
+            "WordPress/plugin-check" \
+            "$GITHUB_OUTPUT"
+
+      - name: Update plugin-check version pin
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          perl -0pi -e "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='[^']*'/WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='${{ steps.latest.outputs.version }}'/m" scripts/lib/wordpress_tooling.sh
+
+      - name: Run foundation validation
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: bash scripts/foundation/validate-full.sh
+
+      - name: Write plugin-check update pull request body
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          cat > "$RUNNER_TEMP/plugin-check-update-pr.md" <<'EOF'
+          This PR updates the pinned `WordPress/plugin-check` version used by WordPress readiness validation.
+
+          Updated plugin-check version:
+          - `${{ steps.current.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+
+          Verification performed before proposing this update:
+          - selected from published, non-draft, non-prerelease releases
+          - constrained to the current major version series
+          - full foundation validation suite executed after the pin bump
+
+          This update keeps plugin-check managed centrally in `wp-plugin-base`, so child repos receive it through normal foundation update PRs.
+          EOF
+
+      - name: Create plugin-check update PR
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh
+        run: |
+          bash scripts/update/create_or_update_pr.sh \
+            "chore/update-plugin-check-${{ steps.latest.outputs.version }}" \
+            "main" \
+            "chore: update plugin-check to ${{ steps.latest.outputs.version }}" \
+            "chore: update plugin-check to ${{ steps.latest.outputs.version }}" \
+            "$RUNNER_TEMP/plugin-check-update-pr.md"
+
+      - name: Report no update needed
+        if: ${{ steps.latest.outputs.update_needed != 'true' }}
+        run: echo "No compatible plugin-check update found."

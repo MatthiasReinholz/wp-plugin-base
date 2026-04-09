@@ -40,53 +40,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          bash .wp-plugin-base/scripts/update/resolve_latest_foundation_version.sh \
+            "${{ steps.config.outputs.version }}" \
+            "${{ steps.config.outputs.repository }}" \
+            "$GITHUB_OUTPUT"
+
+      - name: Verify foundation release provenance
+        id: verify
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
           set -euo pipefail
-          current="${{ steps.config.outputs.version }}"
-          major="${current%%.*}"
-          api_url="https://api.github.com/repos/${{ steps.config.outputs.repository }}/releases?per_page=100"
-          latest="$(
-            curl -fsSL \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "$api_url" \
-              | jq -r --arg major "$major" '
-                  map(
-                    select(
-                      .draft == false and
-                      .prerelease == false and
-                      (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
-                    )
-                  )
-                  | map(.tag_name)
-                  | sort_by(split(".") | map(ltrimstr("v") | tonumber))
-                  | last // empty
-                '
-          )"
+          while IFS= read -r candidate_version; do
+            [ -n "$candidate_version" ] || continue
+            verify_output="$(mktemp)"
+            verify_log="$(mktemp)"
+            if bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
+              "${{ steps.config.outputs.repository }}" \
+              "$candidate_version" \
+              "$verify_output" >"$verify_log" 2>&1; then
+              cat "$verify_output" >> "$GITHUB_OUTPUT"
+              rm -f "$verify_output" "$verify_log"
+              exit 0
+            fi
+            cat "$verify_log" >&2
+            rm -f "$verify_output" "$verify_log"
+          done <<'EOF'
+          ${{ steps.latest.outputs.candidates }}
+          EOF
 
-          if [ -z "$latest" ] || [ "$latest" = "$current" ]; then
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "update_needed=true" >> "$GITHUB_OUTPUT"
-          echo "version=$latest" >> "$GITHUB_OUTPUT"
+          echo "No compatible foundation release passed provenance verification." >&2
+          exit 1
 
       - name: Clone target foundation version
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
           rm -rf "$RUNNER_TEMP/wp-plugin-base"
-          git clone --depth 1 --branch "${{ steps.latest.outputs.version }}" "https://github.com/${{ steps.config.outputs.repository }}.git" "$RUNNER_TEMP/wp-plugin-base"
-
-      - name: Verify foundation release provenance
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
-            "${{ steps.config.outputs.repository }}" \
-            "${{ steps.latest.outputs.version }}" \
-            "$RUNNER_TEMP/wp-plugin-base"
+          git init "$RUNNER_TEMP/wp-plugin-base"
+          git -C "$RUNNER_TEMP/wp-plugin-base" remote add origin "https://github.com/${{ steps.config.outputs.repository }}.git"
+          git -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
+          git -C "$RUNNER_TEMP/wp-plugin-base" checkout --detach FETCH_HEAD
 
       - name: Refresh vendored foundation directory
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
@@ -98,11 +92,26 @@ jobs:
       - name: Update project config
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
-          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.latest.outputs.version }}/m" .wp-plugin-base.env
+          perl -0pi -e "s/^FOUNDATION_VERSION=.*/FOUNDATION_VERSION=${{ steps.verify.outputs.version }}/m" .wp-plugin-base.env
 
       - name: Regenerate managed files
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh
+
+      - name: Resolve managed staging paths
+        id: managed-paths
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          managed_paths="$(
+            {
+              printf '%s\n' ".wp-plugin-base"
+              printf '%s\n' ".wp-plugin-base.env"
+              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage ".wp-plugin-base.env"
+            } | awk '!seen[$0]++' | paste -sd, -
+          )"
+          echo "value=$managed_paths" >> "$GITHUB_OUTPUT"
 
       - name: Write foundation update pull request body
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
@@ -111,26 +120,29 @@ jobs:
           This PR updates the vendored foundation and regenerates the managed workflow and documentation files.
 
           Updated foundation version:
-          - `${{ steps.config.outputs.version }}` -> `${{ steps.latest.outputs.version }}`
+          - `${{ steps.config.outputs.version }}` -> `${{ steps.verify.outputs.version }}`
 
           Security checks performed before proposing this update:
           - release is published and not draft/prerelease
           - tag matches the foundation semver contract
+          - signed release metadata matches the repository, version, and commit
           - tag commit is reachable from the foundation `main`
           - release was produced by the protected foundation release flow
           - release author is in the allowed release-author list
+          - vendored code is refreshed from the verified commit SHA
           EOF
 
       - name: Create foundation update PR
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
         run: |
           bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
-            "chore/update-wp-plugin-base-${{ steps.latest.outputs.version }}" \
+            "chore/update-wp-plugin-base-${{ steps.verify.outputs.version }}" \
             "main" \
-            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
-            "chore: update wp-plugin-base to ${{ steps.latest.outputs.version }}" \
+            "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
+            "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
             "$RUNNER_TEMP/foundation-update-pr.md"
 
       - name: Report no update needed

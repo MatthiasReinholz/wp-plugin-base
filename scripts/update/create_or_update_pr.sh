@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/load_config.sh
+. "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
@@ -29,7 +31,25 @@ OWNER="${GITHUB_REPOSITORY_OWNER:-${REPO%%/*}}"
 
 git checkout -B "$BRANCH_NAME" >/dev/null
 
-git add -A
+if [ -n "${GIT_ADD_PATHS:-}" ]; then
+  declare -a stage_paths=()
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    if [ -e "$path" ] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+      stage_paths+=("$path")
+    fi
+  done < <(wp_plugin_base_csv_to_lines "$GIT_ADD_PATHS")
+
+  if [ "${#stage_paths[@]}" -eq 0 ]; then
+    echo "GIT_ADD_PATHS did not match any existing or tracked paths." >&2
+    exit 1
+  fi
+
+  git add -A -- "${stage_paths[@]}"
+else
+  git add -A
+fi
+
 changes_committed=false
 
 if ! git diff --cached --quiet; then

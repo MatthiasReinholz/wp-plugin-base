@@ -124,6 +124,15 @@ wp_plugin_base_load_config() {
   WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
   WORDPRESS_SECURITY_PACK_ENABLED="${WORDPRESS_SECURITY_PACK_ENABLED:-false}"
   WOOCOMMERCE_QIT_ENABLED="${WOOCOMMERCE_QIT_ENABLED:-false}"
+  WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE="${WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE:-.wp-plugin-base-security-suppressions.json}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS="${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS="${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES="${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES="${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS="${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY="${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY="${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}"
+  WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY="${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}"
 }
 
 wp_plugin_base_require_vars() {
@@ -151,17 +160,32 @@ wp_plugin_base_resolve_path() {
 wp_plugin_base_canonicalize_path() {
   local path="$1"
   local directory
+  local existing_dir
+  local suffix=""
+  local canonical_directory
   local basename
 
-  directory="$(cd "$(dirname "$path")" && pwd -P)"
+  directory="$(dirname "$path")"
+  existing_dir="$directory"
+  while [ ! -d "$existing_dir" ] && [ "$existing_dir" != "/" ]; do
+    suffix="/$(basename "$existing_dir")${suffix}"
+    existing_dir="$(dirname "$existing_dir")"
+  done
+
+  if [ ! -d "$existing_dir" ]; then
+    echo "Unable to resolve path: $path" >&2
+    exit 1
+  fi
+
+  canonical_directory="$(cd "$existing_dir" && pwd -P)${suffix}"
   basename="$(basename "$path")"
 
   if [ "$basename" = "." ]; then
-    printf '%s\n' "$directory"
+    printf '%s\n' "$canonical_directory"
     return
   fi
 
-  printf '%s/%s\n' "$directory" "$basename"
+  printf '%s/%s\n' "$canonical_directory" "$basename"
 }
 
 wp_plugin_base_assert_path_within_root() {

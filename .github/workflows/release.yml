@@ -173,7 +173,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+          bash .wp-plugin-base/scripts/release/publish_github_release.sh --repair \
             "${{ steps.resolved.outputs.version }}" \
             "${{ steps.resolved.outputs.version }}" \
             dist/release-body.md \
