@@ -291,7 +291,9 @@ grep -Fxq '.github/workflows/woocommerce-qit.yml' <<<"$managed_security_paths_ou
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '/plugin-check/cli.php' "Plugin Check runner must bootstrap cli.php from the installed plugin."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '--require="$plugin_check_cli_bootstrap"' "Plugin Check runner must require the resolved cli bootstrap path."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'resolve_latest_plugin_check_version.sh' "update-plugin-check workflow must resolve the latest Plugin Check version."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'cron: '\''17 5 * * 1'\''' "update-plugin-check workflow must remain scheduled."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar' "update-plugin-check workflow must pin the reviewed plugin-check release author allowlist."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS: '\''7'\''' "update-plugin-check workflow must enforce the plugin-check stabilization window."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Root update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Root update-foundation workflow must use the verified foundation version output."
@@ -330,24 +332,28 @@ cat > "$plugin_check_release_fixture" <<'EOF'
 [
   {
     "tag_name": "1.9.0",
+    "published_at": "2025-01-01T00:00:00Z",
     "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
   },
   {
     "tag_name": "1.9.1",
+    "published_at": "2025-01-02T00:00:00Z",
     "author": { "login": "davidperezgar" },
     "draft": true,
     "prerelease": false
   },
   {
     "tag_name": "1.10.0",
+    "published_at": "2025-01-08T00:00:00Z",
     "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
   },
   {
     "tag_name": "2.0.0",
+    "published_at": "2025-01-09T00:00:00Z",
     "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
@@ -375,6 +381,24 @@ WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="someone-else" \
   bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
 grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
 grep -Fxq 'version=' "$plugin_check_resolve_output"
+
+plugin_check_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="davidperezgar" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS="7" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_NOW_EPOCH="1736208000" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" \
+  bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
+grep -Fxq 'version=' "$plugin_check_resolve_output"
+
+plugin_check_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="davidperezgar" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS="7" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_NOW_EPOCH="1736985600" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" \
+  bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+grep -Fxq 'update_needed=true' "$plugin_check_resolve_output"
+grep -Fxq 'version=1.10.0' "$plugin_check_resolve_output"
 
 foundation_release_fixture="$(mktemp)"
 cat > "$foundation_release_fixture" <<'EOF'

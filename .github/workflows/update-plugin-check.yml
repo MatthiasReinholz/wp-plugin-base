@@ -1,6 +1,8 @@
 name: update-plugin-check
 
 on:
+  schedule:
+    - cron: '17 5 * * 1'
   workflow_dispatch:
 
 env:
@@ -44,6 +46,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar
+          WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS: '7'
         run: |
           bash scripts/update/resolve_latest_plugin_check_version.sh \
             "${{ steps.current.outputs.version }}" \
@@ -72,9 +75,9 @@ jobs:
           - selected from published, non-draft, non-prerelease releases
           - constrained to the current major version series
           - release author matched the reviewed allowlist
+          - release satisfied the 7-day stabilization window before automation
           - full foundation validation suite executed after the pin bump
 
-          This workflow is manual-only until upstream release provenance is stronger than the current metadata and author checks.
           The plugin-check pin remains managed centrally in `wp-plugin-base`, so child repos receive it through normal foundation update PRs.
           EOF
 
