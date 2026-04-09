@@ -24,8 +24,8 @@ def write_hash_file(filename: Path, values: dict[bytes, bytes]) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) != 5:
-        print("Usage: write_svn_simple_auth.py <config-dir> <realm> <username> <password>", file=sys.stderr)
+    if len(sys.argv) != 4:
+        print("Usage: write_svn_simple_auth.py <config-dir> <realm> <username>", file=sys.stderr)
         return 1
 
     config_dir = Path(sys.argv[1])
@@ -33,7 +33,10 @@ def main() -> int:
     os.chmod(config_dir, 0o700)
     realm = sys.argv[2]
     username = sys.argv[3]
-    password = sys.argv[4]
+    password = os.environ.get("SVN_PASSWORD")
+    if not password:
+        print("SVN_PASSWORD is required in the environment.", file=sys.stderr)
+        return 1
 
     auth_dir = config_dir / "auth" / "svn.simple"
     auth_dir.mkdir(parents=True, exist_ok=True)

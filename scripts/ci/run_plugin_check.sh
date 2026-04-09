@@ -29,21 +29,35 @@ wp_env_config="$(mktemp)"
 wp_env_tools_dir="$(mktemp -d)"
 npm_cache_dir="$(mktemp -d)"
 buildx_config_dir="$(mktemp -d)"
+wp_env_start_log="$(mktemp)"
 wp_env_port=''
 wp_env_tests_port=''
 plugin_check_cli_bootstrap="/var/www/html/wp-content/plugins/plugin-check/cli.php"
 max_attempts=3
 attempt=1
 start_success=false
+plugin_check_timeout_seconds=600
+timeout_bin=''
+
+if command -v timeout >/dev/null 2>&1; then
+  timeout_bin='timeout'
+elif command -v gtimeout >/dev/null 2>&1; then
+  timeout_bin='gtimeout'
+fi
 
 cleanup() {
   if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
     WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
   fi
-  rm -rf "$wp_env_home" "$wp_env_config" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir"
+  rm -rf "$wp_env_home" "$wp_env_config" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir" "$wp_env_start_log"
 }
 
 trap cleanup EXIT
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is not available. Start Docker before running Plugin Check." >&2
+  exit 1
+fi
 
 NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_install_wordpress_env "$wp_env_tools_dir"
 while [ "$attempt" -le "$max_attempts" ]; do
@@ -63,7 +77,9 @@ while [ "$attempt" -le "$max_attempts" ]; do
     file_put_contents($argv[1], json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
   ' "$wp_env_config"
 
-  if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null 2>&1; then
+  : > "$wp_env_start_log"
+
+  if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null 2>"$wp_env_start_log"; then
     if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin install plugin-check --version="$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" --activate >/dev/null 2>&1; then
       if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin is-installed plugin-check >/dev/null 2>&1; then
         start_success=true
@@ -73,6 +89,10 @@ while [ "$attempt" -le "$max_attempts" ]; do
   fi
 
   echo "wp-env startup/install attempt ${attempt}/${max_attempts} failed (ports ${wp_env_port}/${wp_env_tests_port}); retrying." >&2
+  if [ -s "$wp_env_start_log" ]; then
+    echo "wp-env start stderr (attempt ${attempt}/${max_attempts}):" >&2
+    cat "$wp_env_start_log" >&2
+  fi
   WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
   attempt=$((attempt + 1))
 done
@@ -146,13 +166,36 @@ if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" ]; then
   plugin_check_args+=(--warning-severity="$WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY")
 fi
 
-raw_output="$(
-  WP_ENV_HOME="$wp_env_home" \
-    BUILDX_CONFIG="$buildx_config_dir" \
-    NPM_CONFIG_CACHE="$npm_cache_dir" \
-    wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- \
-    "${plugin_check_args[@]}"
-)"
+plugin_check_command=(
+  wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" --
+  "${plugin_check_args[@]}"
+)
+
+if [ -n "$timeout_bin" ]; then
+  set +e
+  raw_output="$(
+    WP_ENV_HOME="$wp_env_home" \
+      BUILDX_CONFIG="$buildx_config_dir" \
+      NPM_CONFIG_CACHE="$npm_cache_dir" \
+      "$timeout_bin" "$plugin_check_timeout_seconds" "${plugin_check_command[@]}"
+  )"
+  status="$?"
+  set -e
+  if [ "$status" -ne 0 ]; then
+    if [ "$status" -eq 124 ]; then
+      echo "Plugin Check timed out after ${plugin_check_timeout_seconds}s." >&2
+    fi
+    exit "$status"
+  fi
+else
+  echo "timeout command is unavailable; running Plugin Check without an explicit per-command timeout." >&2
+  raw_output="$(
+    WP_ENV_HOME="$wp_env_home" \
+      BUILDX_CONFIG="$buildx_config_dir" \
+      NPM_CONFIG_CACHE="$npm_cache_dir" \
+      "${plugin_check_command[@]}"
+  )"
+fi
 
 json_payload="$(printf '%s\n' "$raw_output" | bash "$SCRIPT_DIR/normalize_plugin_check_output.sh")"
 

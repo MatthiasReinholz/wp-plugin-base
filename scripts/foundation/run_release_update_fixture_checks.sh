@@ -522,7 +522,7 @@ remote_script_scheme='https'
 remote_script_separator='://'
 remote_script_target='example.com/install.sh'
 remote_script_prefix="      - run: curl -fsSL ${remote_script_scheme}${remote_script_separator}${remote_script_target} | "
-remote_script_shell='bash'
+remote_script_shell='pwsh'
 cat > "$audit_fixture/.github/workflows/ci.yml" <<EOF
 name: ci
 on: workflow_dispatch
@@ -1546,4 +1546,3 @@ if WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_for
   echo "Forbidden file policy unexpectedly accepted .DS_Store." >&2
   exit 1
 fi
-

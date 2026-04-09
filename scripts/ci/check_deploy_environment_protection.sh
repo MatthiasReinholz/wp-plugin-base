@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
 
 CONFIG_OVERRIDE=''
 STRICT_MODE='false'
@@ -58,7 +60,11 @@ if [ -z "$api_token" ]; then
   report_violation "GH_TOKEN is unavailable, so environment '$PRODUCTION_ENVIRONMENT' must be verified manually."
 fi
 
-if ! environment_json="$(GH_TOKEN="$api_token" gh api "repos/${GITHUB_REPOSITORY}/environments/${PRODUCTION_ENVIRONMENT}" 2>/dev/null)"; then
+query_environment() {
+  GH_TOKEN="$api_token" gh api "repos/${GITHUB_REPOSITORY}/environments/${PRODUCTION_ENVIRONMENT}"
+}
+
+if ! environment_json="$(wp_plugin_base_run_with_retry 3 2 "Query deployment environment ${PRODUCTION_ENVIRONMENT}" query_environment 2>/dev/null)"; then
   report_violation "Environment '$PRODUCTION_ENVIRONMENT' does not exist or could not be queried."
 fi
 

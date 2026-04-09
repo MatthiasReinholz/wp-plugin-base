@@ -54,8 +54,7 @@ mkdir -p "$SVN_CONFIG_DIR"
 python3 "$SCRIPT_DIR/../lib/write_svn_simple_auth.py" \
   "$SVN_CONFIG_DIR" \
   "$SVN_REALM" \
-  "$SVN_USERNAME" \
-  "$SVN_PASSWORD"
+  "$SVN_USERNAME"
 
 svn checkout "${SVN_ARGS[@]}" --depth immediates "$SVN_URL" "$SVN_DIR" >/dev/null
 

@@ -37,6 +37,7 @@ jobs:
     environment: ${{ inputs.production_environment }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+      CONFIG_PATH: ${{ inputs.config_path }}
 
     steps:
       - name: Derive release version
@@ -61,7 +62,7 @@ jobs:
       - name: Read config
         id: config
         shell: bash
-        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project "${{ inputs.config_path }}" "$GITHUB_OUTPUT"
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project "$CONFIG_PATH" "$GITHUB_OUTPUT"
 
       - name: Set up PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
@@ -80,26 +81,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION: 'true'
           WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
-        run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
+        run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh "$CONFIG_PATH" "$BRANCH_NAME"
 
       - name: Validate metadata versions
         if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
-        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.release.outputs.version }}" "$CONFIG_PATH"
 
       - name: Lint PHP
         if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
-        run: bash .wp-plugin-base/scripts/ci/lint_php.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/lint_php.sh "$CONFIG_PATH"
 
       - name: Lint JavaScript
         if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
-        run: bash .wp-plugin-base/scripts/ci/lint_js.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/lint_js.sh "$CONFIG_PATH"
 
       - name: Build package
         if: ${{ steps.config.outputs.wordpress_readiness_enabled != 'true' }}
-        run: bash .wp-plugin-base/scripts/ci/build_zip.sh "${{ inputs.config_path }}"
+        run: bash .wp-plugin-base/scripts/ci/build_zip.sh "$CONFIG_PATH"
 
       - name: Generate GitHub release body
-        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}" > dist/release-body.md
+        run: bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "${{ steps.release.outputs.version }}" "$CONFIG_PATH" > dist/release-body.md
 
       - name: Install SBOM and signing tools
         run: |
@@ -132,7 +133,7 @@ jobs:
 
       - name: Validate WordPress.org deploy configuration
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
-        run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.release.outputs.version }}" "${{ inputs.config_path }}" "dist/package/${{ steps.config.outputs.plugin_slug }}"
+        run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.release.outputs.version }}" "$CONFIG_PATH" "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
       - name: Inspect release tag state
         id: tag
@@ -181,7 +182,7 @@ jobs:
         run: |
           bash .wp-plugin-base/scripts/release/deploy_wordpress_org.sh \
             "${{ steps.release.outputs.version }}" \
-            "${{ inputs.config_path }}" \
+            "$CONFIG_PATH" \
             "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
       - name: Push tag

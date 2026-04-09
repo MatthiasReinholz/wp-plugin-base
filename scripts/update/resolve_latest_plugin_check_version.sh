@@ -45,27 +45,36 @@ if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON:-}" ]; then
   fi
   releases_json="$(cat "$WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON")"
 else
+  fetch_releases_page() {
+    local page="$1"
+    local api_url="https://api.github.com/repos/${TARGET_REPOSITORY}/releases?per_page=100&page=${page}"
+
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+      curl -fsSL \
+        --connect-timeout 10 \
+        --max-time 60 \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "$api_url"
+      return
+    fi
+
+    curl -fsSL \
+      --connect-timeout 10 \
+      --max-time 60 \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$api_url"
+  }
+
   page=1
   releases_json='[]'
 
   while :; do
-    api_url="https://api.github.com/repos/${TARGET_REPOSITORY}/releases?per_page=100&page=${page}"
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-      page_json="$(
-        curl -fsSL \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "$api_url"
-      )"
-    else
-      page_json="$(
-        curl -fsSL \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "$api_url"
-      )"
-    fi
+    page_json="$(
+      wp_plugin_base_run_with_retry 3 2 "Fetch plugin-check releases page ${page}" fetch_releases_page "$page"
+    )"
 
     releases_json="$(
       jq -s '.[0] + .[1]' \
