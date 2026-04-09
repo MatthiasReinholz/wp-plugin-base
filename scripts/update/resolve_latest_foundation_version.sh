@@ -7,30 +7,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
 CURRENT_VERSION="${1:-}"
-TARGET_REPOSITORY="${2:-WordPress/plugin-check}"
+TARGET_REPOSITORY="${2:-}"
 OUTPUT_PATH="${3:-${GITHUB_OUTPUT:-}}"
 
-if [ -z "$CURRENT_VERSION" ]; then
-  echo "Usage: $0 <current-version> [owner/repo] [output-path]" >&2
+if [ -z "$CURRENT_VERSION" ] || [ -z "$TARGET_REPOSITORY" ]; then
+  echo "Usage: $0 <current-version> <owner/repo> [output-path]" >&2
   exit 1
 fi
 
-wp_plugin_base_require_commands "plugin-check version resolution" jq curl
+wp_plugin_base_require_commands "foundation version resolution" jq curl
 
-if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Current plugin-check version must use x.y.z format: $CURRENT_VERSION" >&2
+if [[ ! "$CURRENT_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Current foundation version must use vX.Y.Z format: $CURRENT_VERSION" >&2
   exit 1
 fi
 
 major="${CURRENT_VERSION%%.*}"
 releases_json=''
 
-if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON:-}" ]; then
-  if [ ! -f "$WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON" ]; then
-    echo "Release JSON fixture not found: $WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON" >&2
+if [ -n "${WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON:-}" ]; then
+  if [ ! -f "$WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON" ]; then
+    echo "Foundation release JSON fixture not found: $WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON" >&2
     exit 1
   fi
-  releases_json="$(cat "$WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON")"
+  releases_json="$(cat "$WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON")"
 else
   page=1
   releases_json='[]'
@@ -79,7 +79,7 @@ latest="$(
       )
     )
     | map(.tag_name)
-    | sort_by(split(".") | map(tonumber))
+    | sort_by(split(".") | map(ltrimstr("v") | tonumber))
     | last // empty
   '
 )"

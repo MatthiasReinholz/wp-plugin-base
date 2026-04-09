@@ -40,52 +40,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          current="${{ steps.config.outputs.version }}"
-          major="${current%%.*}"
-          api_url="https://api.github.com/repos/${{ steps.config.outputs.repository }}/releases?per_page=100"
-          latest="$(
-            curl -fsSL \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "$api_url" \
-              | jq -r --arg major "$major" '
-                  map(
-                    select(
-                      .draft == false and
-                      .prerelease == false and
-                      (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
-                    )
-                  )
-                  | map(.tag_name)
-                  | sort_by(split(".") | map(ltrimstr("v") | tonumber))
-                  | last // empty
-                '
-          )"
-
-          if [ -z "$latest" ] || [ "$latest" = "$current" ]; then
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "update_needed=true" >> "$GITHUB_OUTPUT"
-          echo "version=$latest" >> "$GITHUB_OUTPUT"
+          bash .wp-plugin-base/scripts/update/resolve_latest_foundation_version.sh \
+            "${{ steps.config.outputs.version }}" \
+            "${{ steps.config.outputs.repository }}" \
+            "$GITHUB_OUTPUT"
 
       - name: Verify foundation release provenance
+        id: verify
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
             "${{ steps.config.outputs.repository }}" \
-            "${{ steps.latest.outputs.version }}"
+            "${{ steps.latest.outputs.version }}" \
+            "$GITHUB_OUTPUT"
 
       - name: Clone target foundation version
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
           rm -rf "$RUNNER_TEMP/wp-plugin-base"
-          git clone --depth 1 --branch "${{ steps.latest.outputs.version }}" "https://github.com/${{ steps.config.outputs.repository }}.git" "$RUNNER_TEMP/wp-plugin-base"
+          git init "$RUNNER_TEMP/wp-plugin-base"
+          git -C "$RUNNER_TEMP/wp-plugin-base" remote add origin "https://github.com/${{ steps.config.outputs.repository }}.git"
+          git -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
+          git -C "$RUNNER_TEMP/wp-plugin-base" checkout --detach FETCH_HEAD
 
       - name: Refresh vendored foundation directory
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
@@ -119,6 +97,7 @@ jobs:
           - tag commit is reachable from the foundation `main`
           - release was produced by the protected foundation release flow
           - release author is in the allowed release-author list
+          - vendored code is refreshed from the verified commit SHA
           EOF
 
       - name: Create foundation update PR

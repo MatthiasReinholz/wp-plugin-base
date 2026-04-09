@@ -73,3 +73,5 @@ That command validates:
 - version alignment
 - release branch metadata when you provide a branch name
 - ZIP package creation
+
+For WordPress.org deploy-enabled repos, local validation warns when GitHub environment protection cannot be queried yet. The generated CI workflows enforce that check strictly once the repository is running in GitHub Actions.

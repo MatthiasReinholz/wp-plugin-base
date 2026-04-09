@@ -50,9 +50,11 @@ That audit fails if it finds:
 - an external action outside the approved allowlist
 - a workflow without explicit top-level `permissions`
 - a workflow with broader permissions than its policy allows
+- a custom workflow with write-capable repository scopes such as `contents: write` or `pull-requests: write`
 - `curl | bash`, `wget | sh`, or equivalent remote-script execution
 - outbound URLs to hosts outside the documented allowlist
-- `pull_request_target` workflows that are not limited to merged internal release or hotfix branches
+- any `pull_request_target` workflow outside the audited managed finalize workflows
+- an audited `pull_request_target` workflow whose job condition differs from the exact reviewed merge-gating expression
 
 ## Allowed Network Destinations
 
@@ -80,6 +82,7 @@ Before `update-foundation` opens a PR, it verifies:
 - the tagged commit is reachable from the foundation repository's `main`
 - the tagged commit was produced by a merged `release/vX.Y.Z` or `hotfix/vX.Y.Z` pull request into `main`
 - the release author is on the allowed author list
+- the vendored refresh is performed from the verified commit SHA, not by re-resolving the tag later
 
 Consumers can also verify a released plugin ZIP independently after downloading it from GitHub Releases:
 

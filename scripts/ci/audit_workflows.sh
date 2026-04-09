@@ -89,7 +89,7 @@ export WP_PLUGIN_BASE_AUDIT_WORKFLOWS
 WP_PLUGIN_BASE_AUDIT_WORKFLOWS="$(printf '%s\n' "${workflow_files[@]}")"
 
 ruby <<'RUBY'
-require "yaml"
+require "psych"
 
 root = ENV.fetch("WP_PLUGIN_BASE_AUDIT_ROOT")
 workflow_files = ENV.fetch("WP_PLUGIN_BASE_AUDIT_WORKFLOWS").split("\n").reject(&:empty?)
@@ -135,6 +135,32 @@ expected_job_permissions = {
   }
 }
 
+expected_pull_request_target_conditions = {
+  "finalize-foundation-release.yml" => {
+    "release" => "github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))"
+  },
+  "finalize-release.yml" => {
+    "release" => "github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))"
+  }
+}
+
+custom_permission_policy = {
+  "actions" => "read",
+  "attestations" => "write",
+  "checks" => "read",
+  "contents" => "read",
+  "id-token" => "write",
+  "issues" => "read",
+  "pull-requests" => "read",
+  "security-events" => "write"
+}
+
+permission_rank = {
+  "none" => 0,
+  "read" => 1,
+  "write" => 2
+}
+
 errors = []
 
 validate_permissions_mapping = lambda do |label, permissions|
@@ -159,13 +185,56 @@ validate_permissions_mapping = lambda do |label, permissions|
   normalized
 end
 
+validate_permissions_against_policy = lambda do |label, permissions, policy|
+  return unless permissions
+
+  permissions.each do |scope, value|
+    max_value = policy[scope]
+    if max_value.nil?
+      errors << "#{label}: permission scope #{scope.inspect} is not allowed by policy"
+      next
+    end
+
+    if permission_rank.fetch(value) > permission_rank.fetch(max_value)
+      errors << "#{label}: permission #{scope.inspect}=#{value.inspect} exceeds allowed maximum #{max_value.inspect}"
+    end
+  end
+end
+
+validate_job_permissions_subset = lambda do |label, workflow_permissions, job_permissions|
+  return unless job_permissions
+
+  job_permissions.each do |scope, value|
+    workflow_value = workflow_permissions.fetch(scope, "none")
+    if permission_rank.fetch(value) > permission_rank.fetch(workflow_value)
+      errors << "#{label}: permission #{scope.inspect}=#{value.inspect} exceeds the workflow-level permission #{workflow_value.inspect}"
+    end
+  end
+end
+
+normalize_condition = lambda do |value|
+  value.to_s.gsub(/\s+/, " ").strip
+end
+
 workflow_files.each do |file|
-  data = YAML.load_file(file) || {}
+  begin
+    data = Psych.safe_load(File.read(file), permitted_classes: [], permitted_symbols: [], aliases: false, filename: file) || {}
+  rescue Psych::Exception => e
+    errors << "#{file}: invalid or unsafe YAML: #{e.message}"
+    next
+  end
+
+  unless data.is_a?(Hash)
+    errors << "#{file}: workflow root must be a mapping"
+    next
+  end
+
   permissions = data["permissions"]
   trigger_block = data["on"] || data[true]
   basename = File.basename(file)
   expected = expected_permissions[basename]
   expected_jobs = expected_job_permissions.fetch(basename, {})
+  expected_pull_request_target_jobs = expected_pull_request_target_conditions[basename]
   jobs = data["jobs"]
 
   if permissions.nil?
@@ -182,6 +251,8 @@ workflow_files.each do |file|
     end
   elsif normalized.empty?
     errors << "#{file}: custom workflows must declare at least one explicit top-level permission"
+  else
+    validate_permissions_against_policy.call(file, normalized, custom_permission_policy)
   end
 
   unless jobs.is_a?(Hash) && !jobs.empty?
@@ -209,23 +280,33 @@ workflow_files.each do |file|
         errors << "#{file}:#{job_name}: unexpected job-level permissions block"
       end
     elsif !job_permissions.nil?
-      validate_permissions_mapping.call("#{file}:#{job_name}", job_permissions)
+      normalized_job_permissions = validate_permissions_mapping.call("#{file}:#{job_name}", job_permissions)
+      if normalized_job_permissions
+        validate_permissions_against_policy.call("#{file}:#{job_name}", normalized_job_permissions, custom_permission_policy)
+        validate_job_permissions_subset.call("#{file}:#{job_name}", normalized, normalized_job_permissions)
+      end
     end
   end
 
   if trigger_block.is_a?(Hash) && trigger_block.key?("pull_request_target")
-    required_fragments = [
-      "github.event.pull_request.merged == true",
-      "github.event.pull_request.head.repo.full_name == github.repository",
-      "startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/')"
-    ]
+    unless expected_pull_request_target_jobs
+      errors << "#{file}: pull_request_target is only allowed for audited managed workflows"
+      next
+    end
 
     jobs.each do |job_name, job_data|
       next unless job_data.is_a?(Hash)
 
       job_condition = job_data["if"]
-      unless job_condition.is_a?(String) && required_fragments.all? { |fragment| job_condition.include?(fragment) }
-        errors << "#{file}:#{job_name}: pull_request_target jobs must be limited to merged internal release/hotfix branches"
+      expected_condition = expected_pull_request_target_jobs[job_name.to_s]
+
+      unless expected_condition
+        errors << "#{file}:#{job_name}: unexpected job in audited pull_request_target workflow"
+        next
+      end
+
+      unless job_condition.is_a?(String) && normalize_condition.call(job_condition) == normalize_condition.call(expected_condition)
+        errors << "#{file}:#{job_name}: pull_request_target jobs must use the exact audited merge-gating condition"
       end
     end
   end

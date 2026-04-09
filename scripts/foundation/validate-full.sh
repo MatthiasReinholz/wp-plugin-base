@@ -14,13 +14,14 @@ strict_plugin_check_fixture=""
 security_pack_skip_fixture=""
 custom_suppressions_fixture=""
 missing_workflow_fixture=""
+missing_managed_file_fixture=""
 metadata_fixture=""
 deploy_fixture=""
 wp_build_fixture=""
 pot_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$missing_workflow_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
 }
 
 trap cleanup EXIT
@@ -78,6 +79,17 @@ WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/update/s
 rm -f "$missing_workflow_fixture/.github/workflows/update-foundation.yml"
 if WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Project validation unexpectedly passed with a missing managed workflow." >&2
+  exit 1
+fi
+
+missing_managed_file_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_managed_file_fixture/"
+mkdir -p "$missing_managed_file_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_managed_file_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_managed_file_fixture/.github/dependabot.yml"
+if WP_PLUGIN_BASE_ROOT="$missing_managed_file_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed file." >&2
   exit 1
 fi
 

@@ -23,6 +23,8 @@ These files are intended to be generated from foundation templates in your proje
 
 Do not hand-edit those files in your project unless you are intentionally diverging from the foundation. If you need a permanent change, make it in `wp-plugin-base` and resync.
 
+`bash .wp-plugin-base/scripts/ci/validate_project.sh` treats that managed surface as part of the child-repo contract. If one of those files is missing after sync, project validation now fails and points back to `sync_child_repo.sh`.
+
 `finalize-release.yml` is the standard automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` keeps GitHub Actions pins moving through reviewable PRs. `.github/CODEOWNERS` is optional so projects can choose whether workflow, script, and dependency-file changes require explicit reviewer ownership.
 
 If a project does not already have a `CHANGELOG.md`, sync also seeds one from the child template. After that initial creation, the project owns its changelog content.

@@ -14,8 +14,14 @@ forbidden_fixture=""
 managed_security_child=""
 authorization_fixture=""
 deploy_protection_fixture=""
+deploy_local_project_fixture=""
 plugin_check_release_fixture=""
 plugin_check_resolve_output=""
+foundation_release_fixture=""
+foundation_resolve_output=""
+pr_stage_fixture=""
+pr_stage_origin=""
+pr_stage_output=""
 
 while IFS= read -r file; do
   bash -n "$file"
@@ -70,7 +76,7 @@ for fixture_name in standard-plugin nonstandard-plugin; do
 done
 
 managed_child="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
 mkdir -p "$managed_child/.wp-plugin-base"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$managed_child/"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_child/.wp-plugin-base/"
@@ -134,6 +140,9 @@ grep -Fq 'php-runtime-smoke:' "$managed_security_child/.github/workflows/ci.yml"
 grep -Fq '/plugin-check/cli.php' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq -- '--require="$plugin_check_cli_bootstrap"' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
 grep -Fq 'resolve_latest_plugin_check_version.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
+grep -Fq 'resolve_latest_foundation_version.sh' "$ROOT_DIR/.github/workflows/update-foundation.yml"
+grep -Fq 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
+grep -Fq 'publish_github_release.sh --repair' "$ROOT_DIR/.github/workflows/release-foundation.yml"
 
 plugin_check_release_fixture="$(mktemp)"
 cat > "$plugin_check_release_fixture" <<'EOF'
@@ -170,6 +179,42 @@ plugin_check_resolve_output="$(mktemp)"
 WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.10.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
 grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
 grep -Fxq 'version=' "$plugin_check_resolve_output"
+
+foundation_release_fixture="$(mktemp)"
+cat > "$foundation_release_fixture" <<'EOF'
+[
+  {
+    "tag_name": "v1.2.2",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "v1.2.3",
+    "draft": true,
+    "prerelease": false
+  },
+  {
+    "tag_name": "v1.2.4",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "v2.0.0",
+    "draft": false,
+    "prerelease": false
+  }
+]
+EOF
+
+foundation_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON="$foundation_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_foundation_version.sh" "v1.2.2" "MatthiasReinholz/wp-plugin-base" "$foundation_resolve_output"
+grep -Fxq 'update_needed=true' "$foundation_resolve_output"
+grep -Fxq 'version=v1.2.4' "$foundation_resolve_output"
+
+foundation_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_FOUNDATION_RELEASES_JSON="$foundation_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_foundation_version.sh" "v1.2.4" "MatthiasReinholz/wp-plugin-base" "$foundation_resolve_output"
+grep -Fxq 'update_needed=false' "$foundation_resolve_output"
+grep -Fxq 'version=' "$foundation_resolve_output"
 
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
@@ -263,6 +308,29 @@ rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
 
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  escalate:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a custom workflow permission escalation." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
 cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
 name: ci
 on: workflow_dispatch
@@ -306,6 +374,62 @@ EOF
 
 if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
   echo "Audit unexpectedly passed for an ungated pull_request_target workflow." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/finalize-release.yml" <<'EOF'
+name: finalize-release
+on:
+  pull_request_target:
+    types:
+      - closed
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+jobs:
+  release:
+    if: >
+      always() || (
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a broadened pull_request_target condition." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: !ruby/object:OpenStruct
+  table:
+    workflow_dispatch: true
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for unsafe YAML content." >&2
   exit 1
 fi
 
@@ -486,6 +610,16 @@ if WP_PLUGIN_BASE_ROOT="$deploy_protection_fixture" bash "$ROOT_DIR/scripts/ci/c
   exit 1
 fi
 
+deploy_local_project_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$deploy_local_project_fixture/"
+mkdir -p "$deploy_local_project_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$deploy_local_project_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$deploy_local_project_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if ! WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_ROOT="$deploy_local_project_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" "release/1.2.3" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly failed locally for a deploy-enabled project." >&2
+  exit 1
+fi
+
 zip_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$zip_fixture/"
 mkdir -p "$zip_fixture/.wp-plugin-base"
@@ -499,8 +633,62 @@ fi
 
 rm -rf "$zip_fixture"
 
+pr_stage_fixture="$(mktemp -d)"
+pr_stage_origin="$(mktemp -d)"
+git init --bare -q "$pr_stage_origin"
+git -C "$pr_stage_fixture" init -q
+git -C "$pr_stage_fixture" config user.email "fixture@example.com"
+git -C "$pr_stage_fixture" config user.name "Fixture"
+mkdir -p "$pr_stage_fixture/.wp-plugin-base-security-pack"
+cat > "$pr_stage_fixture/.wp-plugin-base-security-pack/composer.json" <<'EOF'
+{"name":"fixture/security-pack"}
+EOF
+git -C "$pr_stage_fixture" add .wp-plugin-base-security-pack/composer.json
+git -C "$pr_stage_fixture" commit -qm "init"
+git -C "$pr_stage_fixture" branch -M main
+git -C "$pr_stage_fixture" remote add origin "$pr_stage_origin"
+git -C "$pr_stage_fixture" push -q -u origin main
+rm -rf "$pr_stage_fixture/.wp-plugin-base-security-pack"
+cat > "$pr_stage_fixture/body.md" <<'EOF'
+fixture body
+EOF
+mkdir -p "$pr_stage_fixture/bin"
+cat > "$pr_stage_fixture/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  echo '[]'
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
+  echo 'https://github.com/example/repo/pull/1'
+  exit 0
+fi
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$pr_stage_fixture/bin/gh"
+pr_stage_output="$(mktemp)"
+(
+  cd "$pr_stage_fixture"
+  PATH="$pr_stage_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_stage_output" \
+    GIT_ADD_PATHS=".wp-plugin-base-security-pack" \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/fixture-removal" \
+      "main" \
+      "fixture removal" \
+      "fixture removal" \
+      "$pr_stage_fixture/body.md"
+)
+if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.wp-plugin-base-security-pack/composer.json'; then
+  echo "Explicit path staging unexpectedly failed to commit a managed deletion." >&2
+  exit 1
+fi
+
 forbidden_fixture="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output"' EXIT
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$forbidden_fixture/"
 mkdir -p "$forbidden_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"

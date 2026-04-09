@@ -81,6 +81,7 @@ jobs:
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh
         run: |
           bash scripts/update/create_or_update_pr.sh \
             "chore/update-plugin-check-${{ steps.latest.outputs.version }}" \

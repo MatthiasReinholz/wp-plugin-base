@@ -10,9 +10,10 @@ wp_plugin_base_require_commands "foundation release provenance verification" cur
 
 REPOSITORY="${1:-}"
 VERSION="${2:-}"
+OUTPUT_PATH="${3:-${GITHUB_OUTPUT:-}}"
 
 if [ -z "$REPOSITORY" ] || [ -z "$VERSION" ]; then
-  echo "Usage: $0 repository version" >&2
+  echo "Usage: $0 repository version [output-path]" >&2
   exit 1
 fi
 
@@ -167,6 +168,12 @@ matching_count="$(printf '%s' "$pulls_json" | jq -r --arg sha "$commit_sha" '
 if [ "$matching_count" -eq 0 ]; then
   echo "Foundation release ${VERSION} was not produced by a merged release/hotfix PR on main." >&2
   exit 1
+fi
+
+if [ -n "$OUTPUT_PATH" ]; then
+  {
+    echo "commit_sha=$commit_sha"
+  } >> "$OUTPUT_PATH"
 fi
 
 echo "Verified provenance for ${REPOSITORY} ${VERSION} (${commit_sha})"

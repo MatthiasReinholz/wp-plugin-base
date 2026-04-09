@@ -35,17 +35,17 @@ if [ -n "${GIT_ADD_PATHS:-}" ]; then
   declare -a stage_paths=()
   while IFS= read -r path; do
     [ -n "$path" ] || continue
-    if [ -e "$path" ]; then
+    if [ -e "$path" ] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
       stage_paths+=("$path")
     fi
   done < <(wp_plugin_base_csv_to_lines "$GIT_ADD_PATHS")
 
   if [ "${#stage_paths[@]}" -eq 0 ]; then
-    echo "GIT_ADD_PATHS did not resolve to any existing paths." >&2
+    echo "GIT_ADD_PATHS did not match any existing or tracked paths." >&2
     exit 1
   fi
 
-  git add -- "${stage_paths[@]}"
+  git add -A -- "${stage_paths[@]}"
 else
   git add -A
 fi

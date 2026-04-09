@@ -101,6 +101,7 @@ npm install -g markdownlint-cli2
 - workflows are local to your project and run against the checked-out repository
 - every external action must be pinned to a full commit SHA
 - only a small approved action allowlist is permitted
+- custom project workflows stay on read-oriented permissions by default; privileged write flows remain managed
 - release and update workflows use repo-local shell scripts where practical instead of additional third-party actions
 - foundation self-updates only trust published foundation releases that pass provenance checks
 
