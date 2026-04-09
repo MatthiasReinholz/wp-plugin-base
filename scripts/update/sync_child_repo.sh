@@ -9,10 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
 wp_plugin_base_require_commands "managed file sync" perl
-bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope sync "${1:-}"
+bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope project "${1:-}"
 
 wp_plugin_base_load_config "${1:-}"
-wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
+wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION PRODUCTION_ENVIRONMENT
 CODEOWNERS_REVIEWERS="${CODEOWNERS_REVIEWERS:-}"
 WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
 WORDPRESS_SECURITY_PACK_ENABLED="${WORDPRESS_SECURITY_PACK_ENABLED:-false}"
@@ -50,8 +50,10 @@ if [ ! -f "$ROOT_DIR/CHANGELOG.md" ] && [ -f "$TEMPLATE_DIR/CHANGELOG.md" ]; the
   render_template "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
 fi
 
-if [ ! -f "$ROOT_DIR/.wp-plugin-base-security-suppressions.json" ] && [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
-  render_template "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" "$ROOT_DIR/.wp-plugin-base-security-suppressions.json"
+SECURITY_SUPPRESSIONS_PATH="$(wp_plugin_base_resolve_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
+wp_plugin_base_assert_path_within_root "$SECURITY_SUPPRESSIONS_PATH" "Security suppressions file"
+if [ ! -f "$SECURITY_SUPPRESSIONS_PATH" ] && [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
+  render_template "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" "$SECURITY_SUPPRESSIONS_PATH"
 fi
 
 while IFS= read -r template_file; do

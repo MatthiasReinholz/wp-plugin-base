@@ -32,6 +32,17 @@ bash "$ROOT_DIR/scripts/ci/check_forbidden_files.sh"
 bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$ROOT_DIR"
 bash "$ROOT_DIR/scripts/foundation/check_wordpress_env_tooling.sh"
 
+for workflow_dir in \
+  "$ROOT_DIR/.github/workflows" \
+  "$ROOT_DIR/templates/child/.github/workflows"
+do
+  if find "$workflow_dir" -type f -name '*.yaml' | grep -q .; then
+    echo "Workflow YAML files must use the .yml extension: $workflow_dir" >&2
+    find "$workflow_dir" -type f -name '*.yaml' >&2
+    exit 1
+  fi
+done
+
 if grep -Fq 'pull/[0-9]+/merge' "$ROOT_DIR/scripts/release/verify_sigstore_bundle.sh"; then
   echo "Strict Sigstore verifier must not trust pull-request merge refs." >&2
   exit 1
@@ -65,6 +76,11 @@ cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$managed_child/"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_child/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$managed_child" bash "$managed_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
 test -f "$managed_child/.github/workflows/ci.yml"
+test -f "$managed_child/.github/workflows/prepare-release.yml"
+test -f "$managed_child/.github/workflows/finalize-release.yml"
+test -f "$managed_child/.github/workflows/release.yml"
+test -f "$managed_child/.github/workflows/update-foundation.yml"
+test -f "$managed_child/.github/dependabot.yml"
 test -f "$managed_child/CONTRIBUTING.md"
 test -f "$managed_child/.editorconfig"
 test -f "$managed_child/.gitattributes"
@@ -77,6 +93,11 @@ grep -Fq '/.wp-plugin-base-security-pack export-ignore' "$managed_child/.gitattr
 grep -Fq '/.phpcs-security.xml.dist export-ignore' "$managed_child/.gitattributes"
 grep -Fq 'secret-scan:' "$managed_child/.github/workflows/ci.yml"
 test ! -f "$managed_child/.github/CODEOWNERS"
+if find "$managed_child/.github/workflows" -type f -name '*.yaml' | grep -q .; then
+  echo "Managed child workflows must use .yml, not .yaml." >&2
+  find "$managed_child/.github/workflows" -type f -name '*.yaml' >&2
+  exit 1
+fi
 
 cat > "$managed_child/.wp-plugin-base-security-suppressions.json" <<'EOF'
 {

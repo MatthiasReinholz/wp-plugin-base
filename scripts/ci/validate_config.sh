@@ -73,6 +73,30 @@ validate_optional_paths() {
   done < <(wp_plugin_base_csv_to_lines "$raw_paths")
 }
 
+validate_output_path() {
+  local relative_path="$1"
+  local label="$2"
+  local resolved_path
+  local parent_dir
+  local existing_dir
+
+  resolved_path="$(wp_plugin_base_resolve_path "$relative_path")"
+  wp_plugin_base_assert_path_within_root "$resolved_path" "$label"
+
+  parent_dir="$(dirname "$resolved_path")"
+  wp_plugin_base_assert_path_within_root "$parent_dir" "${label} parent directory"
+
+  existing_dir="$parent_dir"
+  while [ ! -d "$existing_dir" ] && [ "$existing_dir" != "/" ]; do
+    existing_dir="$(dirname "$existing_dir")"
+  done
+
+  if [ ! -d "$existing_dir" ] || [ ! -w "$existing_dir" ]; then
+    echo "${label} parent directory is not writable: ${relative_path}" >&2
+    exit 1
+  fi
+}
+
 case "$CONFIG_SCOPE" in
   sync|foundation)
     wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT
@@ -115,7 +139,7 @@ if [ "$CONFIG_SCOPE" != "sync" ]; then
   fi
 
   if [ -n "${POT_FILE:-}" ]; then
-    validate_file "$POT_FILE" "POT file"
+    validate_output_path "$POT_FILE" "POT file"
   fi
 
   if [ -n "${PACKAGE_INCLUDE:-}" ]; then

@@ -24,8 +24,10 @@ if [ ! -d "$TARGET_ROOT" ]; then
 fi
 
 declare -a workflow_dirs=()
+declare -a action_dirs=()
 declare -a scan_dirs=()
 declare -a workflow_files=()
+declare -a action_files=()
 
 for dir in \
   "$TARGET_ROOT/.github/workflows" \
@@ -38,10 +40,23 @@ do
 done
 
 for dir in \
+  "$TARGET_ROOT/.github/actions" \
+  "$TARGET_ROOT/templates/child/.github/actions" \
+  "$TARGET_ROOT/.wp-plugin-base/.github/actions"
+do
+  if [ -d "$dir" ]; then
+    action_dirs+=("$dir")
+  fi
+done
+
+for dir in \
   "$TARGET_ROOT/.github/workflows" \
   "$TARGET_ROOT/templates/child/.github/workflows" \
   "$TARGET_ROOT/scripts" \
+  "$TARGET_ROOT/.github/actions" \
+  "$TARGET_ROOT/templates/child/.github/actions" \
   "$TARGET_ROOT/.wp-plugin-base/.github/workflows" \
+  "$TARGET_ROOT/.wp-plugin-base/.github/actions" \
   "$TARGET_ROOT/.wp-plugin-base/scripts"
 do
   if [ -d "$dir" ]; then
@@ -56,11 +71,17 @@ fi
 
 while IFS= read -r file; do
   workflow_files+=("$file")
-done < <(find "${workflow_dirs[@]}" -type f -name '*.yml' | sort)
+done < <(find "${workflow_dirs[@]}" -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
 
 if [ "${#workflow_files[@]}" -eq 0 ]; then
   echo "No workflow files found under $TARGET_ROOT" >&2
   exit 1
+fi
+
+if [ "${#action_dirs[@]}" -gt 0 ]; then
+  while IFS= read -r file; do
+    action_files+=("$file")
+  done < <(find "${action_dirs[@]}" -type f \( -name 'action.yml' -o -name 'action.yaml' \) | sort)
 fi
 
 export WP_PLUGIN_BASE_AUDIT_ROOT="$TARGET_ROOT"
@@ -88,7 +109,55 @@ expected_permissions = {
   "release.yml" => { "contents" => "write", "pull-requests" => "read", "attestations" => "write", "id-token" => "write" }
 }
 
+expected_job_permissions = {
+  "scorecard.yml" => {
+    "analysis" => {
+      "actions" => "read",
+      "checks" => "read",
+      "contents" => "read",
+      "id-token" => "write",
+      "issues" => "read",
+      "pull-requests" => "read",
+      "security-events" => "write"
+    }
+  },
+  "ci.yml" => {
+    "wordpress-readiness" => {
+      "contents" => "read",
+      "security-events" => "write"
+    }
+  },
+  "foundation-ci.yml" => {
+    "release-security-smoke" => {
+      "contents" => "read",
+      "id-token" => "write"
+    }
+  }
+}
+
 errors = []
+
+validate_permissions_mapping = lambda do |label, permissions|
+  unless permissions.is_a?(Hash)
+    errors << "#{label}: permissions must be an explicit mapping, found #{permissions.inspect}"
+    next
+  end
+
+  normalized = {}
+  permissions.each do |key, value|
+    key = key.to_s
+    value = value.to_s
+
+    unless ["read", "write", "none"].include?(value)
+      errors << "#{label}: unsupported permission value #{value.inspect} for #{key.inspect}"
+      next
+    end
+
+    normalized[key] = value
+  end
+
+  normalized
+end
 
 workflow_files.each do |file|
   data = YAML.load_file(file) || {}
@@ -96,41 +165,68 @@ workflow_files.each do |file|
   trigger_block = data["on"] || data[true]
   basename = File.basename(file)
   expected = expected_permissions[basename]
+  expected_jobs = expected_job_permissions.fetch(basename, {})
+  jobs = data["jobs"]
 
   if permissions.nil?
     errors << "#{file}: missing top-level permissions block"
     next
   end
 
-  unless permissions.is_a?(Hash)
-    errors << "#{file}: permissions must be an explicit mapping, found #{permissions.inspect}"
+  normalized = validate_permissions_mapping.call(file, permissions)
+  next unless normalized
+
+  if expected
+    if normalized != expected
+      errors << "#{file}: permissions #{normalized.inspect} do not match expected #{expected.inspect}"
+    end
+  elsif normalized.empty?
+    errors << "#{file}: custom workflows must declare at least one explicit top-level permission"
+  end
+
+  unless jobs.is_a?(Hash) && !jobs.empty?
+    errors << "#{file}: workflows must define at least one job"
     next
   end
 
-  if permissions.values.any? { |value| value == "write-all" }
-    errors << "#{file}: write-all permissions are not allowed"
-  end
+  jobs.each do |job_name, job_data|
+    next unless job_data.is_a?(Hash)
 
-  if expected.nil?
-    errors << "#{file}: no audit policy defined for workflow #{basename}"
-    next
-  end
+    job_permissions = job_data["permissions"]
+    expected_job_permissions_for_job = expected_jobs[job_name.to_s]
 
-  normalized = permissions.transform_keys(&:to_s)
-  if normalized != expected
-    errors << "#{file}: permissions #{normalized.inspect} do not match expected #{expected.inspect}"
+    if expected
+      if expected_job_permissions_for_job
+        if job_permissions.nil?
+          errors << "#{file}:#{job_name}: missing expected job-level permissions block"
+        else
+          normalized_job_permissions = validate_permissions_mapping.call("#{file}:#{job_name}", job_permissions)
+          if normalized_job_permissions && normalized_job_permissions != expected_job_permissions_for_job
+            errors << "#{file}:#{job_name}: permissions #{normalized_job_permissions.inspect} do not match expected #{expected_job_permissions_for_job.inspect}"
+          end
+        end
+      elsif !job_permissions.nil?
+        errors << "#{file}:#{job_name}: unexpected job-level permissions block"
+      end
+    elsif !job_permissions.nil?
+      validate_permissions_mapping.call("#{file}:#{job_name}", job_permissions)
+    end
   end
 
   if trigger_block.is_a?(Hash) && trigger_block.key?("pull_request_target")
-    file_contents = File.read(file)
     required_fragments = [
       "github.event.pull_request.merged == true",
       "github.event.pull_request.head.repo.full_name == github.repository",
       "startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/')"
     ]
 
-    unless required_fragments.all? { |fragment| file_contents.include?(fragment) }
-      errors << "#{file}: pull_request_target workflows must be limited to merged internal release/hotfix branches"
+    jobs.each do |job_name, job_data|
+      next unless job_data.is_a?(Hash)
+
+      job_condition = job_data["if"]
+      unless job_condition.is_a?(String) && required_fragments.all? { |fragment| job_condition.include?(fragment) }
+        errors << "#{file}:#{job_name}: pull_request_target jobs must be limited to merged internal release/hotfix branches"
+      end
     end
   end
 end
@@ -140,6 +236,11 @@ unless errors.empty?
   exit 1
 end
 RUBY
+
+audit_yaml_files=("${workflow_files[@]}")
+if [ "${#action_files[@]}" -gt 0 ]; then
+  audit_yaml_files+=("${action_files[@]}")
+fi
 
 declare -a allowed_actions=(
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd"
@@ -159,7 +260,7 @@ done < <(
     if (/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*([^[:space:]]+)/) {
       print "$ARGV:$.:$1\n";
     }
-  ' "${workflow_files[@]}"
+  ' "${audit_yaml_files[@]}"
 )
 
 if [ "${#uses_entries[@]}" -gt 0 ]; then
@@ -201,23 +302,35 @@ while IFS= read -r file; do
       ;;
   esac
   scan_files+=("$file")
-done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.sh' \) | sort)
+done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '*.sh' \) | sort)
 
 remote_script_patterns=(
   'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
   'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh)\b'
+  '(bash|sh|source|\.)[[:space:]]*<\([[:space:]]*(curl|wget)\b'
+  '(curl|wget)[^[:cntrl:]]*(&&|;)[^[:cntrl:]]*\b(bash|sh|source)\b'
 )
 
 if command -v rg >/dev/null 2>&1; then
-  if rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+  if rg -n \
+    -e "${remote_script_patterns[0]}" \
+    -e "${remote_script_patterns[1]}" \
+    -e "${remote_script_patterns[2]}" \
+    -e "${remote_script_patterns[3]}" \
+    "${scan_files[@]}" >/dev/null 2>&1; then
     echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
-    rg -n -e "${remote_script_patterns[0]}" -e "${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    rg -n \
+      -e "${remote_script_patterns[0]}" \
+      -e "${remote_script_patterns[1]}" \
+      -e "${remote_script_patterns[2]}" \
+      -e "${remote_script_patterns[3]}" \
+      "${scan_files[@]}" >&2
     exit 1
   fi
 else
-  if grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >/dev/null 2>&1; then
+  if grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}|${remote_script_patterns[2]}|${remote_script_patterns[3]}" "${scan_files[@]}" >/dev/null 2>&1; then
     echo "Remote script execution patterns such as curl|bash or wget|sh are not allowed." >&2
-    grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}" "${scan_files[@]}" >&2
+    grep -nE "${remote_script_patterns[0]}|${remote_script_patterns[1]}|${remote_script_patterns[2]}|${remote_script_patterns[3]}" "${scan_files[@]}" >&2
     exit 1
   fi
 fi

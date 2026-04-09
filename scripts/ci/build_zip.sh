@@ -69,7 +69,13 @@ if [ -n "${PACKAGE_INCLUDE:-}" ]; then
       exit 1
     fi
 
-    rsync -a --exclude-from="$EXCLUDES_FILE" "$source_path" "$STAGE_DIR/"
+    include_path="${include_path#./}"
+    include_path="${include_path#/}"
+
+    (
+      cd "$ROOT_DIR"
+      rsync -a --relative --exclude-from="$EXCLUDES_FILE" "./$include_path" "$STAGE_DIR/"
+    )
   done < <(wp_plugin_base_csv_to_lines "$PACKAGE_INCLUDE")
 else
   rsync -a --exclude-from="$EXCLUDES_FILE" "$ROOT_DIR/" "$STAGE_DIR/"

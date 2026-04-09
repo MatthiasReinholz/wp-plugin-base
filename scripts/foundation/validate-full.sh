@@ -11,13 +11,16 @@ wp_plugin_base_require_commands "full foundation validation" git php node ruby p
 
 quality_fixture=""
 strict_plugin_check_fixture=""
+security_pack_skip_fixture=""
+custom_suppressions_fixture=""
+missing_workflow_fixture=""
 metadata_fixture=""
 deploy_fixture=""
 wp_build_fixture=""
 pot_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$missing_workflow_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture"
 }
 
 trap cleanup EXIT
@@ -41,6 +44,42 @@ WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES=security
 EOF
 WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$strict_plugin_check_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
+
+security_pack_skip_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$security_pack_skip_fixture/"
+mkdir -p "$security_pack_skip_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$security_pack_skip_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$security_pack_skip_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+skip_output="$(
+WP_PLUGIN_BASE_ROOT="$security_pack_skip_fixture" \
+    WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP=true \
+    bash "$ROOT_DIR/scripts/ci/run_security_pack.sh" ""
+)"
+grep -Fq 'Semgrep pass is delegated to a separate step; skipping Semgrep execution in security pack.' <<<"$skip_output"
+test ! -e "$security_pack_skip_fixture/dist/semgrep-security.sarif"
+
+custom_suppressions_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$custom_suppressions_fixture/"
+mkdir -p "$custom_suppressions_fixture/.wp-plugin-base"
+mkdir -p "$custom_suppressions_fixture/.security"
+cat >> "$custom_suppressions_fixture/.wp-plugin-base.env" <<'EOF'
+WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE=.security/custom-security-suppressions.json
+EOF
+rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_suppressions_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+test -f "$custom_suppressions_fixture/.security/custom-security-suppressions.json"
+test ! -e "$custom_suppressions_fixture/.wp-plugin-base-security-suppressions.json"
+
+missing_workflow_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$missing_workflow_fixture/"
+mkdir -p "$missing_workflow_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$missing_workflow_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+rm -f "$missing_workflow_fixture/.github/workflows/update-foundation.yml"
+if WP_PLUGIN_BASE_ROOT="$missing_workflow_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed with a missing managed workflow." >&2
+  exit 1
+fi
 
 metadata_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$metadata_fixture/"
@@ -79,11 +118,22 @@ test -d "$wp_build_fixture/dist/package/build-ready-plugin/build"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/packages"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/routes"
 
+cat >> "$wp_build_fixture/.wp-plugin-base.env" <<'EOF'
+PACKAGE_INCLUDE=build-ready-plugin.php,readme.txt,package.json,build,packages/example/index.js,routes/example/index.js
+EOF
+WP_PLUGIN_BASE_ROOT="$wp_build_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ""
+package_zip="$(find "$wp_build_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$package_zip"
+zip_listing="$(unzip -Z1 "$package_zip")"
+grep -Fq 'build-ready-plugin/packages/example/index.js' <<<"$zip_listing"
+grep -Fq 'build-ready-plugin/routes/example/index.js' <<<"$zip_listing"
+
 pot_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/nonstandard-plugin/." "$pot_fixture/"
 mkdir -p "$pot_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$pot_fixture/.wp-plugin-base/"
 rm -f "$pot_fixture/languages/custom-plugin.pot"
+test ! -e "$pot_fixture/languages/custom-plugin.pot"
 WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$pot_fixture" bash "$ROOT_DIR/scripts/release/generate_pot.sh"
 test -f "$pot_fixture/languages/custom-plugin.pot"
