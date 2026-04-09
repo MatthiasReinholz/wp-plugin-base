@@ -46,19 +46,23 @@ quality_fixture=""
 strict_plugin_check_fixture=""
 security_pack_skip_fixture=""
 custom_suppressions_fixture=""
+custom_distignore_fixture=""
 missing_workflow_fixture=""
 missing_managed_file_fixture=""
 managed_directory_fixture=""
 missing_pack_fixture=""
 metadata_fixture=""
 deploy_fixture=""
+default_environment_fixture=""
+absolute_include_fixture=""
+invalid_distignore_fixture=""
 wp_build_fixture=""
 pot_fixture=""
 yaml_workflow_fixture=""
 custom_readme_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture"
 }
 
 trap cleanup EXIT
@@ -73,6 +77,14 @@ mkdir -p "$quality_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$quality_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
+
+default_environment_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$default_environment_fixture/"
+mkdir -p "$default_environment_fixture/.wp-plugin-base"
+perl -0pi -e 's/^PRODUCTION_ENVIRONMENT=.*\n//m' "$default_environment_fixture/.wp-plugin-base.env"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$default_environment_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$default_environment_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+grep -Fq 'environment: production' "$default_environment_fixture/.github/workflows/release.yml"
 
 strict_plugin_check_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$strict_plugin_check_fixture/"
@@ -120,6 +132,32 @@ test -n "$custom_suppressions_zip"
 custom_suppressions_listing="$(unzip -Z1 "$custom_suppressions_zip")"
 if grep -Fq 'quality-ready-plugin/.security/custom-security-suppressions.json' <<<"$custom_suppressions_listing"; then
   echo "Package unexpectedly included the configured custom suppressions file." >&2
+  exit 1
+fi
+
+custom_distignore_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$custom_distignore_fixture/"
+mkdir -p "$custom_distignore_fixture/.wp-plugin-base"
+cat >> "$custom_distignore_fixture/.wp-plugin-base.env" <<'EOF'
+DISTIGNORE_FILE=.config/custom.distignore
+EOF
+rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_distignore_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$custom_distignore_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+test -f "$custom_distignore_fixture/.config/custom.distignore"
+test ! -e "$custom_distignore_fixture/.distignore"
+managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$custom_distignore_fixture" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" ".wp-plugin-base.env")"
+grep -Fxq '.config/custom.distignore' <<<"$managed_paths_output"
+grep -Fq '/.config/custom.distignore' "$custom_distignore_fixture/.config/custom.distignore"
+WP_PLUGIN_BASE_ROOT="$custom_distignore_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ".wp-plugin-base.env"
+custom_distignore_zip="$(find "$custom_distignore_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$custom_distignore_zip"
+custom_distignore_listing="$(unzip -Z1 "$custom_distignore_zip")"
+if grep -Fq 'quality-ready-plugin/.config/custom.distignore' <<<"$custom_distignore_listing"; then
+  echo "Package unexpectedly included the configured custom distignore file." >&2
+  exit 1
+fi
+if grep -Fq 'quality-ready-plugin/.distignore' <<<"$custom_distignore_listing"; then
+  echo "Package unexpectedly included a stale default .distignore after switching DISTIGNORE_FILE." >&2
   exit 1
 fi
 
@@ -254,6 +292,28 @@ test -n "$package_zip"
 zip_listing="$(unzip -Z1 "$package_zip")"
 grep -Fq 'build-ready-plugin/packages/example/index.js' <<<"$zip_listing"
 grep -Fq 'build-ready-plugin/routes/example/index.js' <<<"$zip_listing"
+
+absolute_include_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$absolute_include_fixture/"
+mkdir -p "$absolute_include_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$absolute_include_fixture/.wp-plugin-base/"
+cat >> "$absolute_include_fixture/.wp-plugin-base.env" <<EOF
+PACKAGE_INCLUDE=$absolute_include_fixture/includes
+EOF
+if WP_PLUGIN_BASE_ROOT="$absolute_include_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" "" >/dev/null 2>&1; then
+  echo "Config validation unexpectedly accepted an absolute PACKAGE_INCLUDE path." >&2
+  exit 1
+fi
+
+invalid_distignore_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$invalid_distignore_fixture/"
+mkdir -p "$invalid_distignore_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$invalid_distignore_fixture/.wp-plugin-base/"
+perl -0pi -e 's/^DISTIGNORE_FILE=.*/DISTIGNORE_FILE=.wp-plugin-base.env/m' "$invalid_distignore_fixture/.wp-plugin-base.env"
+if WP_PLUGIN_BASE_ROOT="$invalid_distignore_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" "" >/dev/null 2>&1; then
+  echo "Config validation unexpectedly accepted a non-distignore DISTIGNORE_FILE target." >&2
+  exit 1
+fi
 
 custom_readme_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$custom_readme_fixture/"

@@ -105,12 +105,15 @@ foundation_verify_compare_json=""
 foundation_verify_pulls_json=""
 foundation_verify_metadata_json=""
 foundation_verify_sigstore_json=""
+release_branch_source_fixture=""
+release_branch_source_output=""
 pr_stage_fixture=""
 pr_stage_origin=""
 pr_stage_output=""
 pr_stage_helper_dir=""
 release_publish_fixture=""
 release_publish_output=""
+wordpress_org_deploy_fixture=""
 
 assert_regular_file() {
   local path="$1"
@@ -288,6 +291,7 @@ grep -Fxq '.github/workflows/woocommerce-qit.yml' <<<"$managed_security_paths_ou
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '/plugin-check/cli.php' "Plugin Check runner must bootstrap cli.php from the installed plugin."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '--require="$plugin_check_cli_bootstrap"' "Plugin Check runner must require the resolved cli bootstrap path."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'resolve_latest_plugin_check_version.sh' "update-plugin-check workflow must resolve the latest Plugin Check version."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar' "update-plugin-check workflow must pin the reviewed plugin-check release author allowlist."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Root update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Root update-foundation workflow must use the verified foundation version output."
@@ -295,8 +299,19 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml"
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Child update-foundation workflow must loop through release candidates."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Child update-foundation workflow must use the verified foundation version output."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'Validate updated child repository' "Child update-foundation workflow must validate the regenerated child repository before opening a PR."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/prepare-release.yml" 'resolve_release_branch_source.sh' "Reusable prepare-release workflow must resolve the source ref through the shared helper."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/prepare-foundation-release.yml" 'resolve_release_branch_source.sh' "Foundation prepare-release workflow must resolve the source ref through the shared helper."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/prepare-release.yml" 'resolve_release_branch_source.sh' "Managed prepare-release workflow must resolve the source ref through the shared helper."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "update-plugin-check workflow must stage the managed wordpress_tooling helper."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'publish_github_release.sh --repair' "release-foundation workflow must publish in explicit repair mode."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release.yml" 'ref: refs/tags/${{ steps.resolved.outputs.version }}' "Reusable manual release workflow must check out the exact existing tag ref."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'ref: refs/tags/${{ inputs.version }}' "Foundation manual release workflow must check out the exact existing tag ref."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/release.yml" 'ref: refs/tags/${{ steps.version.outputs.value }}' "Managed manual release workflow must check out the exact existing tag ref."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release.yml" 'WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY' "Reusable manual release workflow must require the explicit WordPress.org redeploy break-glass flag."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/release.yml" 'WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY' "Managed manual release workflow must require the explicit WordPress.org redeploy break-glass flag."
+assert_file_contains_literal "$ROOT_DIR/scripts/release/publish_github_release.sh" '--verify-tag' "GitHub release publication must verify that the tag already exists."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" '--require-hashes' "Foundation lint tool bootstrap must install Python tools from hash-pinned requirements."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" 'npm ci --ignore-scripts --no-audit --no-fund' "Foundation lint tool bootstrap must install markdownlint from the committed npm lockfile."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Root CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Child CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13' "Security documentation must advertise the reviewed upload-sarif SHA."
@@ -315,21 +330,25 @@ cat > "$plugin_check_release_fixture" <<'EOF'
 [
   {
     "tag_name": "1.9.0",
+    "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
   },
   {
     "tag_name": "1.9.1",
+    "author": { "login": "davidperezgar" },
     "draft": true,
     "prerelease": false
   },
   {
     "tag_name": "1.10.0",
+    "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
   },
   {
     "tag_name": "2.0.0",
+    "author": { "login": "davidperezgar" },
     "draft": false,
     "prerelease": false
   }
@@ -337,12 +356,23 @@ cat > "$plugin_check_release_fixture" <<'EOF'
 EOF
 
 plugin_check_resolve_output="$(mktemp)"
-WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="davidperezgar" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" \
+  bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
 grep -Fxq 'update_needed=true' "$plugin_check_resolve_output"
 grep -Fxq 'version=1.10.0' "$plugin_check_resolve_output"
 
 plugin_check_resolve_output="$(mktemp)"
-WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.10.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="davidperezgar" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" \
+  bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.10.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
+grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
+grep -Fxq 'version=' "$plugin_check_resolve_output"
+
+plugin_check_resolve_output="$(mktemp)"
+WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS="someone-else" \
+  WP_PLUGIN_BASE_PLUGIN_CHECK_RELEASES_JSON="$plugin_check_release_fixture" \
+  bash "$ROOT_DIR/scripts/update/resolve_latest_plugin_check_version.sh" "1.9.0" "WordPress/plugin-check" "$plugin_check_resolve_output"
 grep -Fxq 'update_needed=false' "$plugin_check_resolve_output"
 grep -Fxq 'version=' "$plugin_check_resolve_output"
 
@@ -1362,15 +1392,15 @@ cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$zip_fixture/"
 mkdir -p "$zip_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$zip_fixture/.wp-plugin-base/"
 cat >> "$zip_fixture/.wp-plugin-base.env" <<'EOF'
-UNKNOWN_CONFIG_KEY=true
+SVN_USERNAME=fixture-bot
 EOF
 
 if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" >/dev/null 2>&1; then
-  echo "Config validation unexpectedly accepted an unknown config key." >&2
+  echo "Config validation unexpectedly accepted committed WordPress.org credentials." >&2
   exit 1
 fi
 
-perl -0pi -e 's/^UNKNOWN_CONFIG_KEY=.*\n//m' "$zip_fixture/.wp-plugin-base.env"
+perl -0pi -e 's/^SVN_USERNAME=.*\n//m' "$zip_fixture/.wp-plugin-base.env"
 perl -0pi -e 's/^ZIP_FILE=.*/ZIP_FILE=..\/outside.zip/m' "$zip_fixture/.wp-plugin-base.env"
 
 if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" >/dev/null 2>&1; then
@@ -1379,6 +1409,57 @@ if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config
 fi
 
 rm -rf "$zip_fixture"
+
+release_branch_source_fixture="$(mktemp -d)"
+mkdir -p "$release_branch_source_fixture/bin"
+cat > "$release_branch_source_fixture/bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "ls-remote" ] && [ "$2" = "--exit-code" ] && [ "$3" = "--heads" ] && [ "$4" = "origin" ]; then
+  if [ "${RELEASE_BRANCH_EXISTS:-false}" = "true" ]; then
+    exit 0
+  fi
+  exit 2
+fi
+echo "Unexpected git invocation: $*" >&2
+exit 1
+EOF
+cat > "$release_branch_source_fixture/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  printf '%s\n' "${RELEASE_BRANCH_OPEN_PR_COUNT:-0}"
+  exit 0
+fi
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$release_branch_source_fixture/bin/git" "$release_branch_source_fixture/bin/gh"
+release_branch_source_output="$(mktemp)"
+PATH="$release_branch_source_fixture/bin:$PATH" \
+  GH_TOKEN=fixture-token \
+  RELEASE_BRANCH_EXISTS=true \
+  RELEASE_BRANCH_OPEN_PR_COUNT=1 \
+  bash "$ROOT_DIR/scripts/update/resolve_release_branch_source.sh" \
+    "example/repo" \
+    "example" \
+    "release/1.2.3" \
+    "main" \
+    "$release_branch_source_output"
+grep -Fxq 'branch_exists=true' "$release_branch_source_output"
+grep -Fxq 'ref=release/1.2.3' "$release_branch_source_output"
+grep -Fxq 'open_pr_exists=true' "$release_branch_source_output"
+: > "$release_branch_source_output"
+PATH="$release_branch_source_fixture/bin:$PATH" \
+  GH_TOKEN=fixture-token \
+  RELEASE_BRANCH_EXISTS=false \
+  bash "$ROOT_DIR/scripts/update/resolve_release_branch_source.sh" \
+    "example/repo" \
+    "example" \
+    "release/1.2.3" \
+    "main" \
+    "$release_branch_source_output"
+grep -Fxq 'branch_exists=false' "$release_branch_source_output"
+grep -Fxq 'ref=main' "$release_branch_source_output"
+grep -Fxq 'open_pr_exists=false' "$release_branch_source_output"
 
 pr_stage_fixture="$(mktemp -d)"
 pr_stage_origin="$(mktemp -d)"
@@ -1543,6 +1624,21 @@ EOF
 chmod +x "$release_publish_fixture/bin/gh"
 release_publish_output="$release_publish_fixture/gh.log"
 : > "$release_publish_output"
+(
+  cd "$release_publish_fixture"
+  PATH="$release_publish_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_PUBLISH_LOG="$release_publish_output" \
+    RELEASE_ALREADY_EXISTS=false \
+    bash "$ROOT_DIR/scripts/release/publish_github_release.sh" \
+      "v1.2.3" \
+      "Release v1.2.3" \
+      "$release_publish_fixture/notes.md" \
+      "$release_publish_fixture/asset.txt"
+)
+grep -Fq 'release create v1.2.3' "$release_publish_output"
+grep -Fq -- '--verify-tag' "$release_publish_output"
+: > "$release_publish_output"
 if (
   cd "$release_publish_fixture"
   PATH="$release_publish_fixture/bin:$PATH" \
@@ -1579,8 +1675,110 @@ if grep -Fq 'release create' "$release_publish_output"; then
   exit 1
 fi
 
+wordpress_org_deploy_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$wordpress_org_deploy_fixture/"
+mkdir -p "$wordpress_org_deploy_fixture/bin"
+cat > "$wordpress_org_deploy_fixture/bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "-C" ] && [ "$3" = "tag" ] && [ "$4" = "--list" ]; then
+  printf '%s\n' "${WPORG_LATEST_REPO_VERSION:-1.2.3}"
+  exit 0
+fi
+echo "Unexpected git invocation: $*" >&2
+exit 1
+EOF
+cat > "$wordpress_org_deploy_fixture/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$wordpress_org_deploy_fixture/bin/svn" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  checkout)
+    target="${@: -1}"
+    mkdir -p "$target"
+    exit 0
+    ;;
+  update)
+    if [ "$SVN_TAG_EXISTS" = "true" ]; then
+      target_dir="${@: -1}"
+      mkdir -p "$target_dir/tags/${WPORG_VERSION}"
+    fi
+    target_dir="${@: -1}"
+    mkdir -p "$target_dir/trunk" "$target_dir/tags" "$target_dir/assets"
+    exit 0
+    ;;
+  info)
+    if [ "$SVN_TAG_EXISTS" = "true" ] && [[ "${@: -1}" = */tags/${WPORG_VERSION} ]]; then
+      exit 0
+    fi
+    exit 1
+    ;;
+  status)
+    exit 0
+    ;;
+  add|delete|commit)
+    exit 0
+    ;;
+esac
+echo "Unexpected svn invocation: $*" >&2
+exit 1
+EOF
+cat > "$wordpress_org_deploy_fixture/bin/rsync" <<'EOF'
+#!/usr/bin/env bash
+destination="${@: -1}"
+if [[ " $* " == *" -ani "* ]] && [ "${WPORG_TAG_DIFFERS:-false}" = "true" ] && [[ "$destination" = */tags/${WPORG_VERSION}/ ]]; then
+  printf '%s\n' 'deleting stale-file.php'
+fi
+exit 0
+EOF
+chmod +x "$wordpress_org_deploy_fixture/bin/git" "$wordpress_org_deploy_fixture/bin/python3" "$wordpress_org_deploy_fixture/bin/svn" "$wordpress_org_deploy_fixture/bin/rsync"
+if (
+  cd "$wordpress_org_deploy_fixture"
+  PATH="$wordpress_org_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$wordpress_org_deploy_fixture" \
+    SVN_USERNAME=fixture-user \
+    SVN_PASSWORD=fixture-pass \
+    SVN_TAG_EXISTS=true \
+    WPORG_TAG_DIFFERS=true \
+    WPORG_VERSION=1.2.3 \
+    bash "$ROOT_DIR/scripts/release/deploy_wordpress_org.sh" "1.2.3" ".wp-plugin-base.env" "$wordpress_org_deploy_fixture"
+); then
+  echo "WordPress.org deploy unexpectedly allowed an existing release tag to be mutated." >&2
+  exit 1
+fi
+if (
+  cd "$wordpress_org_deploy_fixture"
+  PATH="$wordpress_org_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$wordpress_org_deploy_fixture" \
+    SVN_USERNAME=fixture-user \
+    SVN_PASSWORD=fixture-pass \
+    SVN_TAG_EXISTS=true \
+    WPORG_TAG_DIFFERS=true \
+    WPORG_VERSION=1.2.3 \
+    WPORG_LATEST_REPO_VERSION=1.3.0 \
+    WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true \
+    bash "$ROOT_DIR/scripts/release/deploy_wordpress_org.sh" "1.2.3" ".wp-plugin-base.env" "$wordpress_org_deploy_fixture"
+); then
+  echo "WordPress.org repair deploy unexpectedly allowed an older release tag to overwrite trunk." >&2
+  exit 1
+fi
+(
+  cd "$wordpress_org_deploy_fixture"
+  PATH="$wordpress_org_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$wordpress_org_deploy_fixture" \
+    SVN_USERNAME=fixture-user \
+    SVN_PASSWORD=fixture-pass \
+    SVN_TAG_EXISTS=true \
+    WPORG_TAG_DIFFERS=true \
+    WPORG_VERSION=1.2.3 \
+    WPORG_LATEST_REPO_VERSION=1.2.3 \
+    WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true \
+    bash "$ROOT_DIR/scripts/release/deploy_wordpress_org.sh" "1.2.3" ".wp-plugin-base.env" "$wordpress_org_deploy_fixture"
+)
+
 forbidden_fixture="$(mktemp -d)"
-trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output"' EXIT
+trap 'rm -rf "$managed_child" "$managed_security_child" "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture"' EXIT
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$forbidden_fixture/"
 mkdir -p "$forbidden_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"

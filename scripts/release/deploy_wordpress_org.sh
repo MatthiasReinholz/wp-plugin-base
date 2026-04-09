@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "WordPress.org deployment" python3 rsync svn
+wp_plugin_base_require_commands "WordPress.org deployment" git python3 rsync svn
 
 VERSION="${1:-}"
 CONFIG_OVERRIDE="${2:-}"
@@ -20,10 +20,12 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
-wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG SVN_USERNAME SVN_PASSWORD
+wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG
+wp_plugin_base_require_vars SVN_USERNAME SVN_PASSWORD
 
 SOURCE_DIR="${SOURCE_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
 ASSETS_DIR="$ROOT_DIR/.wordpress-org"
+ALLOW_TAG_REDEPLOY="${WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY:-false}"
 SVN_HOST="plugins.svn.wordpress.org"
 SVN_SCHEME="https"
 SVN_PORT="443"
@@ -60,10 +62,32 @@ svn checkout "${SVN_ARGS[@]}" --depth immediates "$SVN_URL" "$SVN_DIR" >/dev/nul
 mkdir -p "$SVN_DIR/trunk" "$SVN_DIR/tags" "$SVN_DIR/assets"
 svn update "${SVN_ARGS[@]}" --set-depth infinity "$SVN_DIR/trunk" "$SVN_DIR/tags" "$SVN_DIR/assets" >/dev/null
 
-mkdir -p "$SVN_DIR/tags/$VERSION"
+tag_dir="$SVN_DIR/tags/$VERSION"
+tag_exists=false
+tag_diff=''
+latest_repo_version=''
+
+latest_repo_version="$(git -C "$ROOT_DIR" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 || true)"
+
+if svn info "${SVN_ARGS[@]}" "$tag_dir" >/dev/null 2>&1; then
+  tag_exists=true
+  tag_diff="$(rsync -ani --delete --exclude '.svn' "$SOURCE_DIR/" "$tag_dir/" || true)"
+  if [ "$ALLOW_TAG_REDEPLOY" = "true" ] && [ -n "$latest_repo_version" ] && [ "$VERSION" != "$latest_repo_version" ]; then
+    echo "WordPress.org repair deploy is only allowed for the latest repository release tag (${latest_repo_version}). Refusing to redeploy older version ${VERSION} to trunk." >&2
+    exit 1
+  fi
+  if [ -n "$tag_diff" ] && [ "$ALLOW_TAG_REDEPLOY" != "true" ]; then
+    echo "WordPress.org tag ${VERSION} already exists and differs from the release package. Refusing to mutate an existing release tag." >&2
+    exit 1
+  fi
+else
+  mkdir -p "$tag_dir"
+fi
 
 rsync -a --delete --exclude '.svn' "$SOURCE_DIR/" "$SVN_DIR/trunk/"
-rsync -a --delete --exclude '.svn' "$SOURCE_DIR/" "$SVN_DIR/tags/$VERSION/"
+if [ "$tag_exists" != "true" ] || [ "$ALLOW_TAG_REDEPLOY" = "true" ]; then
+  rsync -a --delete --exclude '.svn' "$SOURCE_DIR/" "$tag_dir/"
+fi
 
 if [ -d "$ASSETS_DIR" ]; then
   rsync -a --delete --exclude '.svn' "$ASSETS_DIR/" "$SVN_DIR/assets/"

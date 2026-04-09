@@ -11,7 +11,6 @@ wp_plugin_base_print_base_managed_template_pairs() {
   local relative_path
 
   for relative_path in \
-    ".distignore" \
     ".editorconfig" \
     ".gitattributes" \
     ".github/dependabot.yml" \
@@ -27,6 +26,8 @@ wp_plugin_base_print_base_managed_template_pairs() {
   do
     printf '%s\t%s\n' "$template_dir/$relative_path" "$relative_path"
   done
+
+  printf '%s\t%s\n' "$template_dir/.distignore" "$DISTIGNORE_FILE"
 
   if [ -n "${CODEOWNERS_REVIEWERS:-}" ]; then
     printf '%s\t%s\n' "$template_dir/.github/CODEOWNERS" ".github/CODEOWNERS"

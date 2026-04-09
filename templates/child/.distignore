@@ -6,7 +6,7 @@
 /dist
 /node_modules
 /scripts
-/.distignore
+/__DISTIGNORE_FILE__
 /.gitignore
 /.gitattributes
 /.editorconfig

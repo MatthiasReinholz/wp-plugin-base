@@ -1,0 +1,9 @@
+{
+  "name": "wp-plugin-base-markdownlint-tools",
+  "private": true,
+  "description": "Lockfile-backed markdown lint tooling for wp-plugin-base.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "markdownlint-cli2": "0.22.0"
+  }
+}

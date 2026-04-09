@@ -46,7 +46,7 @@ Managed workflow files:
 - `.editorconfig`
 - `.gitattributes`
 - `.gitignore`
-- `.distignore`
+- the managed distignore path (`.distignore` by default, or `DISTIGNORE_FILE`)
 - `SECURITY.md`
 - `uninstall.php.example`
 - `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
@@ -100,7 +100,9 @@ Set `WP_ORG_DEPLOY_ENABLED` in GitHub Actions settings as either:
 - a repository variable for the whole repository, or
 - an environment variable on the deployment environment used by the release workflow
 
-If WordPress.org deploy is enabled, keep `SVN_USERNAME` and `SVN_PASSWORD` in GitHub Actions environment secrets when possible, and protect the `PRODUCTION_ENVIRONMENT` environment with at least one reviewer. Readiness validation warns locally when that environment cannot be verified yet, and the generated GitHub Actions workflows fail strictly when deploy protection cannot be verified in CI.
+If WordPress.org deploy is enabled, keep `SVN_USERNAME` and `SVN_PASSWORD` in GitHub Actions deployment-environment secrets, and protect the `PRODUCTION_ENVIRONMENT` environment with at least one reviewer. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset. Readiness validation warns locally when that environment cannot be verified yet, and the generated GitHub Actions workflows fail strictly when deploy protection cannot be verified in CI.
+
+The manual `release.yml` workflow verifies that the requested tag already exists and skips WordPress.org redeploy by default so a repair run does not mutate an existing SVN tag. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Security Expectations
 

@@ -13,7 +13,9 @@ These surfaces should be treated as public API:
 - child-repo semver tags in `x.y.z` format
 - foundation release tags in `vX.Y.Z` format
 - `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` semantics, including repo-relative path preservation
+- `DISTIGNORE_FILE` as the managed distignore path
 - `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` as the declared suppressions-file location
+- `PRODUCTION_ENVIRONMENT` defaulting to `production` when unset
 - readiness-mode metadata checks for plugin headers and `readme.txt`
 
 Changes to those surfaces should only ship as breaking changes in a new major version.
@@ -27,6 +29,7 @@ The foundation is designed for standard WordPress plugin repos, but it allows a 
 - custom readme path
 - optional POT file and project name
 - custom package include and exclude lists
+- custom distignore path
 - custom suppressions file path
 - custom changelog heading
 - optional CODEOWNERS generation

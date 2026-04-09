@@ -22,6 +22,7 @@ if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
+allowed_authors="${WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS:-}"
 major="${CURRENT_VERSION%%.*}"
 releases_json=''
 
@@ -70,11 +71,15 @@ else
 fi
 
 latest="$(
-  printf '%s\n' "$releases_json" | jq -r --arg major "$major" '
+  printf '%s\n' "$releases_json" | jq -r --arg major "$major" --arg allowed_authors "$allowed_authors" '
     map(
       select(
         .draft == false and
         .prerelease == false and
+        (
+          $allowed_authors == "" or
+          ((.author.login // "") as $author | ($allowed_authors | split(",") | map(gsub("^[[:space:]]+|[[:space:]]+$"; "")) | index($author)) != null)
+        ) and
         (.tag_name | test("^" + $major + "\\.[0-9]+\\.[0-9]+$"))
       )
     )

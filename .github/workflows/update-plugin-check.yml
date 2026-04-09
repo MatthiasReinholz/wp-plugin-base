@@ -45,6 +45,7 @@ jobs:
         id: latest
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar
         run: |
           bash scripts/update/resolve_latest_plugin_check_version.sh \
             "${{ steps.current.outputs.version }}" \

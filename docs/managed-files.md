@@ -12,7 +12,7 @@ These files are intended to be generated from foundation templates in your proje
 - `.editorconfig`
 - `.gitattributes`
 - `.gitignore`
-- `.distignore`
+- `.distignore`, or the path configured by `DISTIGNORE_FILE`
 - `SECURITY.md`
 - `CONTRIBUTING.md`
 - `uninstall.php.example`
@@ -29,7 +29,7 @@ Do not hand-edit those files in your project unless you are intentionally diverg
 
 If a project does not already have a `CHANGELOG.md`, sync also seeds one from the child template. After that initial creation, the project owns its changelog content.
 
-`.distignore` excludes repo-root `packages/` and `routes/` by default so build-only workspaces stay out of the install ZIP and translation scan. If either directory belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
+The managed distignore file excludes repo-root `packages/` and `routes/` by default so build-only workspaces stay out of the install ZIP and translation scan. If either directory belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
 
 If a project does not already have the configured suppressions file, sync seeds it with an empty suppression set. After that initial creation, the project owns suppression entries and justifications.
 

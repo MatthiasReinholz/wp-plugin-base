@@ -69,7 +69,7 @@ When `WP_ORG_DEPLOY_ENABLED=true`, CI/release readiness now enforces deployment 
 
 If readiness fails with reviewer-protection errors:
 
-- confirm `PRODUCTION_ENVIRONMENT` exists in the repository
+- confirm the GitHub environment named by `PRODUCTION_ENVIRONMENT` exists in the repository; the config defaults to `production` when unset
 - require at least one reviewer on that environment
 - ensure the readiness step has `GH_TOKEN` available so it can query environment protection rules
 
@@ -78,6 +78,8 @@ If readiness fails with reviewer-protection errors:
 If the generated ZIP drops files from `packages/` or `routes/`, check the package include and exclude settings first.
 
 - `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` are repo-relative paths
+- absolute paths in `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, or `DISTIGNORE_FILE` are rejected
+- `DISTIGNORE_FILE` must point to a `*.distignore` file, not another managed project file
 - `packages/` and `routes/` are excluded by default
 - include those directories explicitly only if they are part of the shipped plugin
 
