@@ -117,6 +117,7 @@ jobs:
         id: cpr
         env:
           GH_TOKEN: ${{ github.token }}
+          GIT_ADD_PATHS: VERSION,CHANGELOG.md
         run: |
           bash scripts/update/create_or_update_pr.sh \
             "release/${{ steps.version.outputs.value }}" \

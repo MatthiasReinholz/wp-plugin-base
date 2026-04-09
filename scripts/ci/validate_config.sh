@@ -173,6 +173,7 @@ validate_regex "$FOUNDATION_VERSION" '^v[0-9]+\.[0-9]+\.[0-9]+$' 'FOUNDATION_VER
 validate_regex "$PRODUCTION_ENVIRONMENT" '^[A-Za-z0-9_.-]+$' 'PRODUCTION_ENVIRONMENT'
 
 if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)$ ]]; then
+  validate_regex "$PLUGIN_NAME" '^[^[:cntrl:]]+$' 'PLUGIN_NAME'
   validate_regex "$PLUGIN_SLUG" '^[a-z0-9][a-z0-9-]*$' 'PLUGIN_SLUG'
   validate_regex "$ZIP_FILE" '^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$' 'ZIP_FILE'
   validate_regex "$PHP_VERSION" '^[0-9]+(\.[0-9]+){0,2}$' 'PHP_VERSION'
@@ -184,6 +185,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
 
   if [ -n "${VERSION_CONSTANT_NAME:-}" ]; then
     validate_regex "$VERSION_CONSTANT_NAME" '^[A-Z][A-Z0-9_]*$' 'VERSION_CONSTANT_NAME'
+  fi
+
+  if [ -n "${CODEOWNERS_REVIEWERS:-}" ]; then
+    validate_regex "$CODEOWNERS_REVIEWERS" '^@[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)?( +@[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)?)*$' 'CODEOWNERS_REVIEWERS'
   fi
 
   if [ -n "${WORDPRESS_ORG_SLUG:-}" ]; then

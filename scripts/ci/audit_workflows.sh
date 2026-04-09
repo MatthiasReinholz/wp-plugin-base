@@ -496,10 +496,10 @@ while IFS= read -r file; do
 done < <(find "${scan_dirs[@]}" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '*.sh' \) | sort)
 
 remote_script_patterns=(
-  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
-  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
-  '(bash|sh|source|\.|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)[[:space:]]*<\([[:space:]]*(curl|wget)\b'
-  '(curl|wget)[^[:cntrl:]]*(&&|;)[^[:cntrl:]]*\b(bash|sh|source|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
+  'curl[^[:cntrl:]]*\|[[:space:]]*(bash|sh|zsh|dash|ksh|pwsh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
+  'wget[^[:cntrl:]]*\|[[:space:]]*(bash|sh|zsh|dash|ksh|pwsh|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
+  '(bash|sh|zsh|dash|ksh|pwsh|source|\.|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)[[:space:]]*<\([[:space:]]*(curl|wget)\b'
+  '(curl|wget)[^[:cntrl:]]*(&&|;)[^[:cntrl:]]*\b(bash|sh|zsh|dash|ksh|pwsh|source|python([0-9]+(\.[0-9]+){0,2})?|node(js)?|perl|ruby|php)\b'
 )
 
 if command -v rg >/dev/null 2>&1; then
@@ -530,7 +530,7 @@ if perl -0ne '
   BEGIN { $failed = 0; }
   my $normalized = $_;
   $normalized =~ s/(?:'\'''\''|"")//g;
-  if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+  if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|zsh|dash|ksh|pwsh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
     print "$ARGV\n";
     $failed = 1;
   }
@@ -540,7 +540,7 @@ if perl -0ne '
   perl -0ne '
     my $normalized = $_;
     $normalized =~ s/(?:'\'''\''|"")//g;
-    if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+    if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|zsh|dash|ksh|pwsh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
       print "$ARGV\n";
     }
   ' "${scan_files[@]}" >&2

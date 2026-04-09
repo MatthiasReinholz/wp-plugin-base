@@ -68,6 +68,39 @@ if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope
   exit 1
 fi
 
+cat > "$fixture/.scope-project-invalid-name.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.3.0
+PLUGIN_NAME=
+PLUGIN_SLUG=standard-plugin
+MAIN_PLUGIN_FILE=standard-plugin.php
+README_FILE=readme.txt
+ZIP_FILE=standard-plugin.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+EOF_CONFIG
+if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-invalid-name.env >/dev/null 2>&1; then
+  echo "Project scope unexpectedly passed with an empty PLUGIN_NAME." >&2
+  exit 1
+fi
+
+cat > "$fixture/.scope-project-invalid-codeowners.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.3.0
+PLUGIN_NAME="Standard Plugin"
+PLUGIN_SLUG=standard-plugin
+MAIN_PLUGIN_FILE=standard-plugin.php
+README_FILE=readme.txt
+ZIP_FILE=standard-plugin.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+CODEOWNERS_REVIEWERS=example/platform
+EOF_CONFIG
+if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-invalid-codeowners.env >/dev/null 2>&1; then
+  echo "Project scope unexpectedly passed with invalid CODEOWNERS_REVIEWERS format." >&2
+  exit 1
+fi
+
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope invalid .wp-plugin-base.env >/dev/null 2>&1; then
   echo "Config validation unexpectedly accepted an invalid scope." >&2
   exit 1

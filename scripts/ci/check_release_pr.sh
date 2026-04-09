@@ -23,11 +23,16 @@ if [ -z "${GITHUB_TOKEN:-}" ]; then
 fi
 
 api_url="https://api.github.com/repos/${REPOSITORY}/commits/${COMMIT_SHA}/pulls"
-response="$(curl -fsSL \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "$api_url")"
+response="$(
+  wp_plugin_base_run_with_retry 3 2 "Fetch release PR metadata for ${COMMIT_SHA}" \
+    curl -fsSL \
+    --connect-timeout 10 \
+    --max-time 60 \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "$api_url"
+)"
 
 match_count="$(
   printf '%s' "$response" | jq --arg version "$VERSION" --arg sha "$COMMIT_SHA" '

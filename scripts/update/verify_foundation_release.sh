@@ -64,7 +64,10 @@ api() {
     return
   fi
 
-  curl -fsSL \
+  wp_plugin_base_run_with_retry 3 2 "Foundation API request: ${path}" \
+    curl -fsSL \
+    --connect-timeout 10 \
+    --max-time 60 \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -109,7 +112,10 @@ download_release_asset() {
     exit 1
   fi
 
-  curl -fsSL \
+  wp_plugin_base_run_with_retry 3 2 "Download foundation asset ${asset_name}" \
+    curl -fsSL \
+    --connect-timeout 10 \
+    --max-time 60 \
     -H "Accept: application/octet-stream" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \

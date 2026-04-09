@@ -124,6 +124,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          changed_paths="$(git status --porcelain | awk '{print $2}' | paste -sd, -)"
+          if [ -n "$changed_paths" ]; then
+            export GIT_ADD_PATHS="$changed_paths"
+          fi
           bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
             "release/${{ steps.version.outputs.value }}" \
             "${{ inputs.base_ref }}" \
