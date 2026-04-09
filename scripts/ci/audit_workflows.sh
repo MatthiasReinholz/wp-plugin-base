@@ -81,6 +81,7 @@ expected_permissions = {
   "prepare-foundation-release.yml" => { "contents" => "write", "pull-requests" => "write" },
   "prepare-release.yml" => { "contents" => "write", "pull-requests" => "write" },
   "update-foundation.yml" => { "contents" => "write", "pull-requests" => "write" },
+  "update-plugin-check.yml" => { "contents" => "write", "pull-requests" => "write" },
   "finalize-foundation-release.yml" => { "contents" => "write", "attestations" => "write", "id-token" => "write" },
   "release-foundation.yml" => { "contents" => "write", "pull-requests" => "read", "attestations" => "write", "id-token" => "write" },
   "finalize-release.yml" => { "contents" => "write", "attestations" => "write", "id-token" => "write" },

@@ -31,6 +31,7 @@ npm_cache_dir="$(mktemp -d)"
 buildx_config_dir="$(mktemp -d)"
 wp_env_port="$((20000 + (RANDOM % 10000)))"
 wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
+plugin_check_cli_bootstrap="/var/www/html/wp-content/plugins/plugin-check/cli.php"
 
 cleanup() {
   if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
@@ -59,14 +60,81 @@ NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_install_wordpress_env "$wp_env_
 WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null
 WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin install plugin-check --version="$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" --activate >/dev/null
 
+if ! WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin is-installed plugin-check >/dev/null 2>&1; then
+  echo "Failed to install plugin-check." >&2
+  exit 1
+fi
+
+installed_plugin_check_version="$(
+  WP_ENV_HOME="$wp_env_home" \
+    BUILDX_CONFIG="$buildx_config_dir" \
+    NPM_CONFIG_CACHE="$npm_cache_dir" \
+    wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- \
+    wp plugin get plugin-check --field=version
+)"
+
+if [ "$installed_plugin_check_version" != "$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" ]; then
+  echo "Installed plugin-check version ($installed_plugin_check_version) does not match expected version ($WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION)." >&2
+  exit 1
+fi
+
+plugin_check_cli_exists="$(
+  WP_ENV_HOME="$wp_env_home" \
+    BUILDX_CONFIG="$buildx_config_dir" \
+    NPM_CONFIG_CACHE="$npm_cache_dir" \
+    wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- \
+    wp eval 'echo file_exists( WP_PLUGIN_DIR . "/plugin-check/cli.php" ) ? "1" : "0";'
+)"
+
+if [ "$plugin_check_cli_exists" != "1" ]; then
+  echo "Plugin Check CLI bootstrap file not found at: $plugin_check_cli_bootstrap" >&2
+  exit 1
+fi
+
 repo_basename="$(basename "$ROOT_DIR")"
 plugin_path="/var/www/html/wp-content/plugins/${repo_basename}/dist/package/${PLUGIN_SLUG}"
+plugin_check_args=(
+  wp
+  --require="$plugin_check_cli_bootstrap"
+  plugin check "$plugin_path"
+  --slug="$PLUGIN_SLUG"
+  --format=strict-json
+)
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" ]; then
+  plugin_check_args+=(--checks="$WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" ]; then
+  plugin_check_args+=(--exclude-checks="$WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}" ]; then
+  plugin_check_args+=(--categories="$WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}" ]; then
+  plugin_check_args+=(--ignore-codes="$WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" ]; then
+  plugin_check_args+=(--severity="$WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" ]; then
+  plugin_check_args+=(--error-severity="$WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY")
+fi
+
+if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" ]; then
+  plugin_check_args+=(--warning-severity="$WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY")
+fi
+
 raw_output="$(
   WP_ENV_HOME="$wp_env_home" \
     BUILDX_CONFIG="$buildx_config_dir" \
     NPM_CONFIG_CACHE="$npm_cache_dir" \
     wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- \
-    wp plugin check "$plugin_path" --slug="$PLUGIN_SLUG" --format=strict-json
+    "${plugin_check_args[@]}"
 )"
 
 json_payload="$raw_output"
@@ -75,7 +143,7 @@ if [ -z "$json_payload" ]; then
   json_payload='[]'
 fi
 
-if [ "$json_payload" = 'Success: Checks complete. No errors found.' ]; then
+if printf '%s\n' "$json_payload" | tr -d '\r' | grep -Eq '^[[:space:]]*Success: Checks complete\. No errors found\.[[:space:]]*$'; then
   json_payload='[]'
 fi
 
@@ -100,5 +168,10 @@ printf 'Plugin Check: %s errors, %s warnings.\n' "$error_count" "$warning_count"
 
 if [ "$error_count" -gt 0 ]; then
   echo "Plugin Check reported errors. See dist/plugin-check.json." >&2
+  exit 1
+fi
+
+if wp_plugin_base_is_true "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}" && [ "$warning_count" -gt 0 ]; then
+  echo "Plugin Check reported warnings and strict warnings mode is enabled. See dist/plugin-check.json." >&2
   exit 1
 fi
