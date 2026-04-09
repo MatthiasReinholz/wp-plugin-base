@@ -12,12 +12,14 @@ This map is the quickest safe orientation for maintainers and AI coding agents w
 ## Generated Vs Owned Surfaces
 
 Generated (do not hand-edit in child repos; edit templates/source here):
+
 - `templates/child/.github/workflows/*`
 - `templates/child/.github/dependabot.yml`
 - `templates/child/.wp-plugin-base.env.example`
 - `templates/child/CONTRIBUTING.md`
 
 Owned in this repository (authoritative source):
+
 - `scripts/**`
 - `.github/workflows/**`
 - `docs/**`
@@ -30,6 +32,7 @@ Owned in this repository (authoritative source):
 - Full CI-equivalent path: `bash scripts/foundation/validate-full.sh --mode ci`
 
 If strict-local fails on missing tools, bootstrap first:
+
 - `bash scripts/foundation/bootstrap_strict_local.sh "$HOME/.local/wp-plugin-base-tools"`
 
 ## High-Risk Change Areas
