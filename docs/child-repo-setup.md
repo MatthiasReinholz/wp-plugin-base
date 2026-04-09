@@ -1,13 +1,9 @@
 # Project Setup
 
-1. Add this repo into your project at `.wp-plugin-base/`.
-2. Create `.wp-plugin-base.env` from `templates/child/.wp-plugin-base.env.example`.
-3. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
-4. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
-5. Commit the generated files.
-6. Configure GitHub Actions secrets and, if needed, the `WP_ORG_DEPLOY_ENABLED` GitHub Actions variable.
-7. Configure the GitHub Actions policy described in [Security model](security-model.md).
+Use the canonical setup guides instead of maintaining this page separately.
 
-Your project should pin exact foundation tags and update through PRs rather than tracking a moving branch.
+- [New Project Setup](new-project.md) for a blank repo.
+- [Existing Project Migration](existing-project-migration.md) for an existing plugin repo.
+- [Security model](security-model.md) before enabling release, deploy, or self-update workflows.
 
-Using `git subtree` for the initial bootstrap is fine, but it is not required for the automated update path.
+If you find yourself editing this page directly, update the canonical guides instead.

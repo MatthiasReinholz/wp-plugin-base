@@ -12,6 +12,9 @@ These surfaces should be treated as public API:
 - child-repo branch conventions: `feature/*`, `release/*`, `hotfix/*`
 - child-repo semver tags in `x.y.z` format
 - foundation release tags in `vX.Y.Z` format
+- `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` semantics, including repo-relative path preservation
+- `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` as the declared suppressions-file location
+- readiness-mode metadata checks for plugin headers and `readme.txt`
 
 Changes to those surfaces should only ship as breaking changes in a new major version.
 
@@ -24,8 +27,17 @@ The foundation is designed for standard WordPress plugin repos, but it allows a 
 - custom readme path
 - optional POT file and project name
 - custom package include and exclude lists
+- custom suppressions file path
 - custom changelog heading
 - optional CODEOWNERS generation
+
+## Operational Modes
+
+The foundation also exposes opt-in modes that change how strict the generated workflows are:
+
+- `WORDPRESS_READINESS_ENABLED=true` enables the stricter WordPress metadata and packaging contract for plugin repos that are already ready for release-grade validation.
+- `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack.
+- `WORDPRESS_SECURITY_PACK_ENABLED=true` enables the narrower security-focused pack and its public-endpoint scan.
 
 ## Intentional Non-Goals
 

@@ -35,10 +35,12 @@ If you only need a minimal plugin starter and do not want shared CI/release gove
 ## Quick Start
 
 1. Vendor this repo into your plugin repository at `.wp-plugin-base/`.
-2. Create `.wp-plugin-base.env` from `.wp-plugin-base/templates/child/.wp-plugin-base.env.example`.
-3. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
-4. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
-5. Commit `.wp-plugin-base/`, `.wp-plugin-base.env`, and the generated managed files.
+2. If this is a blank repo, create the plugin main file and `readme.txt` before you sync.
+3. Create `.wp-plugin-base.env` from `.wp-plugin-base/templates/child/.wp-plugin-base.env.example`.
+4. Fill in the required values.
+5. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
+6. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
+7. Commit `.wp-plugin-base/`, `.wp-plugin-base.env`, and the generated managed files.
 
 For the foundation repo itself, run:
 
@@ -155,6 +157,8 @@ bash .wp-plugin-base/scripts/ci/validate_project.sh
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
+If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` repo-relative. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
+
 The managed `.github/dependabot.yml` file checks for GitHub Actions updates every week. Projects should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs.
 
 Managed child CI also runs a separate `gitleaks` secret-scan job by default. That job installs only the pinned scanner binary, scans the project checkout, and fails the workflow if secrets are detected.
@@ -242,6 +246,8 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
 Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) to declare intentional public endpoint exceptions with mandatory justification.
+
+If `POT_FILE` is configured, release preparation generates it when it is missing. The path still needs to stay inside the repository and point at a writable location.
 
 `WP_PLUGIN_BASE_PLUGIN_CHECK_*` keys provide optional policy controls for Plugin Check execution during WordPress readiness validation:
 

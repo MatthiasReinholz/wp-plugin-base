@@ -5,19 +5,22 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 ## Recommended Migration Order
 
 1. Add the foundation repo into `.wp-plugin-base/`.
-2. Create `.wp-plugin-base.env`.
+2. Create `.wp-plugin-base.env` from `.wp-plugin-base/templates/child/.wp-plugin-base.env.example`.
 3. Compare the existing repo against the foundation defaults:
    - plugin main file location
    - readme location
    - version constant name
    - POT file location
    - package include and exclude rules
+   - whether `packages/` or `routes/` are part of the shipped plugin or only build-time workspaces
 4. Set the minimum required overrides in `.wp-plugin-base.env`.
+   If you need a custom suppression file path, set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` before your first sync so bootstrap seeds the configured file.
+   If you are migrating to readiness mode, make sure the plugin header and `readme.txt` already satisfy the stricter WordPress metadata contract.
 5. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 6. Replace any old local CI or release scripts with thin shims or direct calls into `.wp-plugin-base/scripts/...`.
 7. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 8. Optionally validate release-branch metadata with `bash .wp-plugin-base/scripts/ci/validate_project.sh .wp-plugin-base.env release/x.y.z`.
-9. Review the generated ZIP to confirm that only installable plugin files are included.
+9. Review the generated ZIP to confirm that only installable plugin files are included and that nested file paths are preserved.
 10. Merge only after the repo-local packaging and release semantics still match the previous behavior.
 11. In GitHub, open `Settings` -> `Actions` -> `General`.
 12. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
@@ -37,6 +40,9 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 - Use `.wp-plugin-base-security-suppressions.json` only for intentional public endpoints and always require explicit written justification for each suppression.
 - Set `PACKAGE_INCLUDE` when packaging must be restricted to a specific subset of repo files.
 - Set `PACKAGE_EXCLUDE` when repo-specific development paths must stay out of the install ZIP.
+- Keep `PACKAGE_INCLUDE` and `PACKAGE_EXCLUDE` repo-relative so nested files stay nested in the ZIP.
+- Include `packages/` and `routes/` explicitly only when they are part of the shipped plugin; they are excluded from the default install ZIP and translation scan otherwise.
+- Treat `WORDPRESS_READINESS_ENABLED=true` as a contract change, not a cosmetic flag. It turns on the stricter metadata checks described in the readiness docs.
 
 ## Safety Checks
 
@@ -45,4 +51,5 @@ Before enabling WordPress.org deploy, confirm:
 - `WORDPRESS_ORG_SLUG` is correct
 - `WP_ORG_DEPLOY_ENABLED` is still unset or `false` in GitHub Actions repository variables or environment variables during migration
 - the generated ZIP matches the existing install artifact shape
+- the plugin main file and `readme.txt` already exist before validation
 - the GitHub Actions policy for the repository matches the allowlist and pinning rules documented in [Security model](security-model.md)
