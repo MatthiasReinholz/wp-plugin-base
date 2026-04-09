@@ -309,7 +309,9 @@ invalid_distignore_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$invalid_distignore_fixture/"
 mkdir -p "$invalid_distignore_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$invalid_distignore_fixture/.wp-plugin-base/"
-perl -0pi -e 's/^DISTIGNORE_FILE=.*/DISTIGNORE_FILE=.wp-plugin-base.env/m' "$invalid_distignore_fixture/.wp-plugin-base.env"
+cat >> "$invalid_distignore_fixture/.wp-plugin-base.env" <<'EOF'
+DISTIGNORE_FILE=.wp-plugin-base.env
+EOF
 if WP_PLUGIN_BASE_ROOT="$invalid_distignore_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" "" >/dev/null 2>&1; then
   echo "Config validation unexpectedly accepted a non-distignore DISTIGNORE_FILE target." >&2
   exit 1
