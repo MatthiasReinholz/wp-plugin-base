@@ -32,6 +32,38 @@ pr_stage_fixture=""
 pr_stage_origin=""
 pr_stage_output=""
 
+assert_regular_file() {
+  local path="$1"
+  local message="$2"
+
+  if [ ! -f "$path" ]; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
+assert_file_contains_literal() {
+  local path="$1"
+  local needle="$2"
+  local message="$3"
+
+  if ! grep -Fq -- "$needle" "$path"; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
+assert_file_omits_literal() {
+  local path="$1"
+  local needle="$2"
+  local message="$3"
+
+  if grep -Fq -- "$needle" "$path"; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
 while IFS= read -r file; do
   bash -n "$file"
 done < <(find "$ROOT_DIR/scripts" -name '*.sh' -print | sort)
@@ -147,34 +179,38 @@ cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$managed_security_child/"
 mkdir -p "$managed_security_child/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$managed_security_child/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$managed_security_child" bash "$managed_security_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
-test -f "$managed_security_child/.phpcs-security.xml.dist"
-test -f "$managed_security_child/.phpcs.xml.dist"
-test -f "$managed_security_child/.wp-plugin-base-security-pack/composer.json"
-test -f "$managed_security_child/.wp-plugin-base-security-pack/composer.lock"
-test -f "$managed_security_child/.github/workflows/woocommerce-qit.yml"
-if grep -Fq 'qit_cli_constraint' "$managed_security_child/.github/workflows/woocommerce-qit.yml"; then
-  echo "Managed WooCommerce QIT workflow unexpectedly exposes qit_cli_constraint input." >&2
-  exit 1
-fi
-grep -Fq 'Run Semgrep security scan' "$managed_security_child/.github/workflows/ci.yml"
-grep -Fq "if: \${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}" "$managed_security_child/.github/workflows/ci.yml"
-grep -Fq "WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP: 'true'" "$managed_security_child/.github/workflows/ci.yml"
-grep -Fq 'php-runtime-smoke:' "$managed_security_child/.github/workflows/ci.yml"
+assert_regular_file "$managed_security_child/.phpcs-security.xml.dist" "Managed security pack is missing .phpcs-security.xml.dist."
+assert_regular_file "$managed_security_child/.phpcs.xml.dist" "Managed quality pack is missing .phpcs.xml.dist."
+assert_regular_file "$managed_security_child/.wp-plugin-base-security-pack/composer.json" "Managed security pack is missing composer.json."
+assert_regular_file "$managed_security_child/.wp-plugin-base-security-pack/composer.lock" "Managed security pack is missing composer.lock."
+assert_regular_file "$managed_security_child/.github/workflows/woocommerce-qit.yml" "Managed WooCommerce QIT workflow was not generated."
+assert_file_omits_literal "$managed_security_child/.github/workflows/woocommerce-qit.yml" 'qit_cli_constraint' "Managed WooCommerce QIT workflow unexpectedly exposes qit_cli_constraint input."
+assert_file_contains_literal "$managed_security_child/.github/workflows/ci.yml" 'Run Semgrep security scan' "Managed CI workflow is missing the Semgrep security scan job."
+managed_semgrep_gate_pattern="$(cat <<'EOF'
+if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+EOF
+)"
+assert_file_contains_literal "$managed_security_child/.github/workflows/ci.yml" "$managed_semgrep_gate_pattern" "Managed CI workflow is missing the audited Semgrep gate condition."
+assert_file_contains_literal "$managed_security_child/.github/workflows/ci.yml" "WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP: 'true'" "Managed CI workflow is missing the Semgrep skip environment flag."
+assert_file_contains_literal "$managed_security_child/.github/workflows/ci.yml" 'php-runtime-smoke:' "Managed CI workflow is missing the PHP runtime smoke job."
 managed_security_paths_output="$(WP_PLUGIN_BASE_ROOT="$managed_security_child" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh")"
-grep -Fxq '.phpcs.xml.dist' <<<"$managed_security_paths_output"
-grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_security_paths_output"
-grep -Fxq '.github/workflows/woocommerce-qit.yml' <<<"$managed_security_paths_output"
-grep -Fq '/plugin-check/cli.php' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
-grep -Fq -- '--require="$plugin_check_cli_bootstrap"' "$ROOT_DIR/scripts/ci/run_plugin_check.sh"
-grep -Fq 'resolve_latest_plugin_check_version.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
-grep -Fq 'resolve_latest_foundation_version.sh' "$ROOT_DIR/.github/workflows/update-foundation.yml"
-grep -Fq 'steps.latest.outputs.candidates' "$ROOT_DIR/.github/workflows/update-foundation.yml"
-grep -Fq 'steps.verify.outputs.version' "$ROOT_DIR/.github/workflows/update-foundation.yml"
-grep -Fq 'steps.latest.outputs.candidates' "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml"
-grep -Fq 'steps.verify.outputs.version' "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml"
-grep -Fq 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "$ROOT_DIR/.github/workflows/update-plugin-check.yml"
-grep -Fq 'publish_github_release.sh --repair' "$ROOT_DIR/.github/workflows/release-foundation.yml"
-grep -Fxq "FOUNDATION_VERSION=$(tr -d '\n' < "$ROOT_DIR/VERSION")" "$ROOT_DIR/templates/child/.wp-plugin-base.env.example"
+grep -Fxq '.phpcs.xml.dist' <<<"$managed_security_paths_output" || { echo "Managed file list is missing .phpcs.xml.dist." >&2; exit 1; }
+grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_security_paths_output" || { echo "Managed file list is missing .phpcs-security.xml.dist." >&2; exit 1; }
+grep -Fxq '.github/workflows/woocommerce-qit.yml' <<<"$managed_security_paths_output" || { echo "Managed file list is missing .github/workflows/woocommerce-qit.yml." >&2; exit 1; }
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '/plugin-check/cli.php' "Plugin Check runner must bootstrap cli.php from the installed plugin."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '--require="$plugin_check_cli_bootstrap"' "Plugin Check runner must require the resolved cli bootstrap path."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'resolve_latest_plugin_check_version.sh' "update-plugin-check workflow must resolve the latest Plugin Check version."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Root update-foundation workflow must loop through release candidates."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Root update-foundation workflow must use the verified foundation version output."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.latest.outputs.candidates' "Child update-foundation workflow must loop through release candidates."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/update-foundation.yml" 'steps.verify.outputs.version' "Child update-foundation workflow must use the verified foundation version output."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh' "update-plugin-check workflow must stage the managed wordpress_tooling helper."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'publish_github_release.sh --repair' "release-foundation workflow must publish in explicit repair mode."
+grep -Fxq "FOUNDATION_VERSION=$(tr -d '\n' < "$ROOT_DIR/VERSION")" "$ROOT_DIR/templates/child/.wp-plugin-base.env.example" || {
+  echo "Child env example FOUNDATION_VERSION must match the repository VERSION." >&2
+  exit 1
+}
 bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-lite
 
 plugin_check_release_fixture="$(mktemp)"
