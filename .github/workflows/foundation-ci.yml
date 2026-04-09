@@ -57,6 +57,35 @@ jobs:
           WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
         run: bash scripts/foundation/validate.sh --mode ci
 
+  validate-strict-local-bootstrap:
+    name: Validate strict-local bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: '8.2'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '20'
+
+      - name: Bootstrap strict-local foundation tools
+        run: |
+          bash scripts/foundation/bootstrap_strict_local.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
+
+      - name: Validate foundation strict-local mode
+        env:
+          WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
+        run: bash scripts/foundation/validate.sh --mode strict-local
+
   validate-full:
     name: Validate full foundation suite (PHP ${{ matrix.php-version }})
     runs-on: ubuntu-latest

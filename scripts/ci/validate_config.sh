@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FOUNDATION_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CONFIG_SCHEMA_PATH="$FOUNDATION_DIR/docs/config-schema.json"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
 
@@ -31,6 +33,13 @@ while [ "$#" -gt 0 ]; do
 done
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+
+if [ ! -f "$CONFIG_SCHEMA_PATH" ]; then
+  echo "Config schema not found: $CONFIG_SCHEMA_PATH" >&2
+  exit 1
+fi
+
+jq -e '.schema_version == 1 and (.keys | type == "object") and (.scopes | type == "array")' "$CONFIG_SCHEMA_PATH" >/dev/null
 
 validate_regex() {
   local value="$1"
@@ -140,30 +149,30 @@ validate_output_path() {
   fi
 }
 
-case "$CONFIG_SCOPE" in
-  sync|foundation)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION
-    ;;
-  project|ci|readiness|release)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION
-    ;;
-  deploy-structure)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION WORDPRESS_ORG_SLUG
-    ;;
-  deploy)
-    wp_plugin_base_require_vars FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION WORDPRESS_ORG_SLUG
-    ;;
-  *)
-    echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
-    exit 1
-    ;;
-esac
+if ! jq -e --arg scope "$CONFIG_SCOPE" '.scopes | index($scope) != null' "$CONFIG_SCHEMA_PATH" >/dev/null; then
+  echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
+  exit 1
+fi
+
+required_keys="$(
+  jq -r --arg scope "$CONFIG_SCOPE" '
+    .keys
+    | to_entries
+    | map(select((.value.required_in_scopes // []) | index($scope) != null) | .key)
+    | .[]
+  ' "$CONFIG_SCHEMA_PATH"
+)"
+
+if [ -n "$required_keys" ]; then
+  # shellcheck disable=SC2086
+  wp_plugin_base_require_vars $required_keys
+fi
 
 validate_regex "$FOUNDATION_REPOSITORY" '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' 'FOUNDATION_REPOSITORY'
 validate_regex "$FOUNDATION_VERSION" '^v[0-9]+\.[0-9]+\.[0-9]+$' 'FOUNDATION_VERSION'
 validate_regex "$PRODUCTION_ENVIRONMENT" '^[A-Za-z0-9_.-]+$' 'PRODUCTION_ENVIRONMENT'
 
-if [ "$CONFIG_SCOPE" != "sync" ]; then
+if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)$ ]]; then
   validate_regex "$PLUGIN_SLUG" '^[a-z0-9][a-z0-9-]*$' 'PLUGIN_SLUG'
   validate_regex "$ZIP_FILE" '^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$' 'ZIP_FILE'
   validate_regex "$PHP_VERSION" '^[0-9]+(\.[0-9]+){0,2}$' 'PHP_VERSION'

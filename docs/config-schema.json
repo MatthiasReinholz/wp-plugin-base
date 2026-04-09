@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "scopes": [
+    "sync",
+    "foundation",
+    "project",
+    "ci",
+    "readiness",
+    "release",
+    "deploy-structure",
+    "deploy"
+  ],
+  "keys": {
+    "FOUNDATION_REPOSITORY": {
+      "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "FOUNDATION_VERSION": {
+      "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "PLUGIN_NAME": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
+    },
+    "PLUGIN_SLUG": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "MAIN_PLUGIN_FILE": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
+    },
+    "README_FILE": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
+    },
+    "ZIP_FILE": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.zip$"
+    },
+    "PHP_VERSION": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[0-9]+(\\.[0-9]+){0,2}$"
+    },
+    "NODE_VERSION": {
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[0-9]+(\\.[0-9]+){0,2}$"
+    },
+    "PRODUCTION_ENVIRONMENT": {
+      "default": "production",
+      "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "PHP_RUNTIME_MATRIX": {
+      "default": "",
+      "pattern": "^$|^[0-9]+(\\.[0-9]+){0,2}(,[0-9]+(\\.[0-9]+){0,2})*$"
+    },
+    "PHP_RUNTIME_MATRIX_MODE": {
+      "default": "smoke",
+      "pattern": "^(smoke|strict)$"
+    },
+    "VERSION_CONSTANT_NAME": {
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "POT_FILE": {},
+    "POT_PROJECT_NAME": {},
+    "WORDPRESS_ORG_SLUG": {
+      "required_in_scopes": ["deploy-structure", "deploy"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "WORDPRESS_READINESS_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "WORDPRESS_QUALITY_PACK_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "WORDPRESS_SECURITY_PACK_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "WOOCOMMERCE_QIT_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS": {
+      "default": "",
+      "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS": {
+      "default": "",
+      "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES": {
+      "default": "",
+      "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES": {
+      "default": "",
+      "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY": {
+      "default": "",
+      "pattern": "^$|^[0-9]+$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY": {
+      "default": "",
+      "pattern": "^$|^[0-9]+$"
+    },
+    "WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY": {
+      "default": "",
+      "pattern": "^$|^[0-9]+$"
+    },
+    "EXTRA_ALLOWED_HOSTS": {
+      "default": "",
+      "pattern": "^[A-Za-z0-9.-]+$",
+      "csv": true
+    },
+    "WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE": {
+      "default": ".wp-plugin-base-security-suppressions.json"
+    },
+    "PACKAGE_INCLUDE": {
+      "default": "",
+      "csv": true
+    },
+    "PACKAGE_EXCLUDE": {
+      "default": "",
+      "csv": true
+    },
+    "CHANGELOG_HEADING": {
+      "default": "Changelog"
+    },
+    "CODEOWNERS_REVIEWERS": {
+      "default": ""
+    },
+    "DISTIGNORE_FILE": {
+      "default": ".distignore"
+    }
+  }
+}

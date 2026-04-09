@@ -487,7 +487,7 @@ while IFS= read -r file; do
     */scripts/ci/audit_workflows.sh)
       continue
       ;;
-    */scripts/foundation/validate.sh|*/scripts/foundation/validate-full.sh)
+    */scripts/foundation/validate.sh|*/scripts/foundation/validate-full.sh|*/scripts/foundation/run_release_update_fixture_checks.sh)
       # These harnesses embed intentionally malicious fixture content in heredocs.
       continue
       ;;
