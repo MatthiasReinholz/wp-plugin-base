@@ -26,10 +26,7 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 8. Run `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 9. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 10. Commit the vendored foundation, config, and generated managed files, including `.github/dependabot.yml`.
-11. Add GitHub Actions settings:
-   - `SVN_USERNAME` as a GitHub Actions secret on the deployment environment if WordPress.org deploy will be enabled
-   - `SVN_PASSWORD` as a GitHub Actions secret on the deployment environment if WordPress.org deploy will be enabled
-   - `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable
+11. Add GitHub Actions settings. Configure `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions secrets on the deployment environment if WordPress.org deploy will be enabled. Set `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable.
 12. In GitHub, open `Settings` -> `Actions` -> `General`.
 13. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
 14. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
