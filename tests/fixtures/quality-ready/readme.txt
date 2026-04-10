@@ -17,4 +17,4 @@ Ready Blocks provides a minimal fixture that passes the managed readiness checks
 == Changelog ==
 
 = 1.3.0 =
-* Initial release.
+* Update - Initial release.

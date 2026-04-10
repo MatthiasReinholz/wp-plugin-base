@@ -137,6 +137,51 @@
     },
     "DISTIGNORE_FILE": {
       "default": ".distignore"
+    },
+    "BUILD_SCRIPT": {
+      "default": ""
+    },
+    "BUILD_SCRIPT_ARGS": {
+      "default": "",
+      "csv": true
+    },
+    "PHPDOC_VERSION_REPLACEMENT_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "PHPDOC_VERSION_PLACEHOLDER": {
+      "default": "NEXT"
+    },
+    "CHANGELOG_MD_SYNC_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "CHANGELOG_SOURCE": {
+      "default": "commits",
+      "pattern": "^(commits|prs_titles)$"
+    },
+    "SIMULATE_RELEASE_WORKFLOW_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "GLOTPRESS_TRIGGER_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "GLOTPRESS_URL": {
+      "default": "",
+      "pattern": "^$|^https://[^[:space:]]+$"
+    },
+    "GLOTPRESS_PROJECT_SLUG": {
+      "default": ""
+    },
+    "GLOTPRESS_FAIL_ON_ERROR": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "DEPLOY_NOTIFICATION_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
     }
   }
 }

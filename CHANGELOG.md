@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.0
+
+* feat: add release quality and automation enhancements
+* harden foundation release version contract automation (#37)
+* fix: align child env foundation pin with v1.3.1 release (#36)
+
 ## v1.3.1
 
 * chore(deps): bump semgrep in /tools/python-semgrep (#31)

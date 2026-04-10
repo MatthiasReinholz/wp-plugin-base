@@ -1,0 +1,61 @@
+name: simulate-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'How to derive the simulated release version'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      version:
+        description: 'Version in x.y.z format when release type is custom'
+        required: false
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    name: Simulate release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Read config
+        id: config
+        shell: bash
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project ".wp-plugin-base.env" "$GITHUB_OUTPUT"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ steps.config.outputs.php_version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: ${{ steps.config.outputs.node_version }}
+
+      - name: Simulate release
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.release_type }}" = "custom" ]; then
+            bash .wp-plugin-base/scripts/release/simulate_release.sh custom "${{ inputs.version }}" ".wp-plugin-base.env"
+            exit 0
+          fi
+          bash .wp-plugin-base/scripts/release/simulate_release.sh "${{ inputs.release_type }}" ".wp-plugin-base.env"

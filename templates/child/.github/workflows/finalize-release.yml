@@ -198,3 +198,21 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}" \
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Trigger GlotPress import
+        if: ${{ steps.config.outputs.glotpress_trigger_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
+        env:
+          GLOTPRESS_TOKEN: ${{ secrets.GLOTPRESS_TOKEN }}
+        run: |
+          bash .wp-plugin-base/scripts/release/trigger_glotpress_import.sh \
+            "${{ steps.release.outputs.version }}" \
+            ".wp-plugin-base.env"
+
+      - name: Send deployment notification
+        if: ${{ steps.config.outputs.deploy_notification_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
+        env:
+          DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
+        run: |
+          bash .wp-plugin-base/scripts/release/send_deploy_notification.sh \
+            "${{ steps.release.outputs.version }}" \
+            ".wp-plugin-base.env"

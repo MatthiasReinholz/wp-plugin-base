@@ -20,10 +20,11 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
-wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG
+wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG ZIP_FILE
 wp_plugin_base_require_vars SVN_USERNAME SVN_PASSWORD
 
 SOURCE_DIR="${SOURCE_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
+LOCAL_ZIP_PATH="$ROOT_DIR/dist/$ZIP_FILE"
 ASSETS_DIR="$ROOT_DIR/.wordpress-org"
 ALLOW_TAG_REDEPLOY="${WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY:-false}"
 SVN_HOST="plugins.svn.wordpress.org"
@@ -114,3 +115,44 @@ fi
 
 (cd "$SVN_DIR" && svn commit "${SVN_ARGS[@]}" -m "Release $VERSION") >/dev/null
 echo "Deployed $WORDPRESS_ORG_SLUG $VERSION to WordPress.org"
+
+TAG_URL="https://plugins.svn.wordpress.org/${WORDPRESS_ORG_SLUG}/tags/${VERSION}/"
+echo "Verifying WordPress.org tag availability: $TAG_URL"
+tag_verified=false
+for attempt in 1 2 3 4 5; do
+  if svn ls "${SVN_ARGS[@]}" "$TAG_URL" >/dev/null 2>&1; then
+    tag_verified=true
+    break
+  fi
+  sleep $((attempt * 5))
+done
+
+if [ "$tag_verified" != "true" ]; then
+  echo "WordPress.org tag verification failed for ${VERSION}: ${TAG_URL}" >&2
+  exit 1
+fi
+
+echo "Verified WordPress.org tag ${VERSION}."
+
+if command -v curl >/dev/null 2>&1 && [ -f "$LOCAL_ZIP_PATH" ]; then
+  download_url="https://downloads.wordpress.org/plugin/${WORDPRESS_ORG_SLUG}.${VERSION}.zip"
+  remote_zip="$(mktemp)"
+  if curl -fsSL --connect-timeout 10 --max-time 60 "$download_url" -o "$remote_zip"; then
+    local_sha=""
+    remote_sha=""
+    if command -v sha256sum >/dev/null 2>&1; then
+      local_sha="$(sha256sum "$LOCAL_ZIP_PATH" | awk '{print $1}')"
+      remote_sha="$(sha256sum "$remote_zip" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+      local_sha="$(shasum -a 256 "$LOCAL_ZIP_PATH" | awk '{print $1}')"
+      remote_sha="$(shasum -a 256 "$remote_zip" | awk '{print $1}')"
+    fi
+
+    if [ -n "$local_sha" ] && [ -n "$remote_sha" ] && [ "$local_sha" != "$remote_sha" ]; then
+      echo "WARNING: Downloaded WordPress.org ZIP checksum differs from local artifact. This can happen when packaging metadata differs upstream." >&2
+    fi
+  else
+    echo "WARNING: Could not download WordPress.org ZIP for checksum comparison yet: $download_url" >&2
+  fi
+  rm -f "$remote_zip"
+fi

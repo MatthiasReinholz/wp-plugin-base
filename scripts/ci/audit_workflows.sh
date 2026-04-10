@@ -551,6 +551,7 @@ declare -a default_allowed_hosts=(
   'api.github.com'
   'github.com'
   'uploads.github.com'
+  'downloads.wordpress.org'
   'plugins.svn.wordpress.org'
   'token.actions.githubusercontent.com'
 )

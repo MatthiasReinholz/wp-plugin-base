@@ -247,6 +247,18 @@ Optional keys:
 - `PACKAGE_INCLUDE`
 - `PACKAGE_EXCLUDE`
 - `DISTIGNORE_FILE`
+- `BUILD_SCRIPT`
+- `BUILD_SCRIPT_ARGS`
+- `PHPDOC_VERSION_REPLACEMENT_ENABLED`
+- `PHPDOC_VERSION_PLACEHOLDER`
+- `CHANGELOG_MD_SYNC_ENABLED`
+- `CHANGELOG_SOURCE`
+- `SIMULATE_RELEASE_WORKFLOW_ENABLED`
+- `GLOTPRESS_TRIGGER_ENABLED`
+- `GLOTPRESS_URL`
+- `GLOTPRESS_PROJECT_SLUG`
+- `GLOTPRESS_FAIL_ON_ERROR`
+- `DEPLOY_NOTIFICATION_ENABLED`
 - `CHANGELOG_HEADING`
 - `PRODUCTION_ENVIRONMENT`
 - `CODEOWNERS_REVIEWERS`
@@ -258,6 +270,21 @@ Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example
 The canonical machine-readable config contract is tracked in [`docs/config-schema.json`](docs/config-schema.json). Foundation validation enforces parity between that schema, `load_config.sh`, this README key list, and `templates/child/.wp-plugin-base.env.example`.
 
 `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, `DISTIGNORE_FILE`, and `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` must stay repo-relative. `DISTIGNORE_FILE` must point to a `*.distignore` file. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
+
+`BUILD_SCRIPT` must be a repo-relative script path. When set, `build_zip.sh` runs it from the repository root before staging files. `BUILD_SCRIPT_ARGS` is an optional comma-separated argument list passed to that script.
+
+`PHPDOC_VERSION_REPLACEMENT_ENABLED=true` enables release-time replacement of `@since <placeholder>` and `@version <placeholder>` in tracked PHP files. Set `PHPDOC_VERSION_PLACEHOLDER` to customize the token (default `NEXT`).
+
+`CHANGELOG_MD_SYNC_ENABLED=true` mirrors generated release notes into `CHANGELOG.md` when the file uses `## x.y.z` or `## vx.y.z` headings. Unknown heading layouts are left untouched.
+
+`CHANGELOG_SOURCE=commits` preserves the existing commit-subject changelog generation. Set `CHANGELOG_SOURCE=prs_titles` to generate notes from merged PR titles using GitHub metadata.
+
+`SIMULATE_RELEASE_WORKFLOW_ENABLED=true` includes an optional managed `simulate-release.yml` workflow for dry-run release previews.
+
+`GLOTPRESS_TRIGGER_ENABLED=true` enables a post-release GlotPress import trigger via `GLOTPRESS_URL` and `GLOTPRESS_PROJECT_SLUG`. `GLOTPRESS_FAIL_ON_ERROR=true` makes trigger failures fail the workflow; default behavior logs a warning and continues.
+
+`DEPLOY_NOTIFICATION_ENABLED=true` enables post-release webhook notifications. The webhook URL must come from `DEPLOY_NOTIFICATION_WEBHOOK_URL` GitHub secret and failures are non-blocking by default.
+Because the webhook destination is secret-sourced at runtime, workflow audit host allowlisting cannot statically validate that destination.
 
 Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
 
@@ -316,6 +343,7 @@ The manual `release.yml` workflow is a recovery path for an already existing Git
 - [Compatibility and public contract](docs/compatibility.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Changelog policy](docs/changelog-policy.md)
+- [PR-based changelog notes](docs/pr-changelog.md)
 - [Update model](docs/update-model.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Maintainer and agent map](docs/maintainer-agent-map.md)

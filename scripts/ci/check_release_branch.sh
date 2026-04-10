@@ -52,4 +52,31 @@ if ! printf '%s\n' "$section_contents" | grep -q '^\* '; then
   exit 1
 fi
 
+saw_bullet=false
+saw_blank_after_bullet=false
+while IFS= read -r line; do
+  if [ -z "$line" ]; then
+    if [ "$saw_bullet" = "true" ]; then
+      saw_blank_after_bullet=true
+    fi
+    continue
+  fi
+
+  if [[ ! "$line" =~ ^\*\  ]]; then
+    echo "$README_FILE changelog entry for version $VERSION contains a non-bullet line: $line" >&2
+    exit 1
+  fi
+
+  if [[ ! "$line" =~ ^\*\ (Add|Fix|Tweak|Update|Dev)[[:space:]]- ]]; then
+    echo "WARNING: $README_FILE changelog entry for version $VERSION is missing Add/Fix/Tweak/Update/Dev prefix: $line" >&2
+  fi
+
+  if [ "$saw_blank_after_bullet" = "true" ]; then
+    echo "$README_FILE changelog entry for version $VERSION contains blank lines between bullets." >&2
+    exit 1
+  fi
+
+  saw_bullet=true
+done <<<"$section_contents"
+
 echo "Verified release branch ${BRANCH_NAME}."

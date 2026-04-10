@@ -149,6 +149,27 @@ validate_output_path() {
   fi
 }
 
+validate_https_url() {
+  local value="$1"
+  local label="$2"
+  local scheme
+  local remainder
+  local host
+
+  scheme="${value%%://*}"
+  if [ "$scheme" != "https" ]; then
+    echo "Invalid ${label}: ${value}" >&2
+    exit 1
+  fi
+
+  remainder="${value#*://}"
+  host="${remainder%%/*}"
+  if [[ ! "$host" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?$ ]]; then
+    echo "Invalid ${label}: ${value}" >&2
+    exit 1
+  fi
+}
+
 if ! jq -e --arg scope "$CONFIG_SCOPE" '.scopes | index($scope) != null' "$CONFIG_SCHEMA_PATH" >/dev/null; then
   echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
   exit 1
@@ -211,6 +232,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
     validate_repo_relative_paths "$PACKAGE_EXCLUDE" "PACKAGE_EXCLUDE"
   fi
 
+  if [ -n "${BUILD_SCRIPT:-}" ]; then
+    validate_repo_relative_paths "$BUILD_SCRIPT" "BUILD_SCRIPT" true
+  fi
+
   if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
     while IFS= read -r host; do
       validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
@@ -229,6 +254,23 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY'
   validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY'
   validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY'
+  validate_regex "${PHPDOC_VERSION_REPLACEMENT_ENABLED:-false}" '^(true|false)$' 'PHPDOC_VERSION_REPLACEMENT_ENABLED'
+  validate_regex "${CHANGELOG_MD_SYNC_ENABLED:-false}" '^(true|false)$' 'CHANGELOG_MD_SYNC_ENABLED'
+  validate_regex "${CHANGELOG_SOURCE:-commits}" '^(commits|prs_titles)$' 'CHANGELOG_SOURCE'
+  validate_regex "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}" '^(true|false)$' 'SIMULATE_RELEASE_WORKFLOW_ENABLED'
+  validate_regex "${GLOTPRESS_TRIGGER_ENABLED:-false}" '^(true|false)$' 'GLOTPRESS_TRIGGER_ENABLED'
+  validate_regex "${GLOTPRESS_FAIL_ON_ERROR:-false}" '^(true|false)$' 'GLOTPRESS_FAIL_ON_ERROR'
+  validate_regex "${DEPLOY_NOTIFICATION_ENABLED:-false}" '^(true|false)$' 'DEPLOY_NOTIFICATION_ENABLED'
+
+  if wp_plugin_base_is_true "${GLOTPRESS_TRIGGER_ENABLED:-false}"; then
+    if [ -z "${GLOTPRESS_URL:-}" ] || [ -z "${GLOTPRESS_PROJECT_SLUG:-}" ]; then
+      echo "GLOTPRESS_TRIGGER_ENABLED=true requires GLOTPRESS_URL and GLOTPRESS_PROJECT_SLUG." >&2
+      exit 1
+    fi
+    validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+  elif [ -n "${GLOTPRESS_URL:-}" ]; then
+    validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+  fi
 
   if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
     echo "WORDPRESS_QUALITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2
