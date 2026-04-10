@@ -56,6 +56,30 @@ if [ -f "$DISTIGNORE_PATH" ]; then
   cat "$DISTIGNORE_PATH" >> "$EXCLUDES_FILE"
 fi
 
+if [ -n "${BUILD_SCRIPT:-}" ]; then
+  BUILD_SCRIPT_PATH="$(wp_plugin_base_resolve_path "$BUILD_SCRIPT")"
+  wp_plugin_base_assert_path_within_root "$BUILD_SCRIPT_PATH" "BUILD_SCRIPT"
+  if [ ! -f "$BUILD_SCRIPT_PATH" ]; then
+    echo "Configured BUILD_SCRIPT was not found: $BUILD_SCRIPT" >&2
+    exit 1
+  fi
+
+  build_script_args=()
+  if [ -n "${BUILD_SCRIPT_ARGS:-}" ]; then
+    while IFS= read -r arg; do
+      [ -n "$arg" ] || continue
+      build_script_args+=("$arg")
+    done < <(wp_plugin_base_csv_to_lines "$BUILD_SCRIPT_ARGS")
+  fi
+
+  echo "Running build script: $BUILD_SCRIPT"
+  (
+    cd "$ROOT_DIR"
+    bash "$BUILD_SCRIPT_PATH" ${build_script_args[@]+"${build_script_args[@]}"}
+  )
+  echo "Build script completed."
+fi
+
 normalize_repo_relative_path() {
   local path="$1"
   path="${path#./}"

@@ -60,9 +60,13 @@ wp_build_fixture=""
 pot_fixture=""
 yaml_workflow_fixture=""
 custom_readme_fixture=""
+release_features_fixture=""
+phpdoc_fixture=""
+simulate_fixture=""
+glotpress_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
 }
 
 trap cleanup EXIT
@@ -280,6 +284,7 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$wp_build_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$wp_build_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$wp_build_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.4.0"
 test -d "$wp_build_fixture/dist/package/build-ready-plugin/build"
+test -f "$wp_build_fixture/dist/package/build-ready-plugin/build/generated/artifact.txt"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/packages"
 test ! -e "$wp_build_fixture/dist/package/build-ready-plugin/routes"
 
@@ -292,6 +297,98 @@ test -n "$package_zip"
 zip_listing="$(unzip -Z1 "$package_zip")"
 grep -Fq 'build-ready-plugin/packages/example/index.js' <<<"$zip_listing"
 grep -Fq 'build-ready-plugin/routes/example/index.js' <<<"$zip_listing"
+
+release_features_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/wp-build-plugin/." "$release_features_fixture/"
+mkdir -p "$release_features_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$release_features_fixture/.wp-plugin-base/"
+cat > "$release_features_fixture/package-lock.json" <<'EOF'
+{
+  "name": "build-ready-plugin",
+  "version": "1.0.0",
+  "packages": {
+    "": {
+      "name": "build-ready-plugin",
+      "version": "1.0.0"
+    }
+  }
+}
+EOF
+cat > "$release_features_fixture/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## v1.0.0
+
+* Initial release.
+EOF
+cat >> "$release_features_fixture/.wp-plugin-base.env" <<'EOF'
+CHANGELOG_MD_SYNC_ENABLED=true
+EOF
+WP_PLUGIN_BASE_ROOT="$release_features_fixture" bash "$ROOT_DIR/scripts/release/bump_version.sh" "1.0.1"
+WP_PLUGIN_BASE_ROOT="$release_features_fixture" bash "$ROOT_DIR/scripts/ci/check_versions.sh" "1.0.1"
+grep -Fq '"version": "1.0.1"' "$release_features_fixture/package.json"
+grep -Fq '"version": "1.0.1"' "$release_features_fixture/package-lock.json"
+grep -Fq '## v1.0.1' "$release_features_fixture/CHANGELOG.md"
+if [ "$(grep -c '^## v1\.0\.1$' "$release_features_fixture/CHANGELOG.md")" -ne 1 ]; then
+  echo "CHANGELOG.md sync inserted duplicate version headings." >&2
+  exit 1
+fi
+
+phpdoc_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$phpdoc_fixture/"
+mkdir -p "$phpdoc_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$phpdoc_fixture/.wp-plugin-base/"
+cat > "$phpdoc_fixture/includes/phpdoc.php" <<'EOF'
+<?php
+/**
+ * Example
+ *
+ * @since NEXT
+ * @version NEXT
+ */
+EOF
+cat >> "$phpdoc_fixture/.wp-plugin-base.env" <<'EOF'
+PHPDOC_VERSION_REPLACEMENT_ENABLED=true
+PHPDOC_VERSION_PLACEHOLDER=NEXT
+EOF
+WP_PLUGIN_BASE_ROOT="$phpdoc_fixture" bash "$ROOT_DIR/scripts/release/bump_version.sh" "1.2.3"
+grep -Fq '@since 1.2.3' "$phpdoc_fixture/includes/phpdoc.php"
+grep -Fq '@version 1.2.3' "$phpdoc_fixture/includes/phpdoc.php"
+
+simulate_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$simulate_fixture/"
+mkdir -p "$simulate_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$simulate_fixture/.wp-plugin-base/"
+(
+  cd "$simulate_fixture"
+  git init -q
+  git config user.email "tests@example.com"
+  git config user.name "Test Runner"
+  git add .
+  git commit -qm "baseline"
+)
+simulate_output="$(
+  WP_PLUGIN_BASE_ROOT="$simulate_fixture" bash "$ROOT_DIR/scripts/release/simulate_release.sh" patch ".wp-plugin-base.env"
+)"
+grep -Fq '=== Release Simulation ===' <<<"$simulate_output"
+if [ -n "$(git -C "$simulate_fixture" status --porcelain --untracked-files=no)" ]; then
+  echo "Release simulation unexpectedly changed the working tree." >&2
+  exit 1
+fi
+
+glotpress_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$glotpress_fixture/"
+mkdir -p "$glotpress_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$glotpress_fixture/.wp-plugin-base/"
+cat >> "$glotpress_fixture/.wp-plugin-base.env" <<'EOF'
+GLOTPRESS_TRIGGER_ENABLED=true
+GLOTPRESS_URL=http://insecure.example.test
+GLOTPRESS_PROJECT_SLUG=example
+EOF
+if WP_PLUGIN_BASE_ROOT="$glotpress_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" "" >/dev/null 2>&1; then
+  echo "Config validation unexpectedly accepted an insecure GLOTPRESS_URL." >&2
+  exit 1
+fi
 
 absolute_include_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$absolute_include_fixture/"

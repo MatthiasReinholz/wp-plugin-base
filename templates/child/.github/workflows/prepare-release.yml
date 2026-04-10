@@ -84,6 +84,8 @@ jobs:
           fetch-depth: 0
 
       - name: Bump release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: bash .wp-plugin-base/scripts/release/bump_version.sh "${{ steps.version.outputs.value }}"
 
       - name: Regenerate POT file
@@ -113,6 +115,13 @@ jobs:
           - workflow/action allowlist and permission audit
           - PHP and JavaScript syntax
           - package build
+
+          ## Editing the changelog
+
+          The changelog in `readme.txt` was auto-generated. Before merging:
+          1. Review entries under `= ${{ steps.version.outputs.value }} =`
+          2. Edit entries directly on the release branch to reword or reorder
+          3. Keep each entry as a `* ` bullet with an `Add/Fix/Tweak/Update/Dev` prefix
 
           After merge:
           - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically

@@ -17,4 +17,4 @@ Build Ready Plugin includes generated build artifacts in the package while exclu
 == Changelog ==
 
 = 1.4.0 =
-* Initial release.
+* Update - Initial release.

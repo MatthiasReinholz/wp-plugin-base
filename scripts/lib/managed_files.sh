@@ -72,6 +72,10 @@ wp_plugin_base_print_managed_template_pairs() {
   if wp_plugin_base_is_true "${WOOCOMMERCE_QIT_ENABLED:-false}"; then
     wp_plugin_base_print_optional_managed_template_pairs "qit-pack" "$template_dir"
   fi
+
+  if wp_plugin_base_is_true "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}"; then
+    printf '%s\t%s\n' "$template_dir/.github/workflows/simulate-release.yml" ".github/workflows/simulate-release.yml"
+  fi
 }
 
 wp_plugin_base_print_managed_paths() {

@@ -44,6 +44,7 @@ case "$OUTPUT_SCOPE" in
       echo "wordpress_readiness_enabled=${WORDPRESS_READINESS_ENABLED}"
       echo "wordpress_quality_pack_enabled=${WORDPRESS_QUALITY_PACK_ENABLED}"
       echo "wordpress_security_pack_enabled=${WORDPRESS_SECURITY_PACK_ENABLED}"
+      echo "build_script=${BUILD_SCRIPT}"
       echo "plugin_check_checks=${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS}"
       echo "plugin_check_exclude_checks=${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS}"
       echo "plugin_check_categories=${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES}"
@@ -52,6 +53,10 @@ case "$OUTPUT_SCOPE" in
       echo "plugin_check_severity=${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY}"
       echo "plugin_check_error_severity=${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY}"
       echo "plugin_check_warning_severity=${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY}"
+      echo "simulate_release_workflow_enabled=${SIMULATE_RELEASE_WORKFLOW_ENABLED}"
+      echo "glotpress_trigger_enabled=${GLOTPRESS_TRIGGER_ENABLED}"
+      echo "glotpress_fail_on_error=${GLOTPRESS_FAIL_ON_ERROR}"
+      echo "deploy_notification_enabled=${DEPLOY_NOTIFICATION_ENABLED}"
     } >> "$OUTPUT_PATH"
     ;;
   foundation)

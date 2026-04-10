@@ -1,5 +1,6 @@
 {
   "name": "build-ready-plugin",
+  "version": "1.4.0",
   "private": true,
   "wpPlugin": {
     "packages": "packages",
