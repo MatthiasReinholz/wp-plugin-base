@@ -145,7 +145,8 @@ detect_category() {
 append_entry() {
   local category="$1"
   local title="$2"
-  local line="* ${category} - $(entry_with_period "$title")"
+  local line
+  line="* ${category} - $(entry_with_period "$title")"
 
   case "$category" in
     Add) printf '%s\n' "$line" >> "$add_file" ;;
