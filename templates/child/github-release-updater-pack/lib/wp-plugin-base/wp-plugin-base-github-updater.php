@@ -21,7 +21,7 @@ if ( ! class_exists( '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' ) ) {
 	return;
 }
 
-$wp_plugin_base_github_updater_main_file = __GITHUB_RELEASE_UPDATER_MAIN_FILE_EXPR__;
+$wp_plugin_base_github_updater_main_file = dirname( dirname( __DIR__ ) ) . '/__MAIN_PLUGIN_FILE__';
 $wp_plugin_base_github_updater_repo_url  = '__GITHUB_RELEASE_UPDATER_REPO_URL__';
 $wp_plugin_base_github_updater_slug      = '__PLUGIN_SLUG__';
 
