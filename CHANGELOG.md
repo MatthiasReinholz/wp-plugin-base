@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.1
+
+* feat: standardize external dependency updater and docs (#42)
+
 ## v1.5.0
 
 * Exclude vendored updater runtime from editorconfig checks
