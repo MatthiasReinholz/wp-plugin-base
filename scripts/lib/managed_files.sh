@@ -73,6 +73,14 @@ wp_plugin_base_print_managed_template_pairs() {
     wp_plugin_base_print_optional_managed_template_pairs "qit-pack" "$template_dir"
   fi
 
+  if [ -n "${WOOCOMMERCE_COM_PRODUCT_ID:-}" ]; then
+    printf '%s\t%s\n' "$template_dir/.github/workflows/woocommerce-status.yml" ".github/workflows/woocommerce-status.yml"
+  fi
+
+  if wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
+    wp_plugin_base_print_optional_managed_template_pairs "github-release-updater-pack" "$template_dir"
+  fi
+
   if wp_plugin_base_is_true "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}"; then
     printf '%s\t%s\n' "$template_dir/.github/workflows/simulate-release.yml" ".github/workflows/simulate-release.yml"
   fi

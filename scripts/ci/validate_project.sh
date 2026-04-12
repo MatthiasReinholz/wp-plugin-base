@@ -26,6 +26,17 @@ while IFS= read -r required_path; do
   fi
 done < <(wp_plugin_base_print_managed_paths)
 
+if wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
+  main_plugin_path="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
+  updater_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/wp-plugin-base-github-updater\.php['\''"][[:space:]]*;'
+
+  if ! grep -Eq "$updater_include_regex" "$main_plugin_path"; then
+    echo "GITHUB_RELEASE_UPDATER_ENABLED=true requires the main plugin file to include:" >&2
+    echo "require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';" >&2
+    exit 1
+  fi
+fi
+
 if [ -z "$BRANCH_NAME" ] && git -C "$ROOT_DIR" symbolic-ref --quiet --short HEAD >/dev/null 2>&1; then
   BRANCH_NAME="$(git -C "$ROOT_DIR" symbolic-ref --quiet --short HEAD)"
 fi

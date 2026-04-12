@@ -71,6 +71,17 @@
       "lockfile": "templates/child/security-pack/.wp-plugin-base-security-pack/composer.lock"
     },
     {
+      "id": "plugin-update-checker-runtime",
+      "tier": "manual",
+      "update": {
+        "kind": "manual"
+      },
+      "pin": {
+        "file": "templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php",
+        "pattern": "Plugin Update Checker Library 5.6"
+      }
+    },
+    {
       "id": "plugin-check",
       "tier": "metadata-only",
       "update": {

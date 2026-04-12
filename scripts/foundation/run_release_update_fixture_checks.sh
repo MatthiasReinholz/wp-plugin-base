@@ -33,8 +33,14 @@ pr_stage_helper_dir=""
 release_publish_fixture=""
 release_publish_output=""
 wordpress_org_deploy_fixture=""
+woocommerce_deploy_fixture=""
+woocommerce_status_fixture=""
+updater_fixture=""
+updater_missing_require_fixture=""
+updater_missing_runtime_fixture=""
+updater_disabled_fixture=""
 
-trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture"' EXIT
+trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture" "$woocommerce_deploy_fixture" "$woocommerce_status_fixture" "$updater_fixture" "$updater_missing_require_fixture" "$updater_missing_runtime_fixture" "$updater_disabled_fixture"' EXIT
 
 plugin_check_release_fixture="$(mktemp)"
 cat > "$plugin_check_release_fixture" <<'EOF'
@@ -1544,5 +1550,288 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"
 touch "$forbidden_fixture/.DS_Store"
 if WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_forbidden_files.sh" >/dev/null 2>&1; then
   echo "Forbidden file policy unexpectedly accepted .DS_Store." >&2
+  exit 1
+fi
+
+grep -Fq 'Deploy to WordPress.org (post-publish)' "$ROOT_DIR/.github/workflows/finalize-release.yml"
+grep -Fq 'Deploy to WooCommerce.com Marketplace (post-publish)' "$ROOT_DIR/.github/workflows/finalize-release.yml"
+grep -Fq 'Deploy to WordPress.org (post-publish)' "$ROOT_DIR/templates/child/.github/workflows/finalize-release.yml"
+grep -Fq 'Deploy to WooCommerce.com Marketplace (post-publish)' "$ROOT_DIR/templates/child/.github/workflows/finalize-release.yml"
+
+woocommerce_deploy_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$woocommerce_deploy_fixture/"
+perl -0pi -e "s/\* Version: 1\.2\.3\n/\* Version: 1.2.3\n * Woo: 12345:abc123def456\n/" "$woocommerce_deploy_fixture/standard-plugin.php"
+cat >> "$woocommerce_deploy_fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
+WOOCOMMERCE_COM_PRODUCT_ID=12345
+EOF_CONFIG
+WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh"
+
+if WOO_COM_USERNAME=fixture-user WOO_COM_APP_PASSWORD=fixture-pass WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+  bash "$ROOT_DIR/scripts/release/validate_woocommerce_com_deploy.sh" "1.2.3" ".wp-plugin-base.env" "$woocommerce_deploy_fixture/dist/package/standard-plugin" >/dev/null 2>&1; then
+  :
+else
+  echo "WooCommerce.com preflight unexpectedly failed for valid fixture input." >&2
+  exit 1
+fi
+
+if WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" bash "$ROOT_DIR/scripts/release/validate_woocommerce_com_deploy.sh" "1.2.3" ".wp-plugin-base.env" "$woocommerce_deploy_fixture/dist/package/standard-plugin" >/dev/null 2>&1; then
+  echo "WooCommerce.com preflight unexpectedly passed without credentials." >&2
+  exit 1
+fi
+
+perl -0pi -e 's/^WOOCOMMERCE_COM_PRODUCT_ID=.*\n//m' "$woocommerce_deploy_fixture/.wp-plugin-base.env"
+if ! WOO_COM_USERNAME=fixture-user WOO_COM_APP_PASSWORD=fixture-pass WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+  bash "$ROOT_DIR/scripts/release/validate_woocommerce_com_deploy.sh" "1.2.3" ".wp-plugin-base.env" "$woocommerce_deploy_fixture/dist/package/standard-plugin" >/dev/null 2>&1; then
+  echo "WooCommerce.com preflight unexpectedly failed while WOOCOMMERCE_COM_PRODUCT_ID was intentionally unset for soft-skip." >&2
+  exit 1
+fi
+
+if ! WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+  bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip" >/dev/null 2>&1; then
+  echo "WooCommerce.com deploy unexpectedly failed soft-skip when WOOCOMMERCE_COM_PRODUCT_ID was unset and credentials were absent." >&2
+  exit 1
+fi
+
+echo 'WOOCOMMERCE_COM_PRODUCT_ID=99999' >> "$woocommerce_deploy_fixture/.wp-plugin-base.env"
+if WOO_COM_USERNAME=fixture-user WOO_COM_APP_PASSWORD=fixture-pass WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+  bash "$ROOT_DIR/scripts/release/validate_woocommerce_com_deploy.sh" "1.2.3" ".wp-plugin-base.env" "$woocommerce_deploy_fixture/dist/package/standard-plugin" >/dev/null 2>&1; then
+  echo "WooCommerce.com preflight unexpectedly accepted a Woo header/product-id mismatch." >&2
+  exit 1
+fi
+perl -0pi -e 's/^WOOCOMMERCE_COM_PRODUCT_ID=.*\n//mg' "$woocommerce_deploy_fixture/.wp-plugin-base.env"
+echo 'WOOCOMMERCE_COM_PRODUCT_ID=12345' >> "$woocommerce_deploy_fixture/.wp-plugin-base.env"
+
+mkdir -p "$woocommerce_deploy_fixture/bin"
+cat > "$woocommerce_deploy_fixture/bin/curl" <<'EOF_CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${WOO_CURL_SHOULD_NOT_RUN:-false}" = "true" ]; then
+  echo "curl should not have been called" >&2
+  exit 99
+fi
+args="$*"
+emit_response() {
+  local body="$1"
+  local status="${2:-200}"
+  if [[ "$args" == *"%{http_code}"* ]]; then
+    printf '%s\n%s\n' "$body" "$status"
+  else
+    printf '%s\n' "$body"
+  fi
+}
+if [[ "$args" == *"/deploy/status"* ]]; then
+  case "${WOO_CURL_SCENARIO:-queue_success}" in
+    timeout)
+      exit 28
+      ;;
+    conflict)
+      emit_response '{"status":"running","version":"1.2.2"}'
+      ;;
+    already_live)
+      emit_response '{"status":"complete","version":"1.2.3"}'
+      ;;
+    higher_live)
+      emit_response '{"status":"complete","version":"1.2.4"}'
+      ;;
+    status_error)
+      emit_response '{"code":"status_error","message":"status failure"}' 500
+      ;;
+    upload_fail|queue_success)
+      emit_response '{"code":"submission_runner_no_deploy_in_progress"}'
+      ;;
+    *)
+      emit_response '{"code":"submission_runner_no_deploy_in_progress"}'
+      ;;
+  esac
+  exit 0
+fi
+if [[ "$args" == *"/deploy"* ]]; then
+  case "${WOO_CURL_SCENARIO:-queue_success}" in
+    timeout)
+      exit 28
+      ;;
+    upload_fail)
+      emit_response '{"code":"upload_failed","message":"upload failure"}'
+      ;;
+    queue_success)
+      emit_response '{"success":123}'
+      ;;
+    *)
+      emit_response '{"success":456}'
+      ;;
+  esac
+  exit 0
+fi
+echo "Unexpected curl invocation: $*" >&2
+exit 1
+EOF_CURL
+chmod +x "$woocommerce_deploy_fixture/bin/curl"
+
+if (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=conflict \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip"
+); then
+  echo "WooCommerce.com deploy unexpectedly passed when another deployment was in progress." >&2
+  exit 1
+fi
+
+if ! (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=already_live \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip" >/dev/null
+); then
+  echo "WooCommerce.com deploy unexpectedly failed for already-live version short-circuit." >&2
+  exit 1
+fi
+
+if (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=higher_live \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip"
+); then
+  echo "WooCommerce.com deploy unexpectedly passed when a higher version was already live." >&2
+  exit 1
+fi
+
+if ! (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=queue_success \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip" >/dev/null
+); then
+  echo "WooCommerce.com deploy unexpectedly failed for queue-success flow." >&2
+  exit 1
+fi
+
+if (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=status_error \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip"
+); then
+  echo "WooCommerce.com deploy unexpectedly passed when status API returned an HTTP error." >&2
+  exit 1
+fi
+
+if (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=upload_fail \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip"
+); then
+  echo "WooCommerce.com deploy unexpectedly passed when upload API returned an error code." >&2
+  exit 1
+fi
+
+if (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SCENARIO=timeout \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip"
+); then
+  echo "WooCommerce.com deploy unexpectedly passed when status/upload requests timed out." >&2
+  exit 1
+fi
+
+if ! (
+  cd "$woocommerce_deploy_fixture"
+  PATH="$woocommerce_deploy_fixture/bin:$PATH" \
+    WP_PLUGIN_BASE_ROOT="$woocommerce_deploy_fixture" \
+    WOO_COM_USERNAME=fixture-user \
+    WOO_COM_APP_PASSWORD=fixture-pass \
+    WOO_CURL_SHOULD_NOT_RUN=true \
+    WP_PLUGIN_BASE_REPAIR_MODE=true \
+    bash "$ROOT_DIR/scripts/release/deploy_woocommerce_com.sh" "1.2.3" ".wp-plugin-base.env" "dist/standard-plugin.zip" >/dev/null
+); then
+  echo "WooCommerce.com deploy unexpectedly failed in repair-mode short-circuit." >&2
+  exit 1
+fi
+
+woocommerce_status_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$woocommerce_status_fixture/"
+mkdir -p "$woocommerce_status_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$woocommerce_status_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$woocommerce_status_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if [ -e "$woocommerce_status_fixture/.github/workflows/woocommerce-status.yml" ]; then
+  echo "WooCommerce status workflow was unexpectedly synced without WOOCOMMERCE_COM_PRODUCT_ID." >&2
+  exit 1
+fi
+echo 'WOOCOMMERCE_COM_PRODUCT_ID=12345' >> "$woocommerce_status_fixture/.wp-plugin-base.env"
+WP_PLUGIN_BASE_ROOT="$woocommerce_status_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if [ ! -f "$woocommerce_status_fixture/.github/workflows/woocommerce-status.yml" ]; then
+  echo "WooCommerce status workflow was not synced after WOOCOMMERCE_COM_PRODUCT_ID was configured." >&2
+  exit 1
+fi
+
+updater_disabled_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$updater_disabled_fixture/"
+mkdir -p "$updater_disabled_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$updater_disabled_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$updater_disabled_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if [ -e "$updater_disabled_fixture/lib/wp-plugin-base/wp-plugin-base-github-updater.php" ]; then
+  echo "Updater runtime files were unexpectedly present while feature was disabled." >&2
+  exit 1
+fi
+
+updater_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$updater_fixture/"
+cat >> "$updater_fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
+GITHUB_RELEASE_UPDATER_ENABLED=true
+GITHUB_RELEASE_UPDATER_REPO_URL=https://github.com/example/standard-plugin
+EOF_CONFIG
+echo "require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';" >> "$updater_fixture/standard-plugin.php"
+mkdir -p "$updater_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$updater_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$updater_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+WP_PLUGIN_BASE_ROOT="$updater_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh"
+WP_PLUGIN_BASE_ROOT="$updater_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh"
+updater_zip_listing="$(unzip -Z1 "$updater_fixture/dist/standard-plugin.zip")"
+grep -Fq 'standard-plugin/lib/wp-plugin-base/wp-plugin-base-github-updater.php' <<<"$updater_zip_listing"
+grep -Fq 'standard-plugin/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php' <<<"$updater_zip_listing"
+
+updater_missing_require_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$updater_missing_require_fixture/"
+cat >> "$updater_missing_require_fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
+GITHUB_RELEASE_UPDATER_ENABLED=true
+GITHUB_RELEASE_UPDATER_REPO_URL=https://github.com/example/standard-plugin
+EOF_CONFIG
+mkdir -p "$updater_missing_require_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$updater_missing_require_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$updater_missing_require_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$updater_missing_require_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" >/dev/null 2>&1; then
+  echo "Project validation unexpectedly passed without the required updater include line." >&2
+  exit 1
+fi
+
+updater_missing_runtime_fixture="$(mktemp -d)"
+cp -R "$updater_fixture/." "$updater_missing_runtime_fixture/"
+rm -rf "$updater_missing_runtime_fixture/lib/wp-plugin-base/plugin-update-checker"
+if WP_PLUGIN_BASE_ROOT="$updater_missing_runtime_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" >/dev/null 2>&1; then
+  echo "build_zip unexpectedly passed with updater runtime directory removed." >&2
   exit 1
 fi

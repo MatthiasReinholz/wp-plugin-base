@@ -81,6 +81,22 @@
       "default": "false",
       "pattern": "^(true|false)$"
     },
+    "WOOCOMMERCE_COM_PRODUCT_ID": {
+      "default": "",
+      "pattern": "^$|^[0-9]+$"
+    },
+    "WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS": {
+      "default": "30",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "GITHUB_RELEASE_UPDATER_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "GITHUB_RELEASE_UPDATER_REPO_URL": {
+      "default": "",
+      "pattern": "^$|^https://github[.]com/[^/]+/[^/]+/?$"
+    },
     "WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS": {
       "default": "",
       "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"

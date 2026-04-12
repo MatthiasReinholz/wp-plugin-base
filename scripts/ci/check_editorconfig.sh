@@ -22,7 +22,9 @@ fi
 
 (
   cd "$ROOT_DIR"
-  editorconfig-checker
+  # Vendored third-party runtime files preserve upstream formatting.
+  editorconfig-checker \
+    -exclude '^templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/'
 )
 
 echo "EditorConfig validation passed."

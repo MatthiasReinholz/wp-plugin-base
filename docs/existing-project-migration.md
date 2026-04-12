@@ -56,3 +56,10 @@ Before enabling WordPress.org deploy, confirm:
 - the GitHub Actions policy for the repository matches the allowlist and pinning rules documented in [Security model](security-model.md)
 
 If you later need to repair a published GitHub release manually, `release.yml` verifies the existing tag and skips WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
+Downstream channels can fail after GitHub release publication; use `release.yml` and `woocommerce-status.yml` as the post-publish channel repair path.
+
+## Release-Order Behavior Change
+
+Current release flow is GitHub-first: tag + GitHub release publish before downstream channel deploy steps.
+
+If your previous internal process expected WordPress.org deploy to gate tag publication, treat this as an operational behavior change and update your release runbooks accordingly.

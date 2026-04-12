@@ -9,7 +9,7 @@ It is the **delivery and governance layer** for plugin repos:
 - workflow hardening and provenance checks
 - vendored scripts, templates, and documentation under `.wp-plugin-base/`
 
-It is **not** a plugin runtime framework. It does not currently provide plugin-side DI, PSR-4 runtime scaffolding, settings abstractions, REST controllers, or block architecture. Those concerns should remain outside this repo or move into a future companion runtime layer.
+It is **not** a general plugin runtime framework. It does not provide plugin-side DI, PSR-4 runtime scaffolding, settings abstractions, REST controllers, or block architecture. Those concerns should remain outside this repo or move into a future companion runtime layer.
 
 It provides two reuse layers:
 
@@ -17,7 +17,7 @@ It provides two reuse layers:
 - a managed `.github/dependabot.yml` file for GitHub Actions dependency updates
 - vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
-The foundation is a development dependency only. It must never be a runtime dependency of the released plugin ZIP.
+The foundation is a development dependency only. The default baseline must never become a runtime dependency of the released plugin ZIP. A small, explicit opt-in runtime pack exists for GitHub Release in-dashboard updates and is disabled by default.
 
 The repository also enforces a tracked-file hygiene policy. Files such as `.DS_Store`, `Thumbs.db`, `Desktop.ini`, editor workspace folders, and transient debug logs are treated as forbidden repository content and fail validation if present.
 
@@ -234,6 +234,10 @@ Optional keys:
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
 - `WOOCOMMERCE_QIT_ENABLED`
+- `WOOCOMMERCE_COM_PRODUCT_ID`
+- `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`
+- `GITHUB_RELEASE_UPDATER_ENABLED`
+- `GITHUB_RELEASE_UPDATER_REPO_URL`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES`
@@ -311,6 +315,12 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 
+`WOOCOMMERCE_COM_PRODUCT_ID` enables WooCommerce.com Marketplace release deploy preflight and upload when the GitHub Actions variable `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` is set. Keep `WOO_COM_USERNAME` and `WOO_COM_APP_PASSWORD` in deployment-environment secrets. Leave the product ID empty during Woo onboarding approval and the workflow soft-skips Woo deploy.
+
+`WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS` controls WooCommerce.com API request timeouts for deploy and status checks (default `30` seconds).
+
+`GITHUB_RELEASE_UPDATER_ENABLED=true` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-github-updater.php`. Set `GITHUB_RELEASE_UPDATER_REPO_URL=https://github.com/<owner>/<repo>` and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';` to the plugin main file.
+
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
 Local `validate.sh` defaults to `fast-local` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports which checks were skipped when local prerequisites are unavailable. Use `--mode strict-local` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for Sigstore/OIDC-sensitive checks.
@@ -329,6 +339,11 @@ To enable it in your project:
 
 If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release workflow skips SVN deploy.
 
+Release publication uses GitHub-first ordering: the annotated tag and GitHub release are published first, then enabled distribution channels (WordPress.org and WooCommerce.com) run post-publish.
+
+WordPress.org can therefore fail after the GitHub release is already public. Use `release.yml` plus `woocommerce-status.yml` as the post-publish channel repair runbook.
+If you are migrating from older internal release ordering where WordPress.org deploy blocked tag publication, treat this as a behavior change and update release runbooks.
+
 For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. CI and release readiness checks now fail when WordPress.org deploy is enabled and reviewer protection cannot be verified.
 
 The manual `release.yml` workflow is a recovery path for an already existing Git tag. It verifies that the tag exists remotely, checks out that exact tag, and skips WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
@@ -338,6 +353,9 @@ The manual `release.yml` workflow is a recovery path for an already existing Git
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)
 - [Product layers](docs/layers.md)
+- [Release model](docs/release-model.md)
+- [WooCommerce.com distribution](docs/distribution-woocommerce-com.md)
+- [GitHub Release updater distribution](docs/distribution-github-release-updater.md)
 - [Security model](docs/security-model.md)
 - [Secure plugin coding contract](docs/secure-plugin-coding-contract.md)
 - [Compatibility and public contract](docs/compatibility.md)

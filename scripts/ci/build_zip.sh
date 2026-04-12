@@ -42,6 +42,8 @@ wp_plugin_base_assert_path_within_root "$MAIN_PLUGIN_PATH" "Main plugin file"
 wp_plugin_base_assert_path_within_root "$README_PATH" "Readme file"
 wp_plugin_base_assert_path_within_root "$DISTIGNORE_PATH" "Distignore file"
 
+# Keep lib/ package-included: optional runtime packs (for example GitHub updater)
+# ship files from lib/wp-plugin-base/ when explicitly enabled.
 cat <<'EOF' > "$EXCLUDES_FILE"
 /.git/
 /.github/
@@ -145,6 +147,23 @@ fi
 if [ -e "$STAGE_DIR/$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ]; then
   echo "Package contains the configured security suppressions file: $WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" >&2
   exit 1
+fi
+
+if wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
+  staged_updater="$STAGE_DIR/lib/wp-plugin-base/wp-plugin-base-github-updater.php"
+  staged_puc_entry="$STAGE_DIR/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php"
+
+  if [ ! -f "$staged_updater" ]; then
+    echo "Build error: GITHUB_RELEASE_UPDATER_ENABLED=true but $staged_updater is missing from the package." >&2
+    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to install the GitHub release updater runtime pack." >&2
+    exit 1
+  fi
+
+  if [ ! -f "$staged_puc_entry" ]; then
+    echo "Build error: GITHUB_RELEASE_UPDATER_ENABLED=true but plugin-update-checker is missing from the package." >&2
+    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to restore lib/wp-plugin-base/plugin-update-checker/." >&2
+    exit 1
+  fi
 fi
 
 (cd "$STAGE_ROOT" && zip -qr "$ZIP_PATH" "$PLUGIN_SLUG")

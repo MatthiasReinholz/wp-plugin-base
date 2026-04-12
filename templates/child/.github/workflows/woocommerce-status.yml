@@ -1,0 +1,53 @@
+name: woocommerce-status
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    name: WooCommerce.com status
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: __PRODUCTION_ENVIRONMENT__
+    env:
+      WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ vars.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Report disabled WooCommerce.com deploy channel
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED != 'true' }}
+        run: |
+          echo "WOOCOMMERCE_COM_DEPLOY_ENABLED is not true; WooCommerce.com status check is skipped."
+          {
+            echo "### WooCommerce.com Status"
+            echo
+            echo "- Status check skipped because \`WOOCOMMERCE_COM_DEPLOY_ENABLED\` is not true."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check WooCommerce.com deployment status
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' }}
+        env:
+          WOO_COM_USERNAME: ${{ secrets.WOO_COM_USERNAME }}
+          WOO_COM_APP_PASSWORD: ${{ secrets.WOO_COM_APP_PASSWORD }}
+        run: |
+          set +e
+          status_output="$(bash .wp-plugin-base/scripts/release/check_woocommerce_com_status.sh ".wp-plugin-base.env" 2>&1)"
+          status_code=$?
+          set -e
+          echo "$status_output"
+          {
+            echo "### WooCommerce.com Status"
+            echo
+            echo '```'
+            echo "$status_output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status_code"

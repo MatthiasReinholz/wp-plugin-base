@@ -66,7 +66,9 @@ The hardened baseline audits literal workflow and repo-local-script references t
 - `api.github.com`
 - `github.com`
 - `uploads.github.com`
+- `downloads.wordpress.org`
 - `plugins.svn.wordpress.org`
+- `woocommerce.com`
 - `token.actions.githubusercontent.com`
 
 Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only and keep this list minimal.
@@ -76,6 +78,25 @@ Dynamic URL construction inside workflow or local-action `run:` bodies is intent
 This allowlist is not a full runner egress firewall. Package-manager traffic and other tool-internal network access are controlled separately by the reviewed bootstrap scripts. Foundation CI installs the Python lint toolchain from hash-pinned requirements files and the Node lint toolchain from a committed `package-lock.json`.
 
 Ubuntu package mirrors are only expected indirectly when the workflow installs Subversion with `apt-get`.
+
+### WooCommerce.com Marketplace Deploy
+
+When `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`, release workflows call:
+
+- `https://woocommerce.com/wp-json/wc/submission/runner/v1/product/deploy/status`
+- `https://woocommerce.com/wp-json/wc/submission/runner/v1/product/deploy`
+
+Authentication uses Woo username and WordPress application password as multipart form fields (`WOO_COM_USERNAME`, `WOO_COM_APP_PASSWORD`), not HTTP basic auth headers.
+
+See [WooCommerce.com distribution](distribution-woocommerce-com.md) for operator setup and repair workflow details.
+
+### GitHub Release Updater Runtime
+
+When `GITHUB_RELEASE_UPDATER_ENABLED=true`, managed files include a vendored copy of Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/`.
+
+Runtime update checks then occur from customer WordPress sites to GitHub API endpoints under `api.github.com`. These runtime calls are outside CI host auditing scope.
+
+See [GitHub Release updater distribution](distribution-github-release-updater.md) for runtime behavior and testing guidance.
 
 ## Release And Update Provenance
 
