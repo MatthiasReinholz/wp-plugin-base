@@ -14,18 +14,25 @@ This repository provides:
 
 This is the stable layer existing adopters rely on today.
 
-## Layer 2: Runtime Starter
+## Layer 2: Runtime Packs (Opt-In)
 
-This layer does not exist in this repository today.
+Layer 2 is now an explicit opt-in surface for narrowly scoped runtime features.
 
-If it is added later, it should be a separate companion layer or package covering plugin runtime concerns such as:
+Current Layer 2 pack in this repository:
+
+- GitHub Release in-dashboard updater runtime pack (`GITHUB_RELEASE_UPDATER_ENABLED=true`)
+
+Reference:
+
+- [GitHub Release updater distribution](distribution-github-release-updater.md)
+
+Layer 2 remains additive and disabled by default. It must not change Layer 1 release/delivery behavior unless explicitly enabled per project.
+
+Future Layer 2 additions should stay constrained to optional runtime concerns such as:
 
 - Composer and PSR-4 scaffolding
-- PHPCS, PHPStan, and PHPUnit setup
 - secure runtime plugin patterns
 - settings, REST, or block examples
-
-Keeping runtime concerns separate preserves backward compatibility for repositories that only want the delivery foundation.
 
 ## Layer 3: Optional Packs
 

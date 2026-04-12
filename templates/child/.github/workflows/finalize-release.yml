@@ -26,11 +26,12 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     environment: __PRODUCTION_ENVIRONMENT__
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+      WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ vars.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
 
     steps:
       - name: Derive release version
@@ -128,6 +129,13 @@ jobs:
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.release.outputs.version }}" ".wp-plugin-base.env" "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
+      - name: Validate WooCommerce.com deploy configuration
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' }}
+        env:
+          WOO_COM_USERNAME: ${{ secrets.WOO_COM_USERNAME }}
+          WOO_COM_APP_PASSWORD: ${{ secrets.WOO_COM_APP_PASSWORD }}
+        run: bash .wp-plugin-base/scripts/release/validate_woocommerce_com_deploy.sh "${{ steps.release.outputs.version }}" ".wp-plugin-base.env" "dist/package/${{ steps.config.outputs.plugin_slug }}"
+
       - name: Inspect release tag state
         id: tag
         env:
@@ -163,21 +171,6 @@ jobs:
         if: ${{ steps.tag.outputs.exists != 'true' }}
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Release ${{ steps.release.outputs.version }}"
 
-      - name: Install Subversion
-        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && steps.tag.outputs.exists != 'true' }}
-        run: sudo apt-get update && sudo apt-get install -y subversion
-
-      - name: Deploy to WordPress.org
-        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && steps.tag.outputs.exists != 'true' }}
-        env:
-          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
-          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
-        run: |
-          bash .wp-plugin-base/scripts/release/deploy_wordpress_org.sh \
-            "${{ steps.release.outputs.version }}" \
-            ".wp-plugin-base.env" \
-            "dist/package/${{ steps.config.outputs.plugin_slug }}"
-
       - name: Push tag
         if: ${{ steps.tag.outputs.exists != 'true' }}
         run: git push origin "${{ steps.release.outputs.version }}"
@@ -199,8 +192,84 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
 
+      - name: Install Subversion (post-publish)
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        continue-on-error: true
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Deploy to WordPress.org (post-publish)
+        id: deploy_wporg_post_publish
+        if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
+        continue-on-error: true
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+        run: |
+          bash .wp-plugin-base/scripts/release/deploy_wordpress_org.sh \
+            "${{ steps.release.outputs.version }}" \
+            ".wp-plugin-base.env" \
+            "dist/package/${{ steps.config.outputs.plugin_slug }}"
+
+      - name: Deploy to WooCommerce.com Marketplace (post-publish)
+        id: deploy_woocommerce_post_publish
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' && steps.config.outputs.woocommerce_com_product_id != '' }}
+        continue-on-error: true
+        env:
+          WOO_COM_USERNAME: ${{ secrets.WOO_COM_USERNAME }}
+          WOO_COM_APP_PASSWORD: ${{ secrets.WOO_COM_APP_PASSWORD }}
+        run: |
+          bash .wp-plugin-base/scripts/release/deploy_woocommerce_com.sh \
+            "${{ steps.release.outputs.version }}" \
+            ".wp-plugin-base.env" \
+            "dist/${{ steps.config.outputs.zip_file }}"
+
+      - name: Summarize channel deployment results
+        if: ${{ always() }}
+        id: channel_summary
+        env:
+          WP_ORG_DEPLOY_ENABLED: ${{ env.WP_ORG_DEPLOY_ENABLED }}
+          WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
+          WPORG_POST_OUTCOME: ${{ steps.deploy_wporg_post_publish.outcome }}
+          WOO_POST_OUTCOME: ${{ steps.deploy_woocommerce_post_publish.outcome }}
+        run: |
+          set -euo pipefail
+
+          wporg_outcome="${WPORG_POST_OUTCOME:-skipped}"
+          if [ "${WP_ORG_DEPLOY_ENABLED:-false}" != 'true' ]; then
+            wporg_outcome='disabled'
+          fi
+
+          woo_outcome="${WOO_POST_OUTCOME:-skipped}"
+          if [ "${WOOCOMMERCE_COM_DEPLOY_ENABLED:-false}" != 'true' ]; then
+            woo_outcome='disabled'
+          fi
+
+          failed_channels=0
+          if [ "$wporg_outcome" = 'failure' ]; then
+            failed_channels=$((failed_channels + 1))
+          fi
+          if [ "$woo_outcome" = 'failure' ]; then
+            failed_channels=$((failed_channels + 1))
+          fi
+
+          echo "failed_channels=${failed_channels}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Distribution Channel Summary"
+            echo
+            echo "- WordPress.org: ${wporg_outcome}"
+            echo "- WooCommerce.com: ${woo_outcome}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce channel deployment success
+        if: ${{ always() && steps.channel_summary.outputs.failed_channels != '0' }}
+        run: |
+          echo "One or more enabled distribution channels failed after GitHub release publication."
+          echo "Use the manual release repair workflow and WooCommerce status workflow to complete channel repair."
+          exit 1
+
       - name: Trigger GlotPress import
-        if: ${{ steps.config.outputs.glotpress_trigger_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
+        if: ${{ steps.channel_summary.outputs.failed_channels == '0' && steps.config.outputs.glotpress_trigger_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
         env:
           GLOTPRESS_TOKEN: ${{ secrets.GLOTPRESS_TOKEN }}
         run: |
@@ -209,7 +278,7 @@ jobs:
             ".wp-plugin-base.env"
 
       - name: Send deployment notification
-        if: ${{ steps.config.outputs.deploy_notification_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
+        if: ${{ steps.channel_summary.outputs.failed_channels == '0' && steps.config.outputs.deploy_notification_enabled == 'true' && steps.tag.outputs.exists != 'true' }}
         env:
           DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
         run: |

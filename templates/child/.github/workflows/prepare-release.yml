@@ -125,7 +125,8 @@ jobs:
 
           After merge:
           - the `finalize-release` workflow creates and pushes the annotated `${{ steps.version.outputs.value }}` tag automatically
-          - the same `finalize-release` workflow publishes the GitHub release, emits a build attestation for the ZIP, and optionally deploys to WordPress.org
+          - the same `finalize-release` workflow publishes the GitHub release, emits a build attestation for the ZIP, and runs enabled distribution channels
+          - release publication is GitHub-first; repair downstream channels post-publish with `release.yml` and `woocommerce-status.yml` when needed
           EOF
 
       - name: Create or update release pull request

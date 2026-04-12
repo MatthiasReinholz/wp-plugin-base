@@ -45,6 +45,7 @@ required_ids=(
   python-semgrep-tooling
   quality-pack-composer
   security-pack-composer
+  plugin-update-checker-runtime
   plugin-check
   composer-docker-image
   shellcheck-binary

@@ -44,10 +44,11 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     environment: ${{ inputs.production_environment || github.event.inputs.production_environment || 'production' }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+      WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ vars.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
       WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY: ${{ vars.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY }}
 
     steps:
@@ -166,6 +167,13 @@ jobs:
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY == 'true' }}
         run: bash .wp-plugin-base/scripts/release/validate_wordpress_org_deploy.sh "${{ steps.resolved.outputs.version }}" "${{ steps.resolved.outputs.config_path }}" "dist/package/${{ steps.config.outputs.plugin_slug }}"
 
+      - name: Validate WooCommerce.com deploy configuration
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' }}
+        env:
+          WOO_COM_USERNAME: ${{ secrets.WOO_COM_USERNAME }}
+          WOO_COM_APP_PASSWORD: ${{ secrets.WOO_COM_APP_PASSWORD }}
+        run: bash .wp-plugin-base/scripts/release/validate_woocommerce_com_deploy.sh "${{ steps.resolved.outputs.version }}" "${{ steps.resolved.outputs.config_path }}" "dist/package/${{ steps.config.outputs.plugin_slug }}"
+
       - name: Report skipped WordPress.org redeploy
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' && env.WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY != 'true' }}
         run: echo "Manual release recovery skips WordPress.org redeploy unless WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true is set for an intentional repair of the latest repository release tag."
@@ -196,3 +204,15 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}" \
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Deploy to WooCommerce.com Marketplace
+        if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' && steps.config.outputs.woocommerce_com_product_id != '' }}
+        env:
+          WOO_COM_USERNAME: ${{ secrets.WOO_COM_USERNAME }}
+          WOO_COM_APP_PASSWORD: ${{ secrets.WOO_COM_APP_PASSWORD }}
+          WP_PLUGIN_BASE_REPAIR_MODE: 'true'
+        run: |
+          bash .wp-plugin-base/scripts/release/deploy_woocommerce_com.sh \
+            "${{ steps.resolved.outputs.version }}" \
+            "${{ steps.resolved.outputs.config_path }}" \
+            "dist/${{ steps.config.outputs.zip_file }}"

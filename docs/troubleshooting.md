@@ -96,14 +96,33 @@ If `update-foundation` detects a newer version but fails during pull request cre
 
 Both conditions are required for the automated update PR flow to work.
 
-## Finalize Release Stopped After WordPress.org Deploy
+## Finalize Release Failed In Distribution Channels
 
-`finalize-release` applies WordPress.org deployment before pushing the annotated Git tag and publishing the GitHub release.
+`finalize-release` publishes GitHub tag/release first, then runs downstream channel deploy steps (WordPress.org and WooCommerce.com when enabled). A channel failure can therefore happen after GitHub release publication; the workflow still ends failed.
 
-If WordPress.org deployment succeeded but the workflow failed before tag push:
+Repair path:
 
-1. identify the merged release PR and its merge commit SHA
-2. create and push the annotated release tag at that exact merge commit
-3. rerun `release.yml` (manual recovery workflow) for that existing tag to repair GitHub release assets/attestations
+1. run `release.yml` for the existing release tag
+2. review WordPress.org/WooCommerce.com channel logs
+3. run `woocommerce-status.yml` when Woo is enabled
+4. rerun `release.yml` until the failed channel succeeds or reports already-live state
 
-The workflow already guards against mutating an existing mismatched tag. If a tag with the release version exists on a different commit, stop and resolve the mismatch manually before retrying any automated release path.
+If a tag with the release version exists on a different commit, stop and resolve the mismatch manually before retrying automated release flows.
+
+## WooCommerce.com Channel Failures
+
+Common WooCommerce.com-specific failures and actions:
+
+1. `Woo:` header mismatch or missing in packaged plugin file:
+   fix the plugin header to `Woo: <product_id>:<hash>` and ensure `<product_id>` matches `WOOCOMMERCE_COM_PRODUCT_ID`.
+2. Credential or auth errors:
+   regenerate the Woo WordPress application password and update `WOO_COM_APP_PASSWORD` in deployment-environment secrets.
+3. API timeout or transport error:
+   rerun release repair and, if needed, increase `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`.
+4. QIT rejection after queue acceptance:
+   inspect Woo vendor/QIT diagnostics, fix package issues, then rerun `release.yml` for the same tag.
+
+See:
+
+- [WooCommerce.com distribution](distribution-woocommerce-com.md)
+- [Release model](release-model.md)

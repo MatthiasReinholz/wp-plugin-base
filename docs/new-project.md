@@ -28,16 +28,17 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 9. Run `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 10. Commit the vendored foundation, config, and generated managed files, including `.github/dependabot.yml`.
 11. Add GitHub Actions settings. Configure `SVN_USERNAME` and `SVN_PASSWORD` as GitHub Actions deployment-environment secrets if WordPress.org deploy will be enabled. Set `WP_ORG_DEPLOY_ENABLED=true` only if WordPress.org deploy should be enabled, as either a GitHub Actions repository variable or a GitHub Actions environment variable.
-12. In GitHub, open `Settings` -> `Actions` -> `General`.
-13. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
-14. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
-15. Enable `Require actions to be pinned to a full-length commit SHA`.
-16. Under `Workflow permissions`, select `Read and write permissions`.
-17. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
-18. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
-19. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
-20. If you plan to use WordPress.org deploy, protect the `PRODUCTION_ENVIRONMENT` environment in GitHub and require at least one reviewer before deployments can access secrets. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
-21. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
+12. If WooCommerce.com deploy is needed, set `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` and add `WOO_COM_USERNAME`/`WOO_COM_APP_PASSWORD` deployment-environment secrets.
+13. In GitHub, open `Settings` -> `Actions` -> `General`.
+14. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
+15. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
+16. Enable `Require actions to be pinned to a full-length commit SHA`.
+17. Under `Workflow permissions`, select `Read and write permissions`.
+18. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
+19. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
+20. If you plan to use the automated foundation self-update workflow, confirm that GitHub Actions in your project can access releases from `FOUNDATION_REPOSITORY`.
+21. If you plan to use WordPress.org deploy, protect the `PRODUCTION_ENVIRONMENT` environment in GitHub and require at least one reviewer before deployments can access secrets. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
+22. Leave Dependabot enabled so weekly GitHub Actions update PRs can keep the pinned action SHAs current.
 
 ## Default Layout Assumptions
 
@@ -79,4 +80,4 @@ Workflow files must use the `.yml` extension. `.yaml` workflow files are rejecte
 
 For WordPress.org deploy-enabled repos, local validation warns when GitHub environment protection cannot be queried yet. The generated CI workflows enforce that check strictly once the repository is running in GitHub Actions.
 
-The manual `release.yml` recovery workflow skips WordPress.org redeploy by default so an existing SVN tag is not rewritten during a repair run. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+The manual `release.yml` recovery workflow skips WordPress.org redeploy by default so an existing SVN tag is not rewritten during a repair run. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag. Use `release.yml` and `woocommerce-status.yml` to repair downstream distribution channels after a publish.

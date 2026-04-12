@@ -72,7 +72,11 @@ for literal in \
   'install_release_security_tools.sh' \
   'generate_sbom.sh' \
   'sign_release.sh' \
-  'publish_github_release.sh'
+  'publish_github_release.sh' \
+  'deploy_woocommerce_com.sh' \
+  'validate_woocommerce_com_deploy.sh' \
+  'trigger_glotpress_import.sh' \
+  'send_deploy_notification.sh'
 do
   assert_same_literal_presence "$literal" "$root_finalize" "$child_finalize" 'finalize-release logic'
 done

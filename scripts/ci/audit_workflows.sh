@@ -553,6 +553,7 @@ declare -a default_allowed_hosts=(
   'uploads.github.com'
   'downloads.wordpress.org'
   'plugins.svn.wordpress.org'
+  'woocommerce.com'
   'token.actions.githubusercontent.com'
 )
 
