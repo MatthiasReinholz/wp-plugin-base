@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.5.0
+
+* Exclude vendored updater runtime from editorconfig checks
+* Expand codespell ignore for vendored updater typo
+* Allow upstream misspelling in vendored updater parser
+* Exclude vendored updater runtime from codespell
+* Configure markdownlint ignores for vendored updater docs
+* Ignore vendored updater markdown in foundation lint
+* Exclude vendored updater docs from markdown lint
+* Fix updater template substitution shellcheck warnings
+* Add multi-channel distribution with WooCommerce and GitHub updater
+* fix(ci): address ShellCheck SC2155 in release notes generator
+
 ## v1.4.0
 
 * feat: add release quality and automation enhancements
