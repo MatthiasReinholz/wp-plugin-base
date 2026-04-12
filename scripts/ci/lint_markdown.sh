@@ -28,7 +28,8 @@ fi
     "CHANGELOG.md" \
     "SECURITY.md" \
     "docs/**/*.md" \
-    "templates/**/*.md"
+    "templates/**/*.md" \
+    "!templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/**/*.md"
 )
 
 echo "Markdown lint passed."
