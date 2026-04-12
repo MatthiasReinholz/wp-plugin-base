@@ -30,3 +30,10 @@ The local-first design also narrows the supply-chain surface:
 - release PR creation, GitHub release publication, and WordPress.org deployment are handled by repo-local scripts instead of additional marketplace actions
 
 The only workflow that reaches back to GitHub for foundation content is `update-foundation`, and that path verifies release provenance before it proposes an update.
+
+## Read Next
+
+- [Product layers](layers.md) for Layer 1/Layer 2 boundaries
+- [Release model](release-model.md) for publish and channel ordering
+- [Update model](update-model.md) for foundation and dependency updater mechanics
+- [Security model](security-model.md) for workflow policy and trust controls

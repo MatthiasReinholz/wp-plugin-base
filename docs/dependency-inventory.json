@@ -74,7 +74,8 @@
       "id": "plugin-update-checker-runtime",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php",
@@ -97,7 +98,8 @@
       "id": "composer-docker-image",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/lib/wordpress_tooling.sh",
@@ -108,7 +110,8 @@
       "id": "shellcheck-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
@@ -119,7 +122,8 @@
       "id": "actionlint-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
@@ -130,7 +134,8 @@
       "id": "editorconfig-checker-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
@@ -141,7 +146,8 @@
       "id": "gitleaks-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
@@ -152,7 +158,8 @@
       "id": "syft-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
@@ -163,7 +170,8 @@
       "id": "cosign-binary",
       "tier": "manual",
       "update": {
-        "kind": "manual"
+        "kind": "workflow",
+        "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",

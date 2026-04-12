@@ -8,7 +8,7 @@ This repository provides:
 
 - managed local workflows
 - release and packaging automation
-- optional WordPress.org deployment
+- optional WordPress.org and WooCommerce.com distribution channels
 - workflow hardening and provenance checks
 - vendored scripts, templates, and docs inside `.wp-plugin-base/`
 
@@ -27,6 +27,11 @@ Reference:
 - [GitHub Release updater distribution](distribution-github-release-updater.md)
 
 Layer 2 remains additive and disabled by default. It must not change Layer 1 release/delivery behavior unless explicitly enabled per project.
+
+Release/distribution channel behavior for Layer 1 is documented in:
+
+- [Release model](release-model.md)
+- [WooCommerce.com distribution](distribution-woocommerce-com.md)
 
 Future Layer 2 additions should stay constrained to optional runtime concerns such as:
 

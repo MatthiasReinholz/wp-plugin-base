@@ -37,7 +37,7 @@ A Woo or WordPress.org channel failure can happen after GitHub release publicati
 ## Repair Runbook
 
 1. Run manual `release.yml` for the existing tag.
-2. Run manual `woocommerce-status.yml` to inspect channel state.
+2. Run manual `woocommerce-status.yml` to inspect channel state (this managed workflow appears once `WOOCOMMERCE_COM_PRODUCT_ID` is configured).
 3. If Woo reports in-flight deployment, wait and re-check status.
 4. If Woo reports failed/idle with missing version, rerun `release.yml` and verify status again.
 

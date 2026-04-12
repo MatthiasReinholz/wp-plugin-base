@@ -554,6 +554,8 @@ declare -a default_allowed_hosts=(
   'downloads.wordpress.org'
   'plugins.svn.wordpress.org'
   'woocommerce.com'
+  'auth.docker.io'
+  'registry-1.docker.io'
   'token.actions.githubusercontent.com'
 )
 

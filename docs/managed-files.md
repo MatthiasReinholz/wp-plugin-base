@@ -19,7 +19,7 @@ These files are intended to be generated from foundation templates in your proje
 - `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
-- `.github/workflows/woocommerce-status.yml` when `WOOCOMMERCE_COM_PRODUCT_ID` is configured
+- `.github/workflows/woocommerce-status.yml` when `WOOCOMMERCE_COM_PRODUCT_ID` is configured (status diagnostics file; the workflow self-skips unless `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`)
 - `docs/github-release-updater.md`, `lib/wp-plugin-base/wp-plugin-base-github-updater.php`, and `lib/wp-plugin-base/plugin-update-checker/**` when `GITHUB_RELEASE_UPDATER_ENABLED=true`
 - `.github/workflows/simulate-release.yml` when `SIMULATE_RELEASE_WORKFLOW_ENABLED=true`
 - `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`, when absent

@@ -11,10 +11,9 @@ It is the **delivery and governance layer** for plugin repos:
 
 It is **not** a general plugin runtime framework. It does not provide plugin-side DI, PSR-4 runtime scaffolding, settings abstractions, REST controllers, or block architecture. Those concerns should remain outside this repo or move into a future companion runtime layer.
 
-It provides two reuse layers:
+It provides two reuse surfaces:
 
-- managed workflow files generated into your project's `.github/workflows/`
-- a managed `.github/dependabot.yml` file for GitHub Actions dependency updates
+- managed repository files generated into your project (including `.github/workflows/*` and `.github/dependabot.yml`)
 - vendored source under `.wp-plugin-base/` inside your project for scripts, templates, and documentation
 
 The foundation is a development dependency only. The default baseline must never become a runtime dependency of the released plugin ZIP. A small, explicit opt-in runtime pack exists for GitHub Release in-dashboard updates and is disabled by default.
@@ -31,6 +30,19 @@ The repository also enforces a tracked-file hygiene policy. Files such as `.DS_S
 - a clear update path for shared repo automation
 
 If you only need a minimal plugin starter and do not want shared CI/release governance, `wp scaffold plugin` or a simpler starter is a better fit.
+
+## Feature Matrix
+
+Default behavior is intentionally conservative. Optional channels and packs are opt-in.
+
+| Capability | Type | Default | Enablement Surface |
+| --- | --- | --- | --- |
+| GitHub Release publication | Layer 1 core | enabled | built into managed release workflows |
+| WordPress.org deploy | distribution channel | disabled | GitHub Actions variable `WP_ORG_DEPLOY_ENABLED=true` |
+| WooCommerce.com deploy | distribution channel | disabled | GitHub Actions variable `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` + `.wp-plugin-base.env` `WOOCOMMERCE_COM_PRODUCT_ID` |
+| GitHub Release updater runtime pack | Layer 2 runtime pack | disabled | `.wp-plugin-base.env` `GITHUB_RELEASE_UPDATER_ENABLED=true` |
+| WooCommerce QIT workflow pack | optional workflow pack | disabled | `.wp-plugin-base.env` `WOOCOMMERCE_QIT_ENABLED=true` |
+| Simulate release workflow | optional workflow pack | disabled | `.wp-plugin-base.env` `SIMULATE_RELEASE_WORKFLOW_ENABLED=true` |
 
 ## Quick Start
 
@@ -186,7 +198,7 @@ Release publishing now emits three independent trust artifacts:
 Use `bash .wp-plugin-base/scripts/release/verify_sigstore_bundle.sh <owner/repo> <artifact-path> <bundle-path> plugin` for strict consumer verification against the expected release workflows.
 
 The foundation repository also runs an OpenSSF `scorecard` workflow on the default branch and publishes SARIF findings to GitHub code scanning.
-It also includes a scheduled `update-plugin-check` workflow for reviewed `WordPress/plugin-check` pin bumps. That updater only proposes releases from the current major series after they are published, non-draft, non-prerelease, authored by the reviewed allowlist, and past a 7-day stabilization window. External GitHub dependency update PRs use a shared framework notice: if first-party provenance cannot be verified automatically, the PR stays automated but includes a standardized reviewer warning that the upstream release must be checked manually before merge.
+It also includes a scheduled external dependency updater workflow at `.github/workflows/update-plugin-check.yml` (display name: `update-external-dependencies`). That workflow checks update candidates, refreshes pinned versions and hashes, and opens reviewable PRs through the same PR-governed update mechanism used by foundation updates. For `WordPress/plugin-check`, updates stay constrained to the current major series, published non-draft/non-prerelease releases, a reviewed release-author allowlist, and a 7-day stabilization window. External dependency PRs include a shared reviewer warning when first-party provenance cannot be verified automatically.
 
 ## Recommended GitHub Actions Policy
 
@@ -207,6 +219,25 @@ Foundation releases use semver tags with a `v` prefix such as `v1.0.1`.
 - automated foundation update PRs only consider published GitHub Releases, not arbitrary tags or branch heads
 - automatic updates stay within the current major series
 - major foundation upgrades are manual
+
+## Coding Agent Conventions
+
+If you are using an AI coding agent (or maintaining this repo as if it were one), treat these as hard invariants:
+
+1. Config key changes:
+   - update all four surfaces together: `scripts/lib/load_config.sh`, `docs/config-schema.json`, `README.md` config list, and `templates/child/.wp-plugin-base.env.example`
+   - run `bash scripts/ci/validate_config_contract.sh`
+2. Managed workflow changes:
+   - keep reusable/root workflows and child templates in lockstep
+   - run `bash scripts/foundation/test_workflow_parity.sh`
+3. Distribution/update channel changes:
+   - update workflow logic, docs, security model host allowlist (if network surface changed), and release/update fixtures
+   - run `bash scripts/foundation/run_release_update_fixture_checks.sh "$PWD"`
+4. Dependency update automation changes:
+   - keep `docs/dependency-inventory.json` in sync with `.github/workflows/update-plugin-check.yml` and `scripts/update/prepare_external_dependency_update.sh`
+   - run `bash scripts/ci/validate_dependency_inventory.sh` and `bash scripts/foundation/test_dependency_inventory.sh`
+
+For a maintainer-oriented change map, see [Maintainer and agent map](docs/maintainer-agent-map.md).
 
 ## Config
 
@@ -349,6 +380,14 @@ For stronger review on production publishing, protect the deployment environment
 The manual `release.yml` workflow is a recovery path for an already existing Git tag. It verifies that the tag exists remotely, checks out that exact tag, and skips WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Guides
+
+Start here by intent:
+
+- new plugin repository: [New project setup](docs/new-project.md)
+- existing plugin migration: [Existing project migration](docs/existing-project-migration.md)
+- release and distribution behavior: [Release model](docs/release-model.md)
+- security and workflow policy: [Security model](docs/security-model.md)
+- maintainer/coding-agent change map: [Maintainer and agent map](docs/maintainer-agent-map.md)
 
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)

@@ -22,3 +22,10 @@ require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';
 - WordPress in-dashboard update checks for GitHub Releases.
 - Release asset ZIP filtering to avoid SBOM/signature artifacts.
 - No behavior change unless explicitly enabled.
+
+## Local smoke test
+
+1. Release `1.0.0` and install that ZIP into a local WordPress site.
+2. Release `1.0.1` from the same GitHub repository.
+3. Trigger plugin update checks in wp-admin.
+4. Confirm the `1.0.1` update appears and installs cleanly.
