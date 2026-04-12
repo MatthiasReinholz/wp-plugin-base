@@ -109,9 +109,19 @@ done < <(
   jq -r '.dependencies[] | select(.update.kind == "dependabot") | [.update.ecosystem, .update.directory] | @tsv' "$INVENTORY_PATH"
 )
 
-# Keep plugin-check metadata-trust policy explicit and enforced.
-if ! grep -Fq 'WP_PLUGIN_BASE_DEPENDENCY_TRUST_MODE: metadata-only' "$TARGET_ROOT/.github/workflows/update-plugin-check.yml"; then
-  echo "update-plugin-check workflow must declare metadata-only trust mode." >&2
+# Validate workflow-driven updater coverage for inventory entries that declare workflow automation.
+while IFS= read -r workflow_path; do
+  [ -n "$workflow_path" ] || continue
+  if [ ! -f "$TARGET_ROOT/$workflow_path" ]; then
+    echo "Declared dependency workflow not found: $workflow_path" >&2
+    exit 1
+  fi
+done < <(
+  jq -r '.dependencies[] | select(.update.kind == "workflow") | .update.path // empty' "$INVENTORY_PATH"
+)
+
+if ! grep -Fq 'prepare_external_dependency_update.sh' "$TARGET_ROOT/.github/workflows/update-plugin-check.yml"; then
+  echo "update-plugin-check workflow must drive dependency updates through prepare_external_dependency_update.sh." >&2
   exit 1
 fi
 

@@ -1,4 +1,4 @@
-name: update-plugin-check
+name: update-external-dependencies
 
 on:
   schedule:
@@ -13,14 +13,27 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: update-plugin-check-${{ github.repository }}-${{ github.ref }}
+  group: update-external-dependencies-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   update:
-    name: Update plugin-check
+    name: Update external dependency (${{ matrix.dependency_id }})
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        dependency_id:
+          - plugin-update-checker-runtime
+          - plugin-check
+          - composer-docker-image
+          - shellcheck-binary
+          - actionlint-binary
+          - editorconfig-checker-binary
+          - gitleaks-binary
+          - syft-binary
+          - cosign-binary
 
     steps:
       - name: Checkout
@@ -33,70 +46,39 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Resolve current plugin-check version
-        id: current
-        shell: bash
-        run: |
-          set -euo pipefail
-          current="$(sed -n "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='\([0-9][0-9.]*\)'$/\1/p" scripts/lib/wordpress_tooling.sh)"
-          if [ -z "$current" ]; then
-            echo "Unable to resolve WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION from scripts/lib/wordpress_tooling.sh" >&2
-            exit 1
-          fi
-          echo "version=$current" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve latest compatible plugin-check version
-        id: latest
+      - name: Prepare dependency update
+        id: prepare
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          WP_PLUGIN_BASE_PLUGIN_CHECK_ALLOWED_RELEASE_AUTHORS: davidperezgar
-          WP_PLUGIN_BASE_PLUGIN_CHECK_MIN_RELEASE_AGE_DAYS: '7'
+        shell: bash
         run: |
-          bash scripts/update/resolve_latest_plugin_check_version.sh \
-            "${{ steps.current.outputs.version }}" \
-            "WordPress/plugin-check" \
+          bash scripts/update/prepare_external_dependency_update.sh \
+            "${{ matrix.dependency_id }}" \
             "$GITHUB_OUTPUT"
 
-      - name: Update plugin-check version pin
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+      - name: Install foundation assurance tools
+        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
         run: |
-          perl -0pi -e "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='[^']*'/WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='${{ steps.latest.outputs.version }}'/m" scripts/lib/wordpress_tooling.sh
+          bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
 
-      - name: Run foundation validation
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        run: bash scripts/foundation/validate-full.sh
+      - name: Validate updated foundation state
+        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
+        run: bash scripts/foundation/validate.sh --mode ci
 
-      - name: Write plugin-check update pull request body
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        env:
-          WP_PLUGIN_BASE_DEPENDENCY_NAME: plugin-check
-          WP_PLUGIN_BASE_DEPENDENCY_SOURCE_REPOSITORY: WordPress/plugin-check
-          WP_PLUGIN_BASE_DEPENDENCY_CURRENT_VERSION: ${{ steps.current.outputs.version }}
-          WP_PLUGIN_BASE_DEPENDENCY_TARGET_VERSION: ${{ steps.latest.outputs.version }}
-          WP_PLUGIN_BASE_DEPENDENCY_PURPOSE: used by WordPress readiness validation
-          WP_PLUGIN_BASE_DEPENDENCY_TRUST_MODE: metadata-only
-          WP_PLUGIN_BASE_DEPENDENCY_TRUST_CHECKS: |
-            selected from published, non-draft, non-prerelease releases
-            constrained to the current major version series
-            release author matched the reviewed allowlist
-            release satisfied the 7-day stabilization window before automation
-            full foundation validation suite executed after the pin bump
-        run: |
-          bash scripts/update/write_external_github_dependency_pr_body.sh "$RUNNER_TEMP/plugin-check-update-pr.md"
-
-      - name: Create plugin-check update PR
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+      - name: Create dependency update PR
+        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          GIT_ADD_PATHS: scripts/lib/wordpress_tooling.sh
+          GIT_ADD_PATHS: ${{ steps.prepare.outputs.git_add_paths }}
         run: |
           bash scripts/update/create_or_update_pr.sh \
-            "chore/update-plugin-check-${{ steps.latest.outputs.version }}" \
+            "${{ steps.prepare.outputs.branch_name }}" \
             "main" \
-            "chore: update plugin-check to ${{ steps.latest.outputs.version }}" \
-            "chore: update plugin-check to ${{ steps.latest.outputs.version }}" \
-            "$RUNNER_TEMP/plugin-check-update-pr.md"
+            "${{ steps.prepare.outputs.pr_title }}" \
+            "${{ steps.prepare.outputs.commit_message }}" \
+            "${{ steps.prepare.outputs.pr_body_file }}"
 
       - name: Report no update needed
-        if: ${{ steps.latest.outputs.update_needed != 'true' }}
-        run: echo "No compatible plugin-check update found."
+        if: ${{ steps.prepare.outputs.update_needed != 'true' }}
+        run: echo "No compatible update found for ${{ matrix.dependency_id }}."

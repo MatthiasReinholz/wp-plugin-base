@@ -59,6 +59,20 @@ When enabled, project validation enforces:
 - updater include line exists in the main plugin file
 - updater repo URL uses `https://github.com/<owner>/<repo>` format
 
+## Maintainer / Agent Checklist
+
+If you change updater behavior in the foundation:
+
+1. update both docs:
+   - `docs/distribution-github-release-updater.md`
+   - `templates/child/github-release-updater-pack/docs/github-release-updater.md`
+2. keep managed pack templates and validation rules consistent:
+   - `templates/child/github-release-updater-pack/**`
+   - `scripts/ci/validate_project.sh`
+   - `scripts/ci/build_zip.sh`
+3. run release/update fixture coverage:
+   - `bash scripts/foundation/run_release_update_fixture_checks.sh "$PWD"`
+
 ## Smoke-Test Recipe
 
 1. Enable updater keys in `.wp-plugin-base.env` and run sync.

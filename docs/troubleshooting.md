@@ -96,6 +96,21 @@ If `update-foundation` detects a newer version but fails during pull request cre
 
 Both conditions are required for the automated update PR flow to work.
 
+## External Dependency Updater Workflow Fails
+
+The foundation's external dependency updater lives at `.github/workflows/update-plugin-check.yml` (display name: `update-external-dependencies`).
+
+If it fails:
+
+1. confirm the failing `dependency_id` from the matrix job title
+2. rerun the workflow once to rule out transient network failures
+3. validate local contracts:
+   - `bash scripts/ci/validate_dependency_inventory.sh`
+   - `bash scripts/foundation/test_dependency_inventory.sh`
+   - `bash scripts/ci/audit_workflows.sh`
+4. if only one dependency handler fails, inspect `scripts/update/prepare_external_dependency_update.sh` branch logic for that `dependency_id`
+5. confirm expected hosts are allowlisted if a new upstream endpoint was introduced
+
 ## Finalize Release Failed In Distribution Channels
 
 `finalize-release` publishes GitHub tag/release first, then runs downstream channel deploy steps (WordPress.org and WooCommerce.com when enabled). A channel failure can therefore happen after GitHub release publication; the workflow still ends failed.

@@ -34,6 +34,8 @@ Hotfixes use the same model from `hotfix/x.y.z` branches.
 
 This project uses local managed workflow files generated from `wp-plugin-base` version `__FOUNDATION_VERSION__`.
 
+If you use a coding agent in this repository, treat `.wp-plugin-base/` as authoritative infrastructure code and avoid hand-editing generated managed files directly. Make behavior changes in the vendored foundation source/templates, then rerun sync.
+
 Managed workflow files:
 
 - `.github/dependabot.yml`

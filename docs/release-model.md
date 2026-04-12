@@ -10,6 +10,14 @@ The shared release model is:
 - publish only succeeds for versions that match the merge commit of the correct merged release or hotfix PR
 - release workflows attach GitHub artifact attestations for the published ZIP asset
 
+## Distribution Channels At Release Time
+
+| Channel | Default | Enablement | Notes |
+| --- | --- | --- | --- |
+| GitHub tag + GitHub Release | enabled | core flow | authoritative publication point |
+| WordPress.org SVN deploy | disabled | `WP_ORG_DEPLOY_ENABLED=true` | post-publish channel step |
+| WooCommerce.com Marketplace deploy | disabled | `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` + `WOOCOMMERCE_COM_PRODUCT_ID` | post-publish channel step |
+
 WordPress.org deploy is opt-in and disabled by default.
 
 When you enable WordPress.org deploy, set `WP_ORG_DEPLOY_ENABLED=true` in GitHub Actions settings as either a repository variable or an environment variable.
@@ -29,3 +37,5 @@ See:
 
 - [WooCommerce.com distribution](distribution-woocommerce-com.md)
 - [GitHub Release updater distribution](distribution-github-release-updater.md)
+- [Update model](update-model.md)
+- [Troubleshooting](troubleshooting.md)
