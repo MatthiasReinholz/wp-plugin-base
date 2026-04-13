@@ -37,6 +37,10 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 						$config['capability'],
 						$config['menu_slug'],
 						static function () use ( $config ) {
+							if ( ! current_user_can( $config['capability'] ) ) {
+								return;
+							}
+
 							self::render_root( $config );
 						},
 						'dashicons-admin-generic',

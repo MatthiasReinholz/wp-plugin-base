@@ -59,7 +59,18 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 */
 		private static function check_capability( array $operation, WP_REST_Request $request ) {
 			if ( ! empty( $operation['capability_callback'] ) && is_callable( $operation['capability_callback'] ) ) {
-				$result = call_user_func( $operation['capability_callback'], $request, $operation );
+				try {
+					$result = call_user_func( $operation['capability_callback'], $request, $operation );
+				} catch ( Throwable $error ) {
+					self::log_capability_failure( $operation, $error );
+
+					return new WP_Error(
+						'wp_plugin_base_rest_capability_check_failed',
+						__( 'The REST operation permission callback failed.', '__PLUGIN_SLUG__' ),
+						array( 'status' => 500 )
+					);
+				}
+
 				if ( is_wp_error( $result ) ) {
 					return $result;
 				}
@@ -99,6 +110,25 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 			}
 
 			return true;
+		}
+
+		/**
+		 * Logs uncaught capability callback failures for developer visibility.
+		 *
+		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param Throwable           $error Thrown error.
+		 * @return void
+		 */
+		private static function log_capability_failure( array $operation, Throwable $error ) {
+			$operation_id = isset( $operation['id'] ) ? (string) $operation['id'] : '(unknown)';
+			$message      = sprintf(
+				/* translators: 1: operation id, 2: thrown message. */
+				__( 'REST operation %1$s capability_callback threw an uncaught exception: %2$s', '__PLUGIN_SLUG__' ),
+				$operation_id,
+				$error->getMessage()
+			);
+
+			error_log( $message );
 		}
 
 		/**

@@ -152,6 +152,20 @@ if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_forbidden' !== $result->co
 	exit( 1 );
 }
 
+$operation = array(
+	'visibility'          => 'admin',
+	'capability_callback' => static function () {
+		throw new RuntimeException( 'Capability callback exploded.' );
+	},
+	'required_scopes'     => array( 'settings.read' ),
+);
+
+$result = WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', $operation, $request );
+if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_capability_check_failed' !== $result->code || 500 !== ( $result->data['status'] ?? null ) ) {
+	fwrite( STDERR, "Expected thrown capability callbacks to fail with a normalized 500 WP_Error.\n" );
+	exit( 1 );
+}
+
 $GLOBALS['wp_plugin_base_test_state']['is_user_logged_in'] = false;
 $operation = array(
 	'visibility'      => 'public',
