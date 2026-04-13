@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.0
+
+* Normalize shell script indentation
+* Fix REST contract scanner shellcheck warning
+* Harden runtime pack permission callbacks
+* Add REST operations and admin UI runtime packs
+
 ## v1.5.1
 
 * feat: standardize external dependency updater and docs (#42)
