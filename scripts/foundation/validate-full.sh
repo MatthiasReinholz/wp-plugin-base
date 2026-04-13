@@ -394,8 +394,8 @@ runtime_pack_abilities_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
 mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
-perl -0pi -e 's/wp_plugin_base_example_rest_operation_get_settings/this_callback_does_not_exist/' "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e "s/'callback'\\s*=>\\s*'wp_plugin_base_example_rest_operation_get_settings'/'callback'        => 'this_callback_does_not_exist'/" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Runtime pack validation unexpectedly passed with a non-callable operation callback." >&2
   exit 1
@@ -406,8 +406,8 @@ runtime_pack_abilities_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
 mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
-perl -0pi -e "s/'capability'\\s*=>\\s*'manage_options',\\n//" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e "s/'capability'\\s*=>\\s*'manage_options',\\n//" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Runtime pack validation unexpectedly passed with a non-public operation missing a capability declaration." >&2
   exit 1
@@ -418,8 +418,8 @@ runtime_pack_abilities_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
 mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
-perl -0pi -e "s/'id'\\s*=>\\s*'example-items\\.list'/'id'              => 'settings.read'/" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e "s/'id'\\s*=>\\s*'example-items\\.list'/'id'              => 'settings.read'/" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
 if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Runtime pack validation unexpectedly passed with duplicate operation ids." >&2
   exit 1
@@ -430,8 +430,8 @@ runtime_pack_abilities_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
 mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
-perl -0pi -e "s|'route'\\s*=>\\s*'/example-items'|'route'           => '/settings'|" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e "s|'route'\\s*=>\\s*'/example-items'|'route'           => '/settings'|" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
 if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Runtime pack validation unexpectedly passed with duplicate route+method entries." >&2
   exit 1
@@ -442,8 +442,8 @@ runtime_pack_abilities_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
 mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
-perl -0pi -e "s/'visibility'\\s*=>\\s*'admin'/'visibility'      => 'public'/" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e "s/'visibility'\\s*=>\\s*'admin'/'visibility'      => 'public'/" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
 if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
   echo "Runtime pack validation unexpectedly passed with a public operation missing suppression." >&2
   exit 1
