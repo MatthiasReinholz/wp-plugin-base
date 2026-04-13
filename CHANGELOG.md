@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.6.0
+
+* Fix runtime pack negative fixture setup
+* Ignore seeded node_modules in forbidden-file scan
+* Fix runtime pack fixture marker syntax
+* Normalize shell script indentation
+* Fix REST contract scanner shellcheck warning
+* Harden runtime pack permission callbacks
+* Add REST operations and admin UI runtime packs
+
 ## v1.5.1
 
 * feat: standardize external dependency updater and docs (#42)
