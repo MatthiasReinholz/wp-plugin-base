@@ -19,7 +19,7 @@ while IFS= read -r path; do
   forbidden_files+=("$path")
 done < <(find "$ROOT_DIR" \
   -path "$ROOT_DIR/.git" -prune -o \
-  -path "$ROOT_DIR/node_modules" -prune -o \
+  -type d -name 'node_modules' -prune -o \
   -path "$ROOT_DIR/dist" -prune -o \
   -type f \( \
     -name '.DS_Store' -o \
