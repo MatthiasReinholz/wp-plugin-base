@@ -21,6 +21,8 @@ Layer 2 is now an explicit opt-in surface for narrowly scoped runtime features.
 Current Layer 2 pack in this repository:
 
 - GitHub Release in-dashboard updater runtime pack (`GITHUB_RELEASE_UPDATER_ENABLED=true`)
+- REST operations pack (`REST_OPERATIONS_PACK_ENABLED=true`)
+- Admin UI pack (`ADMIN_UI_PACK_ENABLED=true`)
 
 Reference:
 
@@ -37,7 +39,8 @@ Future Layer 2 additions should stay constrained to optional runtime concerns su
 
 - Composer and PSR-4 scaffolding
 - secure runtime plugin patterns
-- settings, REST, or block examples
+- abilities adapters or companion-runtime extraction
+- block or modern UI flavors that stay additive
 
 ## Layer 3: Optional Packs
 

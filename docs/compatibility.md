@@ -17,6 +17,7 @@ These surfaces should be treated as public API:
 - `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` as the declared suppressions-file location
 - `PRODUCTION_ENVIRONMENT` defaulting to `production` when unset
 - readiness-mode metadata checks for plugin headers and `readme.txt`
+- REST/admin pack enablement keys, managed runtime primitives, and seeded required surfaces when those packs are enabled
 
 Changes to those surfaces should only ship as breaking changes in a new major version.
 
@@ -33,6 +34,7 @@ The foundation is designed for standard WordPress plugin repos, but it allows a 
 - custom suppressions file path
 - custom changelog heading
 - optional CODEOWNERS generation
+- opt-in REST namespace override for the managed operations pack
 
 ## Operational Modes
 
@@ -41,6 +43,10 @@ The foundation also exposes opt-in modes that change how strict the generated wo
 - `WORDPRESS_READINESS_ENABLED=true` enables the stricter WordPress metadata and packaging contract for plugin repos that are already ready for release-grade validation.
 - `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack as a readiness submode.
 - `WORDPRESS_SECURITY_PACK_ENABLED=true` enables the narrower security-focused pack and its public-endpoint scan as a readiness submode.
+- `REST_OPERATIONS_PACK_ENABLED=true` enables the managed REST operations/runtime starter surface.
+- `ADMIN_UI_PACK_ENABLED=true` enables the managed admin UI/runtime starter surface.
+- `ADMIN_UI_STARTER=basic|dataviews` selects which admin starter the pack seeds; the legacy `ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` flag remains a compatibility alias for `dataviews`. Because starter files are child-owned and seeded once, switching modes later requires manual reconciliation or intentional re-seeding.
+- Disabling the admin UI pack is also a manual reconciliation step: sync removes managed bootstrap files, but child-owned entrypoints, `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`, and any existing `assets/admin-ui/` outputs must be reconciled by the project before validation or packaging will pass.
 
 ## Intentional Non-Goals
 

@@ -97,6 +97,30 @@
       "default": "",
       "pattern": "^$|^https://github[.]com/[^/]+/[^/]+/?$"
     },
+    "REST_OPERATIONS_PACK_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "REST_API_NAMESPACE": {
+      "default": "",
+      "pattern": "^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$"
+    },
+    "REST_ABILITIES_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "ADMIN_UI_PACK_ENABLED": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
+    "ADMIN_UI_STARTER": {
+      "default": "",
+      "pattern": "^$|^(basic|dataviews)$"
+    },
+    "ADMIN_UI_EXPERIMENTAL_DATAVIEWS": {
+      "default": "false",
+      "pattern": "^(true|false)$"
+    },
     "WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS": {
       "default": "",
       "pattern": "^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$"

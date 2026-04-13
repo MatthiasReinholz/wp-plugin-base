@@ -27,14 +27,14 @@ if [ -f "$SUPPRESSIONS_PATH" ]; then
     ((.suppressions // []) | type == "array") and
     all((.suppressions // [])[];
       (.kind | type == "string") and
-      (.kind == "wp_ajax_nopriv" or .kind == "admin_post_nopriv" or .kind == "rest_permission_callback_true") and
+      (.kind == "wp_ajax_nopriv" or .kind == "admin_post_nopriv" or .kind == "rest_permission_callback_true" or .kind == "rest_public_operation" or .kind == "rest_route_bypass") and
       (.identifier | type == "string") and
       (.path | type == "string") and
       (.justification | type == "string") and
       ((.justification | gsub("^[[:space:]]+|[[:space:]]+$"; "") | length) > 0)
     )
   ' "$SUPPRESSIONS_PATH" >/dev/null; then
-    echo "Invalid suppression file format in $SUPPRESSIONS_FILE. Each suppression requires kind in {wp_ajax_nopriv, admin_post_nopriv, rest_permission_callback_true}, identifier, path, and non-empty justification." >&2
+    echo "Invalid suppression file format in $SUPPRESSIONS_FILE. Each suppression requires kind in {wp_ajax_nopriv, admin_post_nopriv, rest_permission_callback_true, rest_public_operation, rest_route_bypass}, identifier, path, and non-empty justification." >&2
     exit 1
   fi
 fi

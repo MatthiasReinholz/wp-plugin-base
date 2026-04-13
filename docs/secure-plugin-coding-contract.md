@@ -24,6 +24,8 @@ Use this contract when coding manually or with coding agents such as Codex or Cl
 
 6. Public endpoint hardening:
    - `wp_ajax_nopriv_*`, `admin_post_nopriv_*`, and REST routes with `permission_callback => __return_true` are blocked by default and require explicit security review.
+   - intentionally public operations declared through the managed REST operations pack require a `rest_public_operation` suppression entry with written justification.
+   - legacy direct `register_rest_route()` usage in projects that enable the managed REST operations pack is blocked by default and requires a justified `rest_route_bypass` suppression during migration.
 
 ## Suppression Contract For Intentional Public Endpoints
 
@@ -49,6 +51,8 @@ Allowed `kind` values:
 - `wp_ajax_nopriv`
 - `admin_post_nopriv`
 - `rest_permission_callback_true`
+- `rest_public_operation`
+- `rest_route_bypass`
 
 ## Agent Prompting Hints
 

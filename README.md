@@ -41,6 +41,8 @@ Default behavior is intentionally conservative. Optional channels and packs are 
 | WordPress.org deploy | distribution channel | disabled | GitHub Actions variable `WP_ORG_DEPLOY_ENABLED=true` |
 | WooCommerce.com deploy | distribution channel | disabled | GitHub Actions variable `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` + `.wp-plugin-base.env` `WOOCOMMERCE_COM_PRODUCT_ID` |
 | GitHub Release updater runtime pack | Layer 2 runtime pack | disabled | `.wp-plugin-base.env` `GITHUB_RELEASE_UPDATER_ENABLED=true` |
+| REST operations pack | Layer 2 runtime pack | disabled | `.wp-plugin-base.env` `REST_OPERATIONS_PACK_ENABLED=true` |
+| Admin UI pack | Layer 2 runtime pack | disabled | `.wp-plugin-base.env` `ADMIN_UI_PACK_ENABLED=true` |
 | WooCommerce QIT workflow pack | optional workflow pack | disabled | `.wp-plugin-base.env` `WOOCOMMERCE_QIT_ENABLED=true` |
 | Simulate release workflow | optional workflow pack | disabled | `.wp-plugin-base.env` `SIMULATE_RELEASE_WORKFLOW_ENABLED=true` |
 
@@ -269,6 +271,12 @@ Optional keys:
 - `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`
 - `GITHUB_RELEASE_UPDATER_ENABLED`
 - `GITHUB_RELEASE_UPDATER_REPO_URL`
+- `REST_OPERATIONS_PACK_ENABLED`
+- `REST_API_NAMESPACE`
+- `REST_ABILITIES_ENABLED`
+- `ADMIN_UI_PACK_ENABLED`
+- `ADMIN_UI_STARTER`
+- `ADMIN_UI_EXPERIMENTAL_DATAVIEWS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES`
@@ -351,6 +359,22 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS` controls WooCommerce.com API request timeouts for deploy and status checks (default `30` seconds).
 
 `GITHUB_RELEASE_UPDATER_ENABLED=true` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-github-updater.php`. Set `GITHUB_RELEASE_UPDATER_REPO_URL=https://github.com/<owner>/<repo>` and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';` to the plugin main file.
+
+`REST_OPERATIONS_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared REST operation registry and adapters in `lib/wp-plugin-base/rest-operations/` while seeding child-owned examples in `includes/rest-operations/`. Set `REST_API_NAMESPACE=<plugin-slug>/v1` to override the default namespace and add `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` to the plugin main file.
+
+`REST_ABILITIES_ENABLED=true` enables the managed Abilities adapter for the REST operations pack when the target WordPress runtime exposes the Abilities API.
+
+Disabling `REST_OPERATIONS_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but you must remove the child-owned `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` include before validation or packaging will pass.
+
+`ADMIN_UI_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared admin UI bootstrap in `lib/wp-plugin-base/admin-ui/`, seeds child-owned app sources in `.wp-plugin-base-admin-ui/`, and expects `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`. Add `require_once __DIR__ . '/lib/wp-plugin-base/admin-ui/bootstrap.php';` to the plugin main file. The admin UI pack also requires `REST_OPERATIONS_PACK_ENABLED=true`.
+
+`ADMIN_UI_STARTER=basic|dataviews` selects which admin starter is seeded when the admin UI pack is enabled. `basic` is the default lighter component-only starter. `dataviews` seeds the DataForm/DataViews starter.
+
+`ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` remains supported as a backward-compatible alias for `ADMIN_UI_STARTER=dataviews`.
+
+The admin starter files are child-owned and seeded once. Changing `ADMIN_UI_STARTER` after the first sync does not rewrite those files; `validate_project.sh` will fail until the child-owned starter is reconciled manually or re-seeded intentionally.
+
+Disabling `ADMIN_UI_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but you must remove the child-owned `require_once __DIR__ . '/lib/wp-plugin-base/admin-ui/bootstrap.php';` include, clear `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`, and delete any stale `assets/admin-ui/` build outputs before validation or packaging will pass. Deleting the seeded `.wp-plugin-base-admin-ui/` sources is optional but recommended once the pack is intentionally removed.
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 

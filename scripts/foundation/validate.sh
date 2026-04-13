@@ -146,6 +146,8 @@ unset FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUG
 unset PHP_VERSION NODE_VERSION VERSION_CONSTANT_NAME WORDPRESS_ORG_SLUG CODEOWNERS_REVIEWERS PRODUCTION_ENVIRONMENT
 unset PHP_RUNTIME_MATRIX PHP_RUNTIME_MATRIX_MODE WORDPRESS_READINESS_ENABLED WORDPRESS_QUALITY_PACK_ENABLED
 unset WORDPRESS_SECURITY_PACK_ENABLED WOOCOMMERCE_QIT_ENABLED WP_ORG_DEPLOY_ENABLED
+unset REST_OPERATIONS_PACK_ENABLED REST_API_NAMESPACE REST_ABILITIES_ENABLED ADMIN_UI_PACK_ENABLED
+unset ADMIN_UI_STARTER ADMIN_UI_EXPERIMENTAL_DATAVIEWS
 unset WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION
 unset WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS
 unset WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES
@@ -245,6 +247,9 @@ bash "$ROOT_DIR/scripts/foundation/assert_foundation_contracts.sh" \
   "$managed_security_child" \
   "$managed_security_paths_output"
 bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-lite
+bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_contracts.sh"
+bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_executor.sh"
+bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_abilities.sh"
 
 bash "$ROOT_DIR/scripts/foundation/run_release_update_fixture_checks.sh" "$ROOT_DIR"
 echo "Validated foundation repository at $ROOT_DIR ($ASSURANCE_MODE)"

@@ -168,7 +168,10 @@ Intentional exceptions must be declared in `.wp-plugin-base-security-suppression
 }
 ```
 
-Suppressions without non-empty justifications are rejected. Supported `kind` values are `wp_ajax_nopriv`, `admin_post_nopriv`, and `rest_permission_callback_true`.
+Suppressions without non-empty justifications are rejected. Supported `kind` values are `wp_ajax_nopriv`, `admin_post_nopriv`, `rest_permission_callback_true`, `rest_public_operation`, and `rest_route_bypass`.
+
+When `REST_OPERATIONS_PACK_ENABLED=true`, intentionally public operations declared through the managed operation registry must also carry a `rest_public_operation` suppression keyed by the operation id and the leaf declaration file such as `includes/rest-operations/settings-operations.php`.
+If a project deliberately keeps a legacy `register_rest_route()` call outside the managed operation registry during a migration, that file must carry a `rest_route_bypass` suppression with `identifier: "register_rest_route"` and a written justification.
 
 For agent-oriented implementation guidance, see [Secure plugin coding contract](secure-plugin-coding-contract.md).
 

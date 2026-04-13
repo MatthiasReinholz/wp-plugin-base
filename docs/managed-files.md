@@ -21,6 +21,8 @@ These files are intended to be generated from foundation templates in your proje
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
 - `.github/workflows/woocommerce-status.yml` when `WOOCOMMERCE_COM_PRODUCT_ID` is configured (status diagnostics file; the workflow self-skips unless `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`)
 - `docs/github-release-updater.md`, `lib/wp-plugin-base/wp-plugin-base-github-updater.php`, and `lib/wp-plugin-base/plugin-update-checker/**` when `GITHUB_RELEASE_UPDATER_ENABLED=true`
+- `docs/rest-operations-pack.md` and `lib/wp-plugin-base/rest-operations/**` when `REST_OPERATIONS_PACK_ENABLED=true`
+- `docs/admin-ui-pack.md`, `lib/wp-plugin-base/admin-ui/**`, and `.wp-plugin-base-admin-ui/build.sh` / `.wp-plugin-base-admin-ui/shared/**` when `ADMIN_UI_PACK_ENABLED=true`
 - `.github/workflows/simulate-release.yml` when `SIMULATE_RELEASE_WORKFLOW_ENABLED=true`
 - `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`, when absent
 
@@ -35,5 +37,7 @@ If a project does not already have a `CHANGELOG.md`, sync also seeds one from th
 The managed distignore file excludes repo-root `packages/` and `routes/` by default so build-only workspaces stay out of the install ZIP and translation scan. If either directory belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
 
 If a project does not already have the configured suppressions file, sync seeds it with an empty suppression set. After that initial creation, the project owns suppression entries and justifications.
+
+The REST operations pack and admin UI pack also seed child-owned files the first time they are enabled. Those seeded files remain project-owned after creation, but project validation still treats them as required pack surface while the pack is enabled.
 
 Managed workflow files use the `.yml` extension. `.yaml` workflow files are rejected by project and foundation validation.
