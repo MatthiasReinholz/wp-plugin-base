@@ -141,9 +141,9 @@ if ( 400 !== \$missing_update_response->get_status() ) {
 
 \$invalid_update_request = new WP_REST_Request( 'POST', '/' . \$namespace . '/settings' );
 \$invalid_update_request->set_body_params(
-	array(
-		'message' => array( 'invalid' ),
-	)
+  array(
+    'message' => array( 'invalid' ),
+  )
 );
 \$invalid_update_response = rest_do_request( \$invalid_update_request );
 if ( 400 !== \$invalid_update_response->get_status() ) {

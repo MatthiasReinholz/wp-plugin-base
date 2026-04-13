@@ -25,33 +25,33 @@ operations_json="$(
   php -r '
 define( "ABSPATH", "/" );
 if ( ! function_exists( "__" ) ) {
-	function __( $text ) {
-		return $text;
-	}
+  function __( $text ) {
+    return $text;
+  }
 }
 $manifest = require $argv[1];
 if ( ! is_array( $manifest ) ) {
-	fwrite( STDERR, "REST operations bootstrap must return an array.\n" );
-	exit( 1 );
+  fwrite( STDERR, "REST operations bootstrap must return an array.\n" );
+  exit( 1 );
 }
 
 foreach ( $manifest as $index => $operation ) {
-	if ( ! is_array( $operation ) ) {
-		fwrite( STDERR, "REST operation at index {$index} is not an array.\n" );
-		exit( 1 );
-	}
+  if ( ! is_array( $operation ) ) {
+    fwrite( STDERR, "REST operation at index {$index} is not an array.\n" );
+    exit( 1 );
+  }
 
-	if ( empty( $operation["callback"] ) || ! is_callable( $operation["callback"] ) ) {
-		$operation_id = isset( $operation["id"] ) ? $operation["id"] : "#{$index}";
-		fwrite( STDERR, "REST operation {$operation_id} must declare a callable callback.\n" );
-		exit( 1 );
-	}
+  if ( empty( $operation["callback"] ) || ! is_callable( $operation["callback"] ) ) {
+    $operation_id = isset( $operation["id"] ) ? $operation["id"] : "#{$index}";
+    fwrite( STDERR, "REST operation {$operation_id} must declare a callable callback.\n" );
+    exit( 1 );
+  }
 
-	if ( ! empty( $operation["capability_callback"] ) && ! is_callable( $operation["capability_callback"] ) ) {
-		$operation_id = isset( $operation["id"] ) ? $operation["id"] : "#{$index}";
-		fwrite( STDERR, "REST operation {$operation_id} declares a non-callable capability_callback.\n" );
-		exit( 1 );
-	}
+  if ( ! empty( $operation["capability_callback"] ) && ! is_callable( $operation["capability_callback"] ) ) {
+    $operation_id = isset( $operation["id"] ) ? $operation["id"] : "#{$index}";
+    fwrite( STDERR, "REST operation {$operation_id} declares a non-callable capability_callback.\n" );
+    exit( 1 );
+  }
 }
 
 echo json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
@@ -90,37 +90,37 @@ php_file_has_register_rest_route_call() {
   php -r '
 $code = file_get_contents($argv[1]);
 if ($code === false) {
-	fwrite(STDERR, "Unable to read PHP file.\n");
-	exit(2);
+  fwrite(STDERR, "Unable to read PHP file.\n");
+  exit(2);
 }
 
 $tokens = token_get_all($code);
 $count = count($tokens);
 for ($i = 0; $i < $count; $i++) {
-	$token = $tokens[$i];
-	if (!is_array($token)) {
-		continue;
-	}
+  $token = $tokens[$i];
+  if (!is_array($token)) {
+    continue;
+  }
 
-	if ($token[0] !== T_STRING || strcasecmp($token[1], "register_rest_route") !== 0) {
-		continue;
-	}
+  if ($token[0] !== T_STRING || strcasecmp($token[1], "register_rest_route") !== 0) {
+    continue;
+  }
 
-	$j = $i + 1;
-	while ($j < $count) {
-		$next = $tokens[$j];
-		if (is_array($next) && in_array($next[0], array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT), true)) {
-			$j++;
-			continue;
-		}
+  $j = $i + 1;
+  while ($j < $count) {
+    $next = $tokens[$j];
+    if (is_array($next) && in_array($next[0], array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT), true)) {
+      $j++;
+      continue;
+    }
 
-		if ($next === "(") {
-			echo "true";
-			exit(0);
-		}
+    if ($next === "(") {
+      echo "true";
+      exit(0);
+    }
 
-		break;
-	}
+    break;
+  }
 }
 
 echo "false";

@@ -28,19 +28,19 @@ SEMGREP_TOOLS_DIR=''
 SEMGREP_SARIF_PATH="$ROOT_DIR/dist/semgrep-security.sarif"
 
 audit_npm_lockfile() {
-	local audit_dir="$1"
-	local description="$2"
-	shift 2
+  local audit_dir="$1"
+  local description="$2"
+  shift 2
 
-	if ! command -v npm >/dev/null 2>&1; then
-		echo "npm is required to audit ${description} when the security pack is enabled." >&2
-		exit 1
-	fi
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm is required to audit ${description} when the security pack is enabled." >&2
+    exit 1
+  fi
 
-	(
-		cd "$audit_dir"
-		NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --audit-level=high "$@"
-	)
+  (
+    cd "$audit_dir"
+    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --audit-level=high "$@"
+  )
 }
 
 cleanup() {

@@ -458,17 +458,17 @@ cat > "$runtime_pack_abilities_fixture/includes/legacy-rest.php" <<'EOF'
 <?php
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+  exit;
 }
 
 register_rest_route(
-	'runtime-pack-ready/v1',
-	'/legacy',
-	array(
-		'methods'             => 'GET',
-		'callback'            => '__return_null',
-		'permission_callback' => '__return_false',
-	)
+  'runtime-pack-ready/v1',
+  '/legacy',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => '__return_false',
+  )
 );
 EOF
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
