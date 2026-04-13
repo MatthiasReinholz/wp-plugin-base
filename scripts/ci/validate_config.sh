@@ -233,7 +233,11 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   fi
 
   if [ -n "${BUILD_SCRIPT:-}" ]; then
-    validate_repo_relative_paths "$BUILD_SCRIPT" "BUILD_SCRIPT" true
+    build_script_requires_existing_path="true"
+    if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ "$BUILD_SCRIPT" = ".wp-plugin-base-admin-ui/build.sh" ]; then
+      build_script_requires_existing_path="false"
+    fi
+    validate_repo_relative_paths "$BUILD_SCRIPT" "BUILD_SCRIPT" "$build_script_requires_existing_path"
   fi
 
   if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
@@ -249,6 +253,12 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${WOOCOMMERCE_COM_PRODUCT_ID:-}" '^$|^[0-9]+$' 'WOOCOMMERCE_COM_PRODUCT_ID'
   validate_regex "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" '^[1-9][0-9]*$' 'WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS'
   validate_regex "${GITHUB_RELEASE_UPDATER_ENABLED:-false}" '^(true|false)$' 'GITHUB_RELEASE_UPDATER_ENABLED'
+  validate_regex "${REST_OPERATIONS_PACK_ENABLED:-false}" '^(true|false)$' 'REST_OPERATIONS_PACK_ENABLED'
+  validate_regex "${REST_API_NAMESPACE:-}" '^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$' 'REST_API_NAMESPACE'
+  validate_regex "${REST_ABILITIES_ENABLED:-false}" '^(true|false)$' 'REST_ABILITIES_ENABLED'
+  validate_regex "${ADMIN_UI_PACK_ENABLED:-false}" '^(true|false)$' 'ADMIN_UI_PACK_ENABLED'
+  validate_regex "${ADMIN_UI_STARTER:-}" '^$|^(basic|dataviews)$' 'ADMIN_UI_STARTER'
+  validate_regex "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS:-false}" '^(true|false)$' 'ADMIN_UI_EXPERIMENTAL_DATAVIEWS'
   if [ -n "${GITHUB_RELEASE_UPDATER_REPO_URL:-}" ]; then
     validate_https_url "$GITHUB_RELEASE_UPDATER_REPO_URL" 'GITHUB_RELEASE_UPDATER_REPO_URL'
     if [[ "$GITHUB_RELEASE_UPDATER_REPO_URL" != https://github.com/* ]]; then
@@ -261,6 +271,36 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
       echo "Invalid GITHUB_RELEASE_UPDATER_REPO_URL: ${GITHUB_RELEASE_UPDATER_REPO_URL}" >&2
       exit 1
     fi
+  fi
+
+  if wp_plugin_base_is_true "${REST_ABILITIES_ENABLED:-false}" && ! wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
+    echo "REST_ABILITIES_ENABLED=true requires REST_OPERATIONS_PACK_ENABLED=true." >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && ! wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
+    echo "ADMIN_UI_PACK_ENABLED=true requires REST_OPERATIONS_PACK_ENABLED=true." >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_is_true "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS_RAW:-false}" && ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}"; then
+    echo "ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true requires ADMIN_UI_PACK_ENABLED=true." >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_is_true "${ADMIN_UI_STARTER_WAS_SET:-false}" && ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}"; then
+    echo "ADMIN_UI_STARTER requires ADMIN_UI_PACK_ENABLED=true." >&2
+    exit 1
+  fi
+
+  if [ "${ADMIN_UI_STARTER:-}" = "basic" ] && wp_plugin_base_is_true "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS_RAW:-false}"; then
+    echo "ADMIN_UI_STARTER=basic conflicts with ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true. Use ADMIN_UI_STARTER=dataviews or unset the legacy flag." >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -z "${BUILD_SCRIPT:-}" ]; then
+    echo "ADMIN_UI_PACK_ENABLED=true requires BUILD_SCRIPT to be set." >&2
+    exit 1
   fi
   validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS'
   validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS'

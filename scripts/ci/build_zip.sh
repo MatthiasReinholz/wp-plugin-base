@@ -52,6 +52,7 @@ cat <<'EOF' > "$EXCLUDES_FILE"
 /dist/
 /node_modules/
 /.wp-plugin-base.env
+/.wp-plugin-base-admin-ui/
 EOF
 
 if [ -f "$DISTIGNORE_PATH" ]; then
@@ -60,6 +61,10 @@ fi
 
 if [ -n "${BUILD_SCRIPT:-}" ]; then
   BUILD_SCRIPT_PATH="$(wp_plugin_base_resolve_path "$BUILD_SCRIPT")"
+  if ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ "$BUILD_SCRIPT_PATH" = "$(wp_plugin_base_resolve_path ".wp-plugin-base-admin-ui/build.sh")" ]; then
+    echo "ADMIN_UI_PACK_ENABLED=false but BUILD_SCRIPT still points to .wp-plugin-base-admin-ui/build.sh. Clear BUILD_SCRIPT or re-enable the admin UI pack before packaging." >&2
+    exit 1
+  fi
   wp_plugin_base_assert_path_within_root "$BUILD_SCRIPT_PATH" "BUILD_SCRIPT"
   if [ ! -f "$BUILD_SCRIPT_PATH" ]; then
     echo "Configured BUILD_SCRIPT was not found: $BUILD_SCRIPT" >&2
@@ -80,6 +85,11 @@ if [ -n "${BUILD_SCRIPT:-}" ]; then
     bash "$BUILD_SCRIPT_PATH" ${build_script_args[@]+"${build_script_args[@]}"}
   )
   echo "Build script completed."
+fi
+
+if ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -d "$ROOT_DIR/assets/admin-ui" ] && find "$ROOT_DIR/assets/admin-ui" -type f | grep -q .; then
+  echo "ADMIN_UI_PACK_ENABLED=false but assets/admin-ui still contains built files after the configured build step. Remove the stale admin UI assets or re-enable the admin UI pack before packaging." >&2
+  exit 1
 fi
 
 normalize_repo_relative_path() {

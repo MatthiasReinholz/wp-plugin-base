@@ -27,6 +27,22 @@ NPM_CACHE_DIR="$(mktemp -d)"
 SEMGREP_TOOLS_DIR=''
 SEMGREP_SARIF_PATH="$ROOT_DIR/dist/semgrep-security.sarif"
 
+audit_npm_lockfile() {
+  local audit_dir="$1"
+  local description="$2"
+  shift 2
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm is required to audit ${description} when the security pack is enabled." >&2
+    exit 1
+  fi
+
+  (
+    cd "$audit_dir"
+    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --audit-level=high "$@"
+  )
+}
+
 cleanup() {
   rm -rf "$COMPOSER_WORK_DIR" "$COMPOSER_CACHE_DIR" "$NPM_CACHE_DIR"
   if [ -n "$SEMGREP_TOOLS_DIR" ]; then
@@ -90,17 +106,15 @@ else
 fi
 
 if [ -f "$ROOT_DIR/package-lock.json" ] && [ -f "$ROOT_DIR/package.json" ]; then
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "npm is required to audit package-lock.json when the security pack is enabled." >&2
-    exit 1
-  fi
-
-  (
-    cd "$ROOT_DIR"
-    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --omit=dev --audit-level=high
-  )
+  audit_npm_lockfile "$ROOT_DIR" "package-lock.json" --omit=dev
 else
   echo "No root package-lock.json found; skipping npm dependency audit."
+fi
+
+if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -f "$ROOT_DIR/.wp-plugin-base-admin-ui/package-lock.json" ] && [ -f "$ROOT_DIR/.wp-plugin-base-admin-ui/package.json" ]; then
+  audit_npm_lockfile "$ROOT_DIR/.wp-plugin-base-admin-ui" ".wp-plugin-base-admin-ui/package-lock.json"
+else
+  echo "No .wp-plugin-base-admin-ui/package-lock.json found; skipping admin UI npm dependency audit."
 fi
 
 echo "Validated WordPress security pack."

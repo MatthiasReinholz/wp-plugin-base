@@ -20,6 +20,8 @@ WORDPRESS_QUALITY_PACK_ENABLED="${WORDPRESS_QUALITY_PACK_ENABLED:-false}"
 WORDPRESS_SECURITY_PACK_ENABLED="${WORDPRESS_SECURITY_PACK_ENABLED:-false}"
 GITHUB_RELEASE_UPDATER_ENABLED="${GITHUB_RELEASE_UPDATER_ENABLED:-false}"
 GITHUB_RELEASE_UPDATER_REPO_URL="${GITHUB_RELEASE_UPDATER_REPO_URL:-}"
+REST_OPERATIONS_PACK_ENABLED="${REST_OPERATIONS_PACK_ENABLED:-false}"
+ADMIN_UI_PACK_ENABLED="${ADMIN_UI_PACK_ENABLED:-false}"
 
 FOUNDATION_DIR="$ROOT_DIR/.wp-plugin-base"
 TEMPLATE_DIR="$FOUNDATION_DIR/templates/child"
@@ -37,10 +39,21 @@ render_template() {
 
   export FOUNDATION_REPOSITORY FOUNDATION_VERSION PRODUCTION_ENVIRONMENT CODEOWNERS_REVIEWERS
   export PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION VERSION_CONSTANT_NAME DISTIGNORE_FILE
-  export WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE GITHUB_RELEASE_UPDATER_REPO_URL
+  export WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE GITHUB_RELEASE_UPDATER_REPO_URL REST_API_NAMESPACE REST_ABILITIES_ENABLED ADMIN_UI_EXPERIMENTAL_DATAVIEWS
   perl \
-    -0pe 's~__FOUNDATION_REPOSITORY__~$ENV{FOUNDATION_REPOSITORY}~ge; s~__FOUNDATION_VERSION__~$ENV{FOUNDATION_VERSION}~ge; s~__PRODUCTION_ENVIRONMENT__~$ENV{PRODUCTION_ENVIRONMENT}~ge; s~__CODEOWNERS_REVIEWERS__~$ENV{CODEOWNERS_REVIEWERS}~ge; s~__PLUGIN_NAME__~$ENV{PLUGIN_NAME}~ge; s~__PLUGIN_SLUG__~$ENV{PLUGIN_SLUG}~ge; s~__MAIN_PLUGIN_FILE__~$ENV{MAIN_PLUGIN_FILE}~ge; s~__README_FILE__~$ENV{README_FILE}~ge; s~__ZIP_FILE__~$ENV{ZIP_FILE}~ge; s~__PHP_VERSION__~$ENV{PHP_VERSION}~ge; s~__NODE_VERSION__~$ENV{NODE_VERSION}~ge; s~__VERSION_CONSTANT_NAME__~$ENV{VERSION_CONSTANT_NAME}~ge; s~__DISTIGNORE_FILE__~$ENV{DISTIGNORE_FILE}~ge; s~__WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE__~$ENV{WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE}~ge; s~__GITHUB_RELEASE_UPDATER_REPO_URL__~$ENV{GITHUB_RELEASE_UPDATER_REPO_URL}~ge' \
+    -0pe 's~__FOUNDATION_REPOSITORY__~$ENV{FOUNDATION_REPOSITORY}~ge; s~__FOUNDATION_VERSION__~$ENV{FOUNDATION_VERSION}~ge; s~__PRODUCTION_ENVIRONMENT__~$ENV{PRODUCTION_ENVIRONMENT}~ge; s~__CODEOWNERS_REVIEWERS__~$ENV{CODEOWNERS_REVIEWERS}~ge; s~__PLUGIN_NAME__~$ENV{PLUGIN_NAME}~ge; s~__PLUGIN_SLUG__~$ENV{PLUGIN_SLUG}~ge; s~__MAIN_PLUGIN_FILE__~$ENV{MAIN_PLUGIN_FILE}~ge; s~__README_FILE__~$ENV{README_FILE}~ge; s~__ZIP_FILE__~$ENV{ZIP_FILE}~ge; s~__PHP_VERSION__~$ENV{PHP_VERSION}~ge; s~__NODE_VERSION__~$ENV{NODE_VERSION}~ge; s~__VERSION_CONSTANT_NAME__~$ENV{VERSION_CONSTANT_NAME}~ge; s~__DISTIGNORE_FILE__~$ENV{DISTIGNORE_FILE}~ge; s~__WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE__~$ENV{WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE}~ge; s~__GITHUB_RELEASE_UPDATER_REPO_URL__~$ENV{GITHUB_RELEASE_UPDATER_REPO_URL}~ge; s~__REST_API_NAMESPACE__~$ENV{REST_API_NAMESPACE}~ge; s~__REST_ABILITIES_ENABLED__~$ENV{REST_ABILITIES_ENABLED}~ge; s~__ADMIN_UI_EXPERIMENTAL_DATAVIEWS__~$ENV{ADMIN_UI_EXPERIMENTAL_DATAVIEWS}~ge' \
     "$source_file" > "$destination_file"
+}
+
+seed_template_once() {
+  local source_file="$1"
+  local destination_file="$2"
+
+  if [ -e "$destination_file" ]; then
+    return 0
+  fi
+
+  render_template "$source_file" "$destination_file"
 }
 
 remove_stale_managed_aliases() {
@@ -85,6 +98,12 @@ QUALITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/quality-pack"
 SECURITY_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/security-pack"
 QIT_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/qit-pack"
 GITHUB_RELEASE_UPDATER_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/github-release-updater-pack"
+REST_OPERATIONS_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/rest-operations-pack"
+REST_OPERATIONS_SEED_TEMPLATE_DIR="$TEMPLATE_DIR/rest-operations-pack-seed"
+ADMIN_UI_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack"
+ADMIN_UI_SEED_COMMON_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-common"
+ADMIN_UI_SEED_BASIC_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-basic"
+ADMIN_UI_SEED_DATAVIEWS_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-dataviews"
 
 if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
   rm -f "$ROOT_DIR/tests/test-plugin-loads.php"
@@ -167,6 +186,71 @@ if [ -d "$GITHUB_RELEASE_UPDATER_PACK_TEMPLATE_DIR" ]; then
     find "$ROOT_DIR/lib/wp-plugin-base/plugin-update-checker" -type d -empty -delete 2>/dev/null || true
     find "$ROOT_DIR/lib/wp-plugin-base" -type d -empty -delete 2>/dev/null || true
     find "$ROOT_DIR/lib" -type d -empty -delete 2>/dev/null || true
+  fi
+fi
+
+if [ -d "$REST_OPERATIONS_PACK_TEMPLATE_DIR" ]; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$REST_OPERATIONS_PACK_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+
+    if wp_plugin_base_is_true "$REST_OPERATIONS_PACK_ENABLED"; then
+      render_template "$template_file" "$destination_path"
+      continue
+    fi
+
+    rm -f "$destination_path"
+  done < <(find "$REST_OPERATIONS_PACK_TEMPLATE_DIR" -type f | sort)
+fi
+
+if [ -d "$REST_OPERATIONS_SEED_TEMPLATE_DIR" ] && wp_plugin_base_is_true "$REST_OPERATIONS_PACK_ENABLED"; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$REST_OPERATIONS_SEED_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+    seed_template_once "$template_file" "$destination_path"
+  done < <(find "$REST_OPERATIONS_SEED_TEMPLATE_DIR" -type f | sort)
+fi
+
+if [ -d "$ADMIN_UI_PACK_TEMPLATE_DIR" ]; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$ADMIN_UI_PACK_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+
+    if wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; then
+      render_template "$template_file" "$destination_path"
+      continue
+    fi
+
+    rm -f "$destination_path"
+  done < <(find "$ADMIN_UI_PACK_TEMPLATE_DIR" -type f | sort)
+fi
+
+if [ -d "$ADMIN_UI_SEED_COMMON_TEMPLATE_DIR" ] && wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$ADMIN_UI_SEED_COMMON_TEMPLATE_DIR"/}"
+    destination_path="$ROOT_DIR/$relative_path"
+    seed_template_once "$template_file" "$destination_path"
+  done < <(find "$ADMIN_UI_SEED_COMMON_TEMPLATE_DIR" -type f | sort)
+fi
+
+if wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; then
+  if [ "${ADMIN_UI_STARTER:-basic}" = "dataviews" ]; then
+    ADMIN_UI_VARIANT_TEMPLATE_DIR="$ADMIN_UI_SEED_DATAVIEWS_TEMPLATE_DIR"
+  else
+    ADMIN_UI_VARIANT_TEMPLATE_DIR="$ADMIN_UI_SEED_BASIC_TEMPLATE_DIR"
+  fi
+
+  if [ -d "$ADMIN_UI_VARIANT_TEMPLATE_DIR" ]; then
+    while IFS= read -r template_file; do
+      [ -n "$template_file" ] || continue
+      relative_path="${template_file#"$ADMIN_UI_VARIANT_TEMPLATE_DIR"/}"
+      destination_path="$ROOT_DIR/$relative_path"
+      seed_template_once "$template_file" "$destination_path"
+    done < <(find "$ADMIN_UI_VARIANT_TEMPLATE_DIR" -type f | sort)
   fi
 fi
 

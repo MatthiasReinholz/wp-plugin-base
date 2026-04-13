@@ -57,6 +57,8 @@ default_environment_fixture=""
 absolute_include_fixture=""
 invalid_distignore_fixture=""
 wp_build_fixture=""
+runtime_pack_fixture=""
+runtime_pack_abilities_fixture=""
 pot_fixture=""
 yaml_workflow_fixture=""
 custom_readme_fixture=""
@@ -66,7 +68,7 @@ simulate_fixture=""
 glotpress_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$runtime_pack_fixture" "$runtime_pack_abilities_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
 }
 
 trap cleanup EXIT
@@ -297,6 +299,208 @@ test -n "$package_zip"
 zip_listing="$(unzip -Z1 "$package_zip")"
 grep -Fq 'build-ready-plugin/packages/example/index.js' <<<"$zip_listing"
 grep -Fq 'build-ready-plugin/routes/example/index.js' <<<"$zip_listing"
+
+runtime_pack_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_fixture/"
+mkdir -p "$runtime_pack_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+grep -Fq 'settings.read' "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
+test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package-lock.json"
+if grep -Fq '@wordpress/dataviews' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package.json"; then
+  echo "Default admin UI starter unexpectedly included the DataViews dependency surface." >&2
+  exit 1
+fi
+printf '%s\n' 'child-owned-marker' >> "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
+printf '%s\n' '// child-owned-marker' >> "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/app.js"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+grep -Fq 'child-owned-marker' "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
+grep -Fq 'child-owned-marker' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/app.js"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+runtime_pack_zip="$(find "$runtime_pack_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$runtime_pack_zip"
+runtime_pack_listing="$(unzip -Z1 "$runtime_pack_zip")"
+grep -Fq 'runtime-pack-ready/assets/admin-ui/index.js' <<<"$runtime_pack_listing"
+grep -Fq 'runtime-pack-ready/lib/wp-plugin-base/rest-operations/bootstrap.php' <<<"$runtime_pack_listing"
+if grep -Fq 'runtime-pack-ready/.wp-plugin-base-admin-ui/' <<<"$runtime_pack_listing"; then
+  echo "Runtime pack fixture unexpectedly shipped admin UI tooling sources." >&2
+  exit 1
+fi
+perl -0pi -e 's/^ADMIN_UI_PACK_ENABLED=true$/ADMIN_UI_PACK_ENABLED=false/m' "$runtime_pack_fixture/.wp-plugin-base.env"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly accepted an unreconciled admin UI disable transition." >&2
+  exit 1
+fi
+perl -0pi -e "s~^[[:space:]]*require_once __DIR__ \\. '/lib/wp-plugin-base/admin-ui/bootstrap\\.php';\\n~~m" "$runtime_pack_fixture/runtime-pack-ready.php"
+perl -0pi -e 's/^BUILD_SCRIPT=.*\n//m' "$runtime_pack_fixture/.wp-plugin-base.env"
+rm -rf "$runtime_pack_fixture/assets/admin-ui"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+runtime_pack_zip="$(find "$runtime_pack_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+runtime_pack_listing="$(unzip -Z1 "$runtime_pack_zip")"
+if grep -Fq 'runtime-pack-ready/.wp-plugin-base-admin-ui/' <<<"$runtime_pack_listing"; then
+  echo "Runtime pack fixture shipped admin UI tooling after the pack was disabled." >&2
+  exit 1
+fi
+if grep -Fq 'runtime-pack-ready/assets/admin-ui/' <<<"$runtime_pack_listing"; then
+  echo "Runtime pack fixture shipped stale admin UI build outputs after the pack was disabled." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+cat >> "$runtime_pack_abilities_fixture/.wp-plugin-base.env" <<'EOF'
+ADMIN_UI_STARTER=basic
+ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true
+EOF
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" --scope project "" >/dev/null 2>&1; then
+  echo "Config validation unexpectedly accepted conflicting admin starter inputs." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+cat >> "$runtime_pack_abilities_fixture/.wp-plugin-base.env" <<'EOF'
+ADMIN_UI_STARTER=basic
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e 's/ADMIN_UI_STARTER=basic/ADMIN_UI_STARTER=dataviews/' "$runtime_pack_abilities_fixture/.wp-plugin-base.env"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly accepted an admin starter mismatch after the starter mode changed." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+cat >> "$runtime_pack_abilities_fixture/.wp-plugin-base.env" <<'EOF'
+ADMIN_UI_STARTER=dataviews
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+grep -Fq '@wordpress/dataviews' "$runtime_pack_abilities_fixture/.wp-plugin-base-admin-ui/package.json"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+bash "$ROOT_DIR/scripts/foundation/test_runtime_packs_wordpress.sh"
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+perl -0pi -e 's/wp_plugin_base_example_rest_operation_get_settings/this_callback_does_not_exist/' "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with a non-callable operation callback." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+perl -0pi -e "s/'capability'\\s*=>\\s*'manage_options',\\n//" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with a non-public operation missing a capability declaration." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+perl -0pi -e "s/'id'\\s*=>\\s*'example-items\\.list'/'id'              => 'settings.read'/" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with duplicate operation ids." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+perl -0pi -e "s|'route'\\s*=>\\s*'/example-items'|'route'           => '/settings'|" "$runtime_pack_abilities_fixture/includes/rest-operations/example-items-operations.php"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with duplicate route+method entries." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+perl -0pi -e "s/'visibility'\\s*=>\\s*'admin'/'visibility'      => 'public'/" "$runtime_pack_abilities_fixture/includes/rest-operations/settings-operations.php"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with a public operation missing suppression." >&2
+  exit 1
+fi
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+cat > "$runtime_pack_abilities_fixture/includes/legacy-rest.php" <<'EOF'
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+  exit;
+}
+
+register_rest_route(
+  'runtime-pack-ready/v1',
+  '/legacy',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => '__return_false',
+  )
+);
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with an unsuppressed legacy register_rest_route call." >&2
+  exit 1
+fi
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "rest_route_bypass",
+      "identifier": "register_rest_route",
+      "path": "includes/legacy-rest.php",
+      "justification": "Temporary migration bridge while a legacy endpoint moves into the managed operation registry."
+    }
+  ]
+}
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+cat > "$runtime_pack_abilities_fixture/includes/comment-only.php" <<'EOF'
+<?php
+// register_rest_route( 'runtime-pack-ready/v1', '/comment-only', array() );
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" ""
 
 release_features_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/wp-build-plugin/." "$release_features_fixture/"
