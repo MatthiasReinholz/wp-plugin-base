@@ -311,7 +311,7 @@ if grep -Fq '@wordpress/dataviews' "$runtime_pack_fixture/.wp-plugin-base-admin-
   echo "Default admin UI starter unexpectedly included the DataViews dependency surface." >&2
   exit 1
 fi
-printf '%s\n' 'child-owned-marker' >> "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
+printf '%s\n' '// child-owned-marker' >> "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
 printf '%s\n' '// child-owned-marker' >> "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/app.js"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 grep -Fq 'child-owned-marker' "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
