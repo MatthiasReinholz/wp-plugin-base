@@ -214,9 +214,6 @@ for file in "${php_files[@]}"; do
     tests/*|vendor/*|lib/*)
       continue
       ;;
-    lib/wp-plugin-base/rest-operations/*)
-      continue
-      ;;
   esac
 
   if [ "$(php_file_has_register_rest_route_call "$file")" = "true" ]; then
