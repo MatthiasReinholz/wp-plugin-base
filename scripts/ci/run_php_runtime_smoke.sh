@@ -64,6 +64,7 @@ if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist
 
   php "$composer_work_dir/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
   rm -rf "$composer_work_dir" "$composer_cache_dir"
+  # Disarm the EXIT trap for directories that were already removed.
   composer_work_dir=""
   composer_cache_dir=""
 fi

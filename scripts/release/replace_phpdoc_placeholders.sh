@@ -90,6 +90,7 @@ while IFS= read -r php_file; do
     replacement_count=$((replacement_count + 1))
   fi
   rm -f "$file_before"
+  # Disarm the EXIT trap for the temp file that was already removed.
   current_temp_file=""
 done < <("${php_files_cmd[@]}")
 
