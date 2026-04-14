@@ -12,6 +12,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CONFIG_OVERRIDE="${1:-}"
 BRANCH_NAME="${2:-${BRANCH_NAME:-}}"
+composer_work_dir=""
+composer_cache_dir=""
+
+wp_plugin_base_cleanup_runtime_smoke() {
+  if [ -n "$composer_work_dir" ]; then
+    rm -rf "$composer_work_dir"
+  fi
+
+  if [ -n "$composer_cache_dir" ]; then
+    rm -rf "$composer_cache_dir"
+  fi
+}
+
+trap wp_plugin_base_cleanup_runtime_smoke EXIT
 
 wp_plugin_base_require_commands "PHP runtime smoke validation" git php node rsync zip unzip
 bash "$SCRIPT_DIR/validate_config.sh" --scope ci "$CONFIG_OVERRIDE"
@@ -50,6 +64,8 @@ if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist
 
   php "$composer_work_dir/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
   rm -rf "$composer_work_dir" "$composer_cache_dir"
+  composer_work_dir=""
+  composer_cache_dir=""
 fi
 
 echo "Validated PHP runtime smoke checks for $PLUGIN_SLUG on PHP $(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')."

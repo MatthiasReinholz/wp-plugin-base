@@ -3,6 +3,7 @@
  * REST adapter for operation manifests.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,45 +13,49 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 	/**
 	 * Registers REST routes from operation manifests.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_REST_Adapter {
 		/**
 		 * Registers all operations with the REST API.
 		 *
-		 * @param string                    $plugin_slug Plugin slug.
-		 * @param string                    $namespace REST namespace.
+		 * @since NEXT
+		 *
+		 * @param string                         $plugin_slug Plugin slug.
+		 * @param string                         $rest_namespace REST namespace.
 		 * @param array<int,array<string,mixed>> $operations Operations.
 		 * @return void
 		 */
-		public static function register_all( $plugin_slug, $namespace, array $operations ) {
+		public static function register_all( $plugin_slug, $rest_namespace, array $operations ) {
 			foreach ( $operations as $operation ) {
-				self::register_operation( $plugin_slug, $namespace, $operation );
+				self::register_operation( $plugin_slug, $rest_namespace, $operation );
 			}
 		}
 
 		/**
 		 * Registers a single operation.
 		 *
-		 * @param string             $plugin_slug Plugin slug.
-		 * @param string             $namespace REST namespace.
+		 * @param string              $plugin_slug Plugin slug.
+		 * @param string              $rest_namespace REST namespace.
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return void
 		 */
-		private static function register_operation( $plugin_slug, $namespace, array $operation ) {
+		private static function register_operation( $plugin_slug, $rest_namespace, array $operation ) {
 			if ( empty( $operation['route'] ) || empty( $operation['callback'] ) || ! is_callable( $operation['callback'] ) ) {
 				self::report_invalid_operation( $operation );
 				return;
 			}
 
 			register_rest_route(
-				$namespace,
+				$rest_namespace,
 				$operation['route'],
 				array(
 					'methods'             => $operation['methods'],
-					'callback'            => function( WP_REST_Request $request ) use ( $operation ) {
+					'callback'            => function ( WP_REST_Request $request ) use ( $operation ) {
 						return WP_Plugin_Base_REST_Operations_Executor::execute( $operation, $request );
 					},
-					'permission_callback' => function( WP_REST_Request $request ) use ( $plugin_slug, $operation ) {
+					'permission_callback' => function ( WP_REST_Request $request ) use ( $plugin_slug, $operation ) {
 						return WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );
 					},
 					'args'                => self::build_args( $operation ),
@@ -61,12 +66,14 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 		/**
 		 * Builds route args from the operation input schema.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return array<string,mixed>
 		 */
-	private static function build_args( array $operation ) {
-		return WP_Plugin_Base_REST_Operations_Input::build_args( $operation );
-	}
+		private static function build_args( array $operation ) {
+			return WP_Plugin_Base_REST_Operations_Input::build_args( $operation );
+		}
 
 		/**
 		 * Emits a developer-facing notice when an invalid manifest entry is skipped.
@@ -87,7 +94,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 				return;
 			}
 
-			trigger_error( $message, E_USER_WARNING );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_trigger_error -- Intentional fallback when _doing_it_wrong() is unavailable.
+			trigger_error( esc_html( $message ), E_USER_WARNING );
 		}
 	}
 }

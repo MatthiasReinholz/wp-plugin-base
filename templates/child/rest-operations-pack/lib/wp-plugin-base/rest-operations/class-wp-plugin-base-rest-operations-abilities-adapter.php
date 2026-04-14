@@ -3,6 +3,7 @@
  * Abilities adapter for REST operations.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,12 +13,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 	/**
 	 * Registers abilities for operations when the Abilities API is available.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_Abilities_Adapter {
 		/**
 		 * Registers the plugin ability category.
 		 *
-		 * @param string $category_slug Category slug.
+		 * @since NEXT
+		 *
+		 * @param string $category_slug  Category slug.
 		 * @param string $category_label Category label.
 		 * @return void
 		 */
@@ -42,8 +47,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 		/**
 		 * Registers abilities for the operation set.
 		 *
-		 * @param string                    $plugin_slug Plugin slug.
-		 * @param string                    $category_slug Category slug.
+		 * @since NEXT
+		 *
+		 * @param string                         $plugin_slug   Plugin slug.
+		 * @param string                         $category_slug Category slug.
 		 * @param array<int,array<string,mixed>> $operations Operations.
 		 * @return void
 		 */
@@ -60,8 +67,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 		/**
 		 * Registers a single ability.
 		 *
-		 * @param string             $plugin_slug Plugin slug.
-		 * @param string             $category_slug Category slug.
+		 * @param string              $plugin_slug   Plugin slug.
+		 * @param string              $category_slug Category slug.
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return void
 		 */
@@ -85,7 +92,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 					'type'       => 'object',
 					'properties' => array(),
 				),
-				'execute_callback' => function( $input = null ) use ( $plugin_slug, $operation ) {
+				'execute_callback' => function ( $input = null ) use ( $plugin_slug, $operation ) {
 					$request = new WP_REST_Request(
 						is_array( $operation['methods'] ) ? reset( $operation['methods'] ) : $operation['methods'],
 						$operation['route']

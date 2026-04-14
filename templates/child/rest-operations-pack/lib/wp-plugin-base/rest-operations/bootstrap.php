@@ -3,6 +3,7 @@
  * Managed bootstrap for the REST operations pack.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

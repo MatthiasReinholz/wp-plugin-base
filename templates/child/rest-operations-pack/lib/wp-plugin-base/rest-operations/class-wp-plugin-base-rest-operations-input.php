@@ -3,6 +3,7 @@
  * REST operation input-schema helpers.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Input' ) ) {
 	/**
 	 * Normalizes schema-backed input handling across transports.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_Input {
 		/**
@@ -20,6 +23,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Input' ) ) {
 		 * WordPress does not promote object-level `required` declarations down to
 		 * the per-field arg map returned by `rest_get_endpoint_args_for_schema()`,
 		 * so apply them explicitly here.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return array<string,mixed>
@@ -49,6 +54,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Input' ) ) {
 
 		/**
 		 * Validates and sanitizes non-REST input against the declared schema.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @param mixed               $input Raw input payload.

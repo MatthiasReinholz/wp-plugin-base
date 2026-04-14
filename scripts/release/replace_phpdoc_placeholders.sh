@@ -28,6 +28,15 @@ fi
 
 escaped_placeholder="$(printf '%s' "$placeholder" | sed -e 's/[.[\*^$+?{}|()]/\\&/g')"
 replacement_count=0
+current_temp_file=""
+
+wp_plugin_base_cleanup_phpdoc_placeholder_replacement() {
+  if [ -n "$current_temp_file" ]; then
+    rm -f "$current_temp_file"
+  fi
+}
+
+trap wp_plugin_base_cleanup_phpdoc_placeholder_replacement EXIT
 
 should_skip_path() {
   local path="$1"
@@ -74,12 +83,14 @@ while IFS= read -r php_file; do
   [ -f "$absolute_path" ] || continue
 
   file_before="$(mktemp)"
+  current_temp_file="$file_before"
   cp "$absolute_path" "$file_before"
   perl -0pi -e "s/(\@since[[:space:]]+)${escaped_placeholder}(?=([[:space:]]|\$))/\${1}${VERSION}/g; s/(\@version[[:space:]]+)${escaped_placeholder}(?=([[:space:]]|\$))/\${1}${VERSION}/g" "$absolute_path"
   if ! cmp -s "$file_before" "$absolute_path"; then
     replacement_count=$((replacement_count + 1))
   fi
   rm -f "$file_before"
+  current_temp_file=""
 done < <("${php_files_cmd[@]}")
 
 echo "Updated PHPDoc placeholders in ${replacement_count} PHP file(s)."

@@ -79,7 +79,7 @@ validate_repo_relative_paths() {
       echo "${label} must use repo-relative paths: ${path}" >&2
       exit 1
     fi
-    normalized_path="$(normalize_repo_relative_path "$path")"
+    normalized_path="$(wp_plugin_base_normalize_repo_relative_path "$path")"
     if [ -z "$normalized_path" ]; then
       echo "${label} must use repo-relative paths: ${path}" >&2
       exit 1
@@ -101,19 +101,12 @@ validate_repo_relative_paths() {
   done < <(wp_plugin_base_csv_to_lines "$raw_paths")
 }
 
-normalize_repo_relative_path() {
-  local path="$1"
-  path="${path#./}"
-  path="${path#/}"
-  printf '%s\n' "$path"
-}
-
 validate_distignore_path() {
   local relative_path="$1"
   local normalized_path
 
   validate_repo_relative_paths "$relative_path" "DISTIGNORE_FILE"
-  normalized_path="$(normalize_repo_relative_path "$relative_path")"
+  normalized_path="$(wp_plugin_base_normalize_repo_relative_path "$relative_path")"
   if [[ ! "$normalized_path" =~ (^|/)(\.distignore|[^/]+\.distignore)$ ]]; then
     echo "DISTIGNORE_FILE must point to a repo-relative *.distignore file: ${relative_path}" >&2
     exit 1

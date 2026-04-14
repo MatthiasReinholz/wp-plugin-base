@@ -4,6 +4,9 @@
  *
  * Initializes Plugin Update Checker (PUC) so this plugin can receive updates
  * from GitHub Releases in the built-in WordPress update UI.
+ *
+ * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
