@@ -67,9 +67,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 		/**
 		 * Registers a single ability.
 		 *
+		 * @since NEXT
+		 *
 		 * @param string              $plugin_slug   Plugin slug.
 		 * @param string              $category_slug Category slug.
-		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param array<string,mixed> $operation     Operation manifest.
 		 * @return void
 		 */
 		private static function register_operation( $plugin_slug, $category_slug, array $operation ) {

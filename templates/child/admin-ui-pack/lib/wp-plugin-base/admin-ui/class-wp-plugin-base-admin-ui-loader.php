@@ -73,6 +73,8 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 		/**
 		 * Renders the app root.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $config Page config.
 		 * @return void
 		 */
@@ -84,6 +86,8 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 
 		/**
 		 * Enqueues built UI assets.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $config Page config.
 		 * @return void

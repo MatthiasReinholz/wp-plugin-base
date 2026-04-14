@@ -58,8 +58,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Validates capability requirements.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param WP_REST_Request     $request Request instance.
+		 * @param WP_REST_Request     $request   Request instance.
 		 * @return true|WP_Error
 		 */
 		private static function check_capability( array $operation, WP_REST_Request $request ) {
@@ -120,6 +122,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Logs uncaught capability callback failures for developer visibility.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @param Throwable           $error     Thrown error.
 		 * @return void
@@ -143,7 +147,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 * @since NEXT
 		 *
 		 * @param string              $plugin_slug Plugin slug.
-		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param array<string,mixed> $operation   Operation manifest.
 		 * @param WP_REST_Request     $request     Request instance.
 		 * @return true|WP_Error
 		 */
@@ -174,7 +178,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 * @since NEXT
 		 *
 		 * @param string              $plugin_slug Plugin slug.
-		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param array<string,mixed> $operation   Operation manifest.
 		 * @param WP_REST_Request     $request     Request instance.
 		 * @return array<int,string>
 		 */
@@ -213,6 +217,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Normalizes scope declarations into a flat string list.
 		 *
+		 * @since NEXT
+		 *
 		 * @param mixed $raw_scopes Raw scope declaration.
 		 * @return array<int,string>
 		 */
@@ -245,6 +251,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 
 		/**
 		 * Checks whether a required scope is granted by a scope list.
+		 *
+		 * @since NEXT
 		 *
 		 * @param string            $required_scope Required scope.
 		 * @param array<int,string> $granted_scopes Granted scopes.

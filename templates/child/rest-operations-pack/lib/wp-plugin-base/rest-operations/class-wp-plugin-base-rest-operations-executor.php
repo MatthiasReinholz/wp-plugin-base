@@ -53,6 +53,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Executor' ) ) {
 		/**
 		 * Logs uncaught execution failures for developer visibility.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @param Throwable           $error     Thrown error.
 		 * @return void

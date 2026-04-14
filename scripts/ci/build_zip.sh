@@ -110,6 +110,7 @@ configured_readme_path="/$(wp_plugin_base_normalize_repo_relative_path "$README_
 FILTERED_EXCLUDES_FILE="$(mktemp)"
 grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$FILTERED_EXCLUDES_FILE" || true
 mv "$FILTERED_EXCLUDES_FILE" "$EXCLUDES_FILE"
+# Disarm the EXIT trap for the temp file that was already moved away.
 FILTERED_EXCLUDES_FILE=""
 
 rm -rf "$STAGE_ROOT" "$ZIP_PATH"

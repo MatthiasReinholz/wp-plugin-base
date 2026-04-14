@@ -36,9 +36,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 		/**
 		 * Registers a single operation.
 		 *
-		 * @param string              $plugin_slug Plugin slug.
+		 * @since NEXT
+		 *
+		 * @param string              $plugin_slug    Plugin slug.
 		 * @param string              $rest_namespace REST namespace.
-		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param array<string,mixed> $operation      Operation manifest.
 		 * @return void
 		 */
 		private static function register_operation( $plugin_slug, $rest_namespace, array $operation ) {
@@ -77,6 +79,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 
 		/**
 		 * Emits a developer-facing notice when an invalid manifest entry is skipped.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return void
