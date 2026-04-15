@@ -179,6 +179,7 @@ For agent-oriented implementation guidance, see [Secure plugin coding contract](
 
 - Prefer `GITHUB_TOKEN` over personal access tokens
 - Do not add PAT-based automation to projects using this foundation unless there is no GitHub-native alternative
+- The explicit exception is workflow-changing update automation: if `update-foundation` or `update-external-dependencies` must push `.github/workflows/*`, configure `WP_PLUGIN_BASE_PR_TOKEN` with the minimum repository permissions required to write contents, pull requests, and workflows
 - Keep WordPress.org credentials in GitHub Actions deployment-environment secrets, not in `.wp-plugin-base.env` or repository-wide secrets
 - Protect the production deployment environment and require at least one reviewer before deploy jobs can access those credentials
 

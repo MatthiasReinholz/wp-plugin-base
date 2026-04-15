@@ -88,6 +88,8 @@ That command enforces the generated managed-file surface, not just `.github/work
 
 `prepare-release.yml` and `update-foundation.yml` need the GitHub repository setting `Allow GitHub Actions to create and approve pull requests`.
 
+If `update-foundation.yml` needs to update managed files under `.github/workflows/`, also configure the repository or organization secret `WP_PLUGIN_BASE_PR_TOKEN` with repository write access for contents, pull requests, and workflows. The managed updater prefers that secret automatically when present.
+
 Enable it in GitHub under `Settings` -> `Actions` -> `General`:
 
 1. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.

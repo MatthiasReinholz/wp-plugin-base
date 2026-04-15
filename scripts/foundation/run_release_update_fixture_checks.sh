@@ -1363,6 +1363,140 @@ if (
   exit 1
 fi
 
+pr_auth_fixture="$(mktemp -d)"
+git -C "$pr_auth_fixture" init -q
+git -C "$pr_auth_fixture" config user.email "fixture@example.com"
+git -C "$pr_auth_fixture" config user.name "Fixture"
+printf '%s\n' 'root' > "$pr_auth_fixture/README.md"
+git -C "$pr_auth_fixture" add README.md
+git -C "$pr_auth_fixture" commit -qm "init"
+git -C "$pr_auth_fixture" branch -M main
+git -C "$pr_auth_fixture" remote add origin "https://github.com/example/repo.git"
+printf '%s\n' 'auth fixture change' >> "$pr_auth_fixture/README.md"
+pr_auth_helper_dir="$(mktemp -d)"
+mkdir -p "$pr_auth_helper_dir/bin"
+real_git_path="$(command -v git)"
+cat > "$pr_auth_helper_dir/bin/git" <<EOF
+#!/usr/bin/env bash
+log_file="\${PR_AUTH_GIT_LOG:?}"
+printf '%s\n' "\$*" >> "\$log_file"
+if [ "\$1" = "fetch" ]; then
+  exit 0
+fi
+if [ "\$1" = "push" ]; then
+  exit 0
+fi
+exec "$real_git_path" "\$@"
+EOF
+chmod +x "$pr_auth_helper_dir/bin/git"
+cat > "$pr_auth_helper_dir/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  echo '[]'
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
+  echo 'https://github.com/example/repo/pull/1'
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$pr_auth_helper_dir/bin/gh"
+PR_AUTH_GIT_LOG="$pr_auth_helper_dir/git.log"
+export PR_AUTH_GIT_LOG
+pr_auth_output="$(mktemp)"
+cat > "$pr_auth_helper_dir/body.md" <<'EOF'
+fixture body
+EOF
+(
+  cd "$pr_auth_fixture"
+  PATH="$pr_auth_helper_dir/bin:$PATH" \
+    GH_TOKEN="fixture-pr-token" \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_auth_output" \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/auth-fixture" \
+      "main" \
+      "fixture auth" \
+      "fixture auth" \
+      "$pr_auth_helper_dir/body.md"
+)
+expected_auth_header="$(printf 'x-access-token:%s' 'fixture-pr-token' | base64 | tr -d '\n')"
+if ! git -C "$pr_auth_fixture" config --local --get-all http.https://github.com/.extraheader | grep -Fxq "AUTHORIZATION: basic $expected_auth_header"; then
+  echo "PR automation did not configure GitHub HTTPS authentication from the explicit GH_TOKEN." >&2
+  exit 1
+fi
+
+pr_workflow_permission_fixture="$(mktemp -d)"
+pr_workflow_permission_origin="$(mktemp -d)"
+git init --bare -q "$pr_workflow_permission_origin"
+git -C "$pr_workflow_permission_fixture" init -q
+git -C "$pr_workflow_permission_fixture" config user.email "fixture@example.com"
+git -C "$pr_workflow_permission_fixture" config user.name "Fixture"
+mkdir -p "$pr_workflow_permission_fixture/.github/workflows"
+cat > "$pr_workflow_permission_fixture/.github/workflows/ci.yml" <<'EOF'
+name: CI
+on: workflow_dispatch
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+EOF
+git -C "$pr_workflow_permission_fixture" add .github/workflows/ci.yml
+git -C "$pr_workflow_permission_fixture" commit -qm "init"
+git -C "$pr_workflow_permission_fixture" branch -M main
+git -C "$pr_workflow_permission_fixture" remote add origin "$pr_workflow_permission_origin"
+printf '\n# managed change\n' >> "$pr_workflow_permission_fixture/.github/workflows/ci.yml"
+pr_workflow_permission_helper_dir="$(mktemp -d)"
+mkdir -p "$pr_workflow_permission_helper_dir/bin"
+cat > "$pr_workflow_permission_helper_dir/bin/git" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = "push" ]; then
+  echo "remote: error: refusing to allow a GitHub App to create or update workflow '.github/workflows/ci.yml' without \`workflows\` permission" >&2
+  exit 1
+fi
+exec "$real_git_path" "\$@"
+EOF
+chmod +x "$pr_workflow_permission_helper_dir/bin/git"
+cat > "$pr_workflow_permission_helper_dir/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  echo '[]'
+  exit 0
+fi
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$pr_workflow_permission_helper_dir/bin/gh"
+pr_workflow_permission_log="$(mktemp)"
+if (
+  cd "$pr_workflow_permission_fixture"
+  PATH="$pr_workflow_permission_helper_dir/bin:$PATH" \
+    GH_TOKEN="fixture-gh-token" \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_stage_output" \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/workflow-permission" \
+      "main" \
+      "fixture workflow permission" \
+      "fixture workflow permission" \
+      "$pr_stage_helper_dir/body.md"
+) >"$pr_workflow_permission_log" 2>&1; then
+  echo "PR automation unexpectedly succeeded after a workflow permission push rejection." >&2
+  exit 1
+fi
+grep -Fq 'WP_PLUGIN_BASE_PR_TOKEN' "$pr_workflow_permission_log" || {
+  echo "PR automation did not print workflow permission remediation guidance." >&2
+  exit 1
+}
+
 release_publish_fixture="$(mktemp -d)"
 cat > "$release_publish_fixture/notes.md" <<'EOF'
 fixture release notes

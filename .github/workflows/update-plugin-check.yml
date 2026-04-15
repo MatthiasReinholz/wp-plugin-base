@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Configure git identity
         run: |
@@ -69,7 +70,7 @@ jobs:
       - name: Create dependency update PR
         if: ${{ steps.prepare.outputs.update_needed == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
           GIT_ADD_PATHS: ${{ steps.prepare.outputs.git_add_paths }}
         run: |
           bash scripts/update/create_or_update_pr.sh \

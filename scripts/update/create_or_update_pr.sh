@@ -28,6 +28,68 @@ fi
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 OWNER="${GITHUB_REPOSITORY_OWNER:-${REPO%%/*}}"
+AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+LAST_PUSH_ERROR_KIND=""
+
+configure_git_remote_auth() {
+  local origin_url
+  local auth_header
+  local auth_payload
+
+  [ -n "$AUTH_TOKEN" ] || return 0
+
+  origin_url="$(git remote get-url origin)"
+  case "$origin_url" in
+    https://github.com/*|http://github.com/*|git@github.com:*|ssh://git@github.com/*)
+      auth_payload="$(printf 'x-access-token:%s' "$AUTH_TOKEN" | base64 | tr -d '\n')"
+      auth_header="AUTHORIZATION: basic ${auth_payload}"
+      git config --local http.https://github.com/.extraheader "$auth_header"
+      case "$origin_url" in
+        git@github.com:*|ssh://git@github.com/*)
+          git remote set-url origin "https://github.com/${REPO}.git"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+has_staged_workflow_changes() {
+  git diff --cached --name-only | grep -Eq '^\.github/workflows/[^[:space:]]+\.(yml|yaml)$'
+}
+
+print_workflow_push_guidance() {
+  cat >&2 <<'EOF'
+GitHub rejected this push because the staged update includes workflow files under .github/workflows/ and the current token cannot modify workflows.
+
+Resolution:
+- configure the repository or organization secret `WP_PLUGIN_BASE_PR_TOKEN`
+- grant that token repository write access for contents, pull requests, and workflows
+- rerun the workflow after the secret is available
+
+New wp-plugin-base updater templates automatically prefer `WP_PLUGIN_BASE_PR_TOKEN` when present.
+Existing child repositories on older foundation versions need a one-time manual workflow bootstrap so `update-foundation.yml` passes that secret through.
+EOF
+}
+
+run_git_push() {
+  local push_log
+  push_log="$(mktemp)"
+  LAST_PUSH_ERROR_KIND=""
+
+  if git push "$@" >"$push_log" 2>&1; then
+    rm -f "$push_log"
+    return 0
+  fi
+
+  cat "$push_log" >&2
+  if grep -Fq 'refusing to allow a GitHub App to create or update workflow' "$push_log"; then
+    LAST_PUSH_ERROR_KIND="workflow-permission"
+  fi
+  rm -f "$push_log"
+  return 1
+}
+
+configure_git_remote_auth
 
 git fetch origin "$BRANCH_NAME" >/dev/null 2>&1 || true
 
@@ -59,13 +121,27 @@ else
 fi
 
 changes_committed=false
+workflow_changes_committed=false
 
 if ! git diff --cached --quiet; then
+  if has_staged_workflow_changes; then
+    workflow_changes_committed=true
+  fi
+
   git commit -m "$COMMIT_MESSAGE"
   changes_committed=true
-  if ! git push origin "HEAD:$BRANCH_NAME" >/dev/null 2>&1; then
+  if ! run_git_push origin "HEAD:$BRANCH_NAME"; then
+    if [ "$LAST_PUSH_ERROR_KIND" = "workflow-permission" ] && [ "$workflow_changes_committed" = true ]; then
+      print_workflow_push_guidance
+      exit 1
+    fi
     echo "Non-fast-forward push for $BRANCH_NAME; retrying with --force-with-lease." >&2
-    git push --force-with-lease origin "HEAD:$BRANCH_NAME"
+    if ! run_git_push --force-with-lease origin "HEAD:$BRANCH_NAME"; then
+      if [ "$LAST_PUSH_ERROR_KIND" = "workflow-permission" ] && [ "$workflow_changes_committed" = true ]; then
+        print_workflow_push_guidance
+      fi
+      exit 1
+    fi
   fi
 fi
 
