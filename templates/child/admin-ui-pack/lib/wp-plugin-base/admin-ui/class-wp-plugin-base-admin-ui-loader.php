@@ -3,6 +3,7 @@
  * Admin UI loader for managed app conventions.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 	/**
 	 * Registers and renders a standard admin application shell.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_Admin_UI_Loader {
 		/**
@@ -23,6 +26,8 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 
 		/**
 		 * Registers an admin page and its asset hooks.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $config Page config.
 		 * @return void
@@ -68,6 +73,8 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 		/**
 		 * Renders the app root.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $config Page config.
 		 * @return void
 		 */
@@ -79,6 +86,8 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 
 		/**
 		 * Enqueues built UI assets.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $config Page config.
 		 * @return void
@@ -125,12 +134,12 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 				$config['script_handle'],
 				'window.wpPluginBaseAdminUi = window.wpPluginBaseAdminUi || {}; window.wpPluginBaseAdminUi[' . wp_json_encode( $config['plugin_slug'] ) . '] = ' . wp_json_encode(
 					array(
-						'pluginSlug'    => $config['plugin_slug'],
-						'restNamespace' => $config['rest_namespace'],
-						'rootId'        => $config['root_id'],
-						'pluginName'    => $config['plugin_name'],
+						'pluginSlug'            => $config['plugin_slug'],
+						'restNamespace'         => $config['rest_namespace'],
+						'rootId'                => $config['root_id'],
+						'pluginName'            => $config['plugin_name'],
 						'experimentalDataViews' => ! empty( $config['experimental_dataviews'] ),
-						'operations'    => class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ? WP_Plugin_Base_REST_Operations_Registry::summary() : array(),
+						'operations'            => class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ? WP_Plugin_Base_REST_Operations_Registry::summary() : array(),
 					)
 				),
 				'before'

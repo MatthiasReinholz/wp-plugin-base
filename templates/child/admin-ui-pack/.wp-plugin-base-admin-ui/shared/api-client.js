@@ -20,6 +20,11 @@ export function getRestPath(operationIdOrPath) {
   return `/${getRestNamespace()}${normalized}`;
 }
 
+/**
+ * Executes a managed REST operation and propagates any `apiFetch` errors.
+ *
+ * Callers are expected to handle rejections with `try/catch`.
+ */
 export async function fetchOperation(operationIdOrPath, options = {}) {
   return apiFetch({
     path: getRestPath(operationIdOrPath),

@@ -3,6 +3,7 @@
  * REST operation authorization helpers.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,14 +13,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 	/**
 	 * Evaluates capability and scope constraints for operations.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_Permissions {
 		/**
 		 * Checks whether the current request may execute the operation.
 		 *
-		 * @param string          $plugin_slug Plugin slug.
+		 * @since NEXT
+		 *
+		 * @param string              $plugin_slug Plugin slug.
 		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param WP_REST_Request $request Request instance.
+		 * @param WP_REST_Request     $request     Request instance.
 		 * @return true|WP_Error
 		 */
 		public static function check_operation( $plugin_slug, array $operation, WP_REST_Request $request ) {
@@ -53,8 +58,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Validates capability requirements.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param WP_REST_Request     $request Request instance.
+		 * @param WP_REST_Request     $request   Request instance.
 		 * @return true|WP_Error
 		 */
 		private static function check_capability( array $operation, WP_REST_Request $request ) {
@@ -115,8 +122,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Logs uncaught capability callback failures for developer visibility.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param Throwable           $error Thrown error.
+		 * @param Throwable           $error     Thrown error.
 		 * @return void
 		 */
 		private static function log_capability_failure( array $operation, Throwable $error ) {
@@ -128,15 +137,18 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 				$error->getMessage()
 			);
 
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional runtime logging for uncaught permission callback exceptions.
 			error_log( $message );
 		}
 
 		/**
 		 * Validates scope requirements after capability checks succeed.
 		 *
-		 * @param string             $plugin_slug Plugin slug.
-		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param WP_REST_Request    $request Request instance.
+		 * @since NEXT
+		 *
+		 * @param string              $plugin_slug Plugin slug.
+		 * @param array<string,mixed> $operation   Operation manifest.
+		 * @param WP_REST_Request     $request     Request instance.
 		 * @return true|WP_Error
 		 */
 		private static function check_scopes( $plugin_slug, array $operation, WP_REST_Request $request ) {
@@ -163,9 +175,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Resolves granted scopes for the current user/request.
 		 *
-		 * @param string             $plugin_slug Plugin slug.
-		 * @param array<string,mixed> $operation Operation manifest.
-		 * @param WP_REST_Request    $request Request instance.
+		 * @since NEXT
+		 *
+		 * @param string              $plugin_slug Plugin slug.
+		 * @param array<string,mixed> $operation   Operation manifest.
+		 * @param WP_REST_Request     $request     Request instance.
 		 * @return array<int,string>
 		 */
 		private static function granted_scopes( $plugin_slug, array $operation, WP_REST_Request $request ) {
@@ -203,6 +217,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Normalizes scope declarations into a flat string list.
 		 *
+		 * @since NEXT
+		 *
 		 * @param mixed $raw_scopes Raw scope declaration.
 		 * @return array<int,string>
 		 */
@@ -236,6 +252,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		/**
 		 * Checks whether a required scope is granted by a scope list.
 		 *
+		 * @since NEXT
+		 *
 		 * @param string            $required_scope Required scope.
 		 * @param array<int,string> $granted_scopes Granted scopes.
 		 * @return bool
@@ -246,7 +264,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 					return true;
 				}
 
-				if ( str_ends_with( $granted_scope, '.*' ) ) {
+				$has_wildcard_suffix = function_exists( 'str_ends_with' )
+					? str_ends_with( $granted_scope, '.*' )
+					: substr( $granted_scope, -2 ) === '.*';
+				if ( $has_wildcard_suffix ) {
 					$prefix = substr( $granted_scope, 0, -2 );
 					if ( '' !== $prefix && 0 === strpos( $required_scope, $prefix . '.' ) ) {
 						return true;

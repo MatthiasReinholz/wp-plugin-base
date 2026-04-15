@@ -96,6 +96,34 @@ If `update-foundation` detects a newer version but fails during pull request cre
 
 Both conditions are required for the automated update PR flow to work.
 
+If the failure log says GitHub is refusing to create or update workflow files without workflows permission, the update includes managed files under `.github/workflows/`.
+
+Resolution:
+
+1. create a repository or organization secret named `WP_PLUGIN_BASE_PR_TOKEN`
+2. give that token repository write access for contents, pull requests, and workflows
+3. rerun the workflow
+
+For child repositories that still vendor an older updater workflow, apply this one-time bootstrap patch first so the workflow prefers the secret:
+
+```yaml
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+```
+
+```yaml
+      - name: Create foundation update PR
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
+          GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
+```
+
+After that bootstrap change lands once, future workflow-changing foundation updates can use the configured secret automatically.
+
 ## External Dependency Updater Workflow Fails
 
 The foundation's external dependency updater lives at `.github/workflows/update-plugin-check.yml` (display name: `update-external-dependencies`).

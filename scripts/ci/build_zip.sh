@@ -21,12 +21,16 @@ STAGE_ROOT="$DIST_DIR/package"
 STAGE_DIR="$STAGE_ROOT/$PLUGIN_SLUG"
 ZIP_PATH="$DIST_DIR/$ZIP_FILE"
 EXCLUDES_FILE="$(mktemp)"
+FILTERED_EXCLUDES_FILE=""
 
-cleanup() {
+wp_plugin_base_cleanup_build_zip() {
   rm -f "$EXCLUDES_FILE"
+  if [ -n "$FILTERED_EXCLUDES_FILE" ]; then
+    rm -f "$FILTERED_EXCLUDES_FILE"
+  fi
 }
 
-trap cleanup EXIT
+trap wp_plugin_base_cleanup_build_zip EXIT
 
 if [ ! -f "$MAIN_PLUGIN_PATH" ]; then
   echo "Main plugin file not found: $MAIN_PLUGIN_FILE" >&2
@@ -92,27 +96,22 @@ if ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -d "$ROOT_DIR
   exit 1
 fi
 
-normalize_repo_relative_path() {
-  local path="$1"
-  path="${path#./}"
-  path="${path#/}"
-  printf '%s\n' "$path"
-}
-
-managed_exclude_path="/$(normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
+managed_exclude_path="/$(wp_plugin_base_normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
 printf '%s\n' "$managed_exclude_path" >> "$EXCLUDES_FILE"
 
 if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
   while IFS= read -r exclude_path; do
     [ -n "$exclude_path" ] || continue
-    printf '/%s\n' "$(normalize_repo_relative_path "$exclude_path")" >> "$EXCLUDES_FILE"
+    printf '/%s\n' "$(wp_plugin_base_normalize_repo_relative_path "$exclude_path")" >> "$EXCLUDES_FILE"
   done < <(wp_plugin_base_csv_to_lines "$PACKAGE_EXCLUDE")
 fi
 
-configured_readme_path="/$(normalize_repo_relative_path "$README_FILE")"
-filtered_excludes_file="$(mktemp)"
-grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$filtered_excludes_file" || true
-mv "$filtered_excludes_file" "$EXCLUDES_FILE"
+configured_readme_path="/$(wp_plugin_base_normalize_repo_relative_path "$README_FILE")"
+FILTERED_EXCLUDES_FILE="$(mktemp)"
+grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$FILTERED_EXCLUDES_FILE" || true
+mv "$FILTERED_EXCLUDES_FILE" "$EXCLUDES_FILE"
+# Disarm the EXIT trap for the temp file that was already moved away.
+FILTERED_EXCLUDES_FILE=""
 
 rm -rf "$STAGE_ROOT" "$ZIP_PATH"
 mkdir -p "$STAGE_DIR"
@@ -127,8 +126,7 @@ if [ -n "${PACKAGE_INCLUDE:-}" ]; then
       exit 1
     fi
 
-    include_path="${include_path#./}"
-    include_path="${include_path#/}"
+    include_path="$(wp_plugin_base_normalize_repo_relative_path "$include_path")"
 
     (
       cd "$ROOT_DIR"

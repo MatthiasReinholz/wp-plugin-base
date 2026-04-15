@@ -3,6 +3,7 @@
  * REST operation response helpers.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,10 +13,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 	/**
 	 * Normalizes callback responses.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_Responses {
 		/**
 		 * Wraps arbitrary callback output in a REST response when needed.
+		 *
+		 * @since NEXT
 		 *
 		 * @param mixed $result Callback result.
 		 * @return WP_REST_Response|WP_Error|mixed
@@ -30,6 +35,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 
 		/**
 		 * Unwraps a normalized response into raw data for non-REST transports.
+		 *
+		 * @since NEXT
 		 *
 		 * @param WP_REST_Response|WP_Error|mixed $result Result payload.
 		 * @return WP_Error|mixed

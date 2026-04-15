@@ -139,6 +139,7 @@ For your project to consume this foundation successfully:
 - your project must commit both `.wp-plugin-base/` and `.wp-plugin-base.env` before the shared workflows can run
 - if you use the automated foundation self-update workflow, the GitHub Actions runner must be able to read releases from `FOUNDATION_REPOSITORY`
 - if you want workflows such as `prepare-release` or `update-foundation` to open pull requests, the repository must allow GitHub Actions to create and approve pull requests
+- if foundation or managed dependency updates may change `.github/workflows/*`, set the repository or organization secret `WP_PLUGIN_BASE_PR_TOKEN` to a token that can write contents, pull requests, and workflows
 
 If those conditions are not met, the local project workflows will either fail to find `.wp-plugin-base/` or, for self-update only, fail to reach the foundation release source.
 

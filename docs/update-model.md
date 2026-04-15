@@ -11,6 +11,10 @@ The scheduled `update-foundation` workflow:
 - regenerates managed files from templates
 - opens a pull request
 
+When the regenerated managed files include `.github/workflows/*`, GitHub will reject a branch push authenticated only with the default Actions app token. Repositories that want fully automated workflow-file updates should configure the repository or organization secret `WP_PLUGIN_BASE_PR_TOKEN` with a token that can write contents, pull requests, and workflows. The managed updater workflows prefer that secret automatically when it is present.
+
+Existing child repositories on older foundation versions may still need a one-time manual bootstrap edit to their local `update-foundation.yml` workflow so it passes `WP_PLUGIN_BASE_PR_TOKEN` through before the first workflow-changing foundation update can land automatically.
+
 Major-version updates are intentionally manual.
 
 For external GitHub dependencies that do not have first-party provenance the framework can verify automatically, automated update PRs are still allowed, but they must use the shared external-dependency PR-body helper so reviewers get a standardized warning to verify the upstream release manually before merge.

@@ -3,6 +3,7 @@
  * REST operations registry.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 	/**
 	 * Stores operation manifests declared by the child repository.
+	 *
+	 * @since NEXT
 	 */
 	class WP_Plugin_Base_REST_Operations_Registry {
 		/**
@@ -24,6 +27,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 		/**
 		 * Registers a batch of operations.
 		 *
+		 * @since NEXT
+		 *
 		 * @param array<int,array<string,mixed>> $operations Operation manifests.
 		 * @return void
 		 */
@@ -35,6 +40,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 
 		/**
 		 * Registers a single operation if it has a valid id.
+		 *
+		 * @since NEXT
 		 *
 		 * @param array<string,mixed> $operation Operation manifest.
 		 * @return void
@@ -50,6 +57,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 		/**
 		 * Returns all registered operations.
 		 *
+		 * @since NEXT
+		 *
 		 * @return array<int,array<string,mixed>>
 		 */
 		public static function all() {
@@ -58,6 +67,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 
 		/**
 		 * Returns a UI-safe summary keyed by operation id.
+		 *
+		 * @since NEXT
 		 *
 		 * @return array<string,array<string,mixed>>
 		 */

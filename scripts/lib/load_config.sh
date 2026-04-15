@@ -20,6 +20,13 @@ wp_plugin_base_trim() {
   printf '%s' "$value"
 }
 
+wp_plugin_base_normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
 wp_plugin_base_root() {
   if [ -n "${WP_PLUGIN_BASE_ROOT:-}" ]; then
     printf '%s\n' "$WP_PLUGIN_BASE_ROOT"

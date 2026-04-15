@@ -3,6 +3,7 @@
  * Managed bootstrap for the admin UI pack.
  *
  * @package WPPluginBase
+ * @since NEXT
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
