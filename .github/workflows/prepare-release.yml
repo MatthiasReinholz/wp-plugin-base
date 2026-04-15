@@ -40,6 +40,7 @@ jobs:
         with:
           ref: ${{ inputs.base_ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve target version
         id: version
@@ -76,6 +77,7 @@ jobs:
         with:
           ref: ${{ steps.source.outputs.ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Bump release metadata
         run: bash .wp-plugin-base/scripts/release/bump_version.sh "${{ steps.version.outputs.value }}" "${{ inputs.config_path }}"
