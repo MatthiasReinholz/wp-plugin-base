@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.6.2
+
+* Fix PR auth header reuse in release workflows
+* Keep child workflow artifact pins in sync
+* Allow upload-artifact v7.0.1 pin in workflow policy
+* Polish runtime follow-up consistency and admin UI resilience
+* Tighten validation helper naming consistency
+* Harden runtime pack review follow-ups
+* chore(deps): bump semgrep in /tools/python-semgrep
+* chore(deps-dev): bump phpstan/phpstan
+* chore(deps): bump actions/upload-artifact from 7.0.0 to 7.0.1
+
 ## v1.6.1
 
 * Apply local workspace updates across updater automation, validation, and runtime packs
