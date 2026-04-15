@@ -43,6 +43,9 @@ configure_git_remote_auth() {
     https://github.com/*|http://github.com/*|git@github.com:*|ssh://git@github.com/*)
       auth_payload="$(printf 'x-access-token:%s' "$AUTH_TOKEN" | base64 | tr -d '\n')"
       auth_header="AUTHORIZATION: basic ${auth_payload}"
+      # actions/checkout may have already configured an Authorization extraheader.
+      # Clear any inherited values first so Git does not send duplicate headers.
+      git config --local --unset-all http.https://github.com/.extraheader >/dev/null 2>&1 || true
       git config --local http.https://github.com/.extraheader "$auth_header"
       case "$origin_url" in
         git@github.com:*|ssh://git@github.com/*)
