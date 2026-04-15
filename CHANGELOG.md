@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6.3
+
+* Fix child prepare-release credential persistence
+
 ## v1.6.2
 
 * Fix PR auth header reuse in release workflows
