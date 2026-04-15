@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6.1
+
+* Apply local workspace updates across updater automation, validation, and runtime packs
+
 ## v1.6.0
 
 * Fix runtime pack negative fixture setup
