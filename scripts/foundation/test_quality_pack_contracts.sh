@@ -57,6 +57,43 @@ grep -Fq "bootstrap-child.php" "$full_fixture/tests/bootstrap.php" || {
   exit 1
 }
 
+wp_tests_dir="$full_fixture/wp-tests"
+mkdir -p "$wp_tests_dir/includes"
+
+cat > "$wp_tests_dir/includes/functions.php" <<'EOF_FUNCTIONS'
+<?php
+declare(strict_types=1);
+
+function tests_add_filter($hook, $callback): void {
+	file_put_contents((string) getenv('WP_PLUGIN_BASE_TEST_LOG'), $hook . PHP_EOL, FILE_APPEND);
+}
+EOF_FUNCTIONS
+
+cat > "$wp_tests_dir/includes/bootstrap.php" <<'EOF_BOOTSTRAP'
+<?php
+declare(strict_types=1);
+return;
+EOF_BOOTSTRAP
+
+cat > "$full_fixture/tests/wp-plugin-base/bootstrap-child.php" <<'EOF_CHILD'
+<?php
+declare(strict_types=1);
+
+tests_add_filter(
+	'child-overlay-loaded',
+	static function (): void {}
+);
+EOF_CHILD
+
+WP_PLUGIN_BASE_TEST_LOG="$full_fixture/bootstrap-child.log" \
+WP_TESTS_DIR="$wp_tests_dir" \
+php "$full_fixture/tests/bootstrap.php"
+
+grep -Fq 'child-overlay-loaded' "$full_fixture/bootstrap-child.log" || {
+  echo "Bootstrap child overlay should be able to register WordPress test hooks." >&2
+  exit 1
+}
+
 printf '%s\n' '# preserve me' >> "$full_fixture/phpstan.neon"
 printf '%s\n' '// preserve me' >> "$full_fixture/tests/wp-plugin-base/bootstrap-child.php"
 WP_PLUGIN_BASE_ROOT="$full_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
