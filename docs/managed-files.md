@@ -16,7 +16,8 @@ These files are intended to be generated from foundation templates in your proje
 - `SECURITY.md`
 - `CONTRIBUTING.md`
 - `uninstall.php.example`
-- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}` when `PHP_RUNTIME_MATRIX` is non-empty and `PHP_RUNTIME_MATRIX_MODE=strict`
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
 - `.github/workflows/woocommerce-status.yml` when `WOOCOMMERCE_COM_PRODUCT_ID` is configured (status diagnostics file; the workflow self-skips unless `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`)
@@ -37,6 +38,8 @@ If a project does not already have a `CHANGELOG.md`, sync also seeds one from th
 The managed distignore file excludes repo-root `packages/` and `routes/` by default so build-only workspaces stay out of the install ZIP and translation scan. If either directory belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
 
 If a project does not already have the configured suppressions file, sync seeds it with an empty suppression set. After that initial creation, the project owns suppression entries and justifications.
+
+The quality pack now also seeds child-owned overlays: `tests/wp-plugin-base/bootstrap-child.php` for the PHPUnit bridge, plus `phpstan.neon` when the full quality pack is enabled. Those overlays remain project-owned after creation, but project validation still treats them as required pack surface while the relevant bridge or pack mode is enabled.
 
 The REST operations pack and admin UI pack also seed child-owned files the first time they are enabled. Those seeded files remain project-owned after creation, but project validation still treats them as required pack surface while the pack is enabled.
 

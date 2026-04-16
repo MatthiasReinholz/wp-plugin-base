@@ -9,6 +9,11 @@ if (! file_exists($plugin_file)) {
 }
 
 $tests_dir = getenv('WP_TESTS_DIR');
+$child_bootstrap_file = __DIR__ . '/wp-plugin-base/bootstrap-child.php';
+
+if (file_exists($child_bootstrap_file)) {
+	require_once $child_bootstrap_file;
+}
 
 if ($tests_dir && file_exists($tests_dir . '/includes/functions.php')) {
 	require_once $tests_dir . '/includes/functions.php';
