@@ -130,11 +130,12 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 */
 		private static function log_capability_failure( array $operation, Throwable $error ) {
 			$operation_id = isset( $operation['id'] ) ? (string) $operation['id'] : '(unknown)';
+			$error_class  = get_class( $error );
 			$message      = sprintf(
-				/* translators: 1: operation id, 2: thrown message. */
-				__( 'REST operation %1$s capability_callback threw an uncaught exception: %2$s', '__PLUGIN_SLUG__' ),
+				/* translators: 1: operation id, 2: thrown exception class name. */
+				__( 'REST operation %1$s capability_callback threw an uncaught %2$s.', '__PLUGIN_SLUG__' ),
 				$operation_id,
-				$error->getMessage()
+				$error_class
 			);
 
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional runtime logging for uncaught permission callback exceptions.

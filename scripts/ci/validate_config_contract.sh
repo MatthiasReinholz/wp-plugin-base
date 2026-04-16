@@ -9,12 +9,35 @@ LOAD_CONFIG_PATH="$ROOT_DIR/scripts/lib/load_config.sh"
 ENV_EXAMPLE_PATH="$ROOT_DIR/templates/child/.wp-plugin-base.env.example"
 README_PATH="$ROOT_DIR/README.md"
 
+# shellcheck source=../lib/load_config.sh
+. "$LOAD_CONFIG_PATH"
+
 if [ ! -f "$SCHEMA_PATH" ]; then
   echo "Missing config schema: $SCHEMA_PATH" >&2
   exit 1
 fi
 
-jq -e '.schema_version == 1 and (.keys | type == "object") and (.scopes | type == "array")' "$SCHEMA_PATH" >/dev/null
+jq -e '
+  .schema_version == 1 and
+  (.keys | type == "object") and
+  (.scopes | type == "array") and
+  (
+    .keys
+    | to_entries
+    | all(
+        (.value | type == "object") and
+        (((.value.default // null) == null) or (.value.default | type == "string")) and
+        (((.value.default_template // null) == null) or (.value.default_template | type == "string")) and
+        (((.value.default // null) == null) or ((.value.default_template // null) == null))
+      )
+  )
+' "$SCHEMA_PATH" >/dev/null
+
+wp_plugin_base_expand_default_template() {
+  local template="$1"
+
+  perl -0pe 's/\$\{([A-Z0-9_]+)\}/defined $ENV{$1} ? $ENV{$1} : q()/ge' <<<"$template"
+}
 
 schema_keys="$(jq -r '.keys | keys[]' "$SCHEMA_PATH" | sort)"
 
@@ -101,5 +124,48 @@ if [ "$env_example_optional_keys" != "$schema_optional_keys" ]; then
   printf '%s\n' "$schema_optional_keys" >&2
   exit 1
 fi
+
+contract_fixture="$(mktemp -d)"
+trap 'rm -rf "$contract_fixture"' EXIT
+
+cat > "$contract_fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.5.0
+PLUGIN_NAME="Contract Test"
+PLUGIN_SLUG=contract-test
+MAIN_PLUGIN_FILE=contract-test.php
+ZIP_FILE=contract-test.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+EOF_CONFIG
+
+WP_PLUGIN_BASE_ROOT="$contract_fixture" wp_plugin_base_load_config ""
+
+while IFS= read -r row; do
+  key="$(jq -r '.[0]' <<<"$row")"
+  default_value="$(jq -r '.[1]' <<<"$row")"
+  default_template="$(jq -r '.[2]' <<<"$row")"
+  [ -n "$key" ] || continue
+
+  actual_value="${!key:-}"
+  expected_value="$default_value"
+  if [ -n "$default_template" ]; then
+    expected_value="$(wp_plugin_base_expand_default_template "$default_template")"
+  fi
+
+  if [ "$actual_value" != "$expected_value" ]; then
+    echo "Config schema default drifted for ${key}." >&2
+    echo "Expected: $expected_value" >&2
+    echo "Actual:   $actual_value" >&2
+    exit 1
+  fi
+done < <(
+  jq -c '
+    .keys
+    | to_entries[]
+    | select((.value.default // null) != null or (.value.default_template // null) != null)
+    | [.key, (.value.default // ""), (.value.default_template // "")]
+  ' "$SCHEMA_PATH"
+)
 
 echo "Validated config contract schema parity."

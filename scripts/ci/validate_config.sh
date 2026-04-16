@@ -163,30 +163,7 @@ wp_plugin_base_validate_https_url() {
   fi
 }
 
-if ! jq -e --arg scope "$CONFIG_SCOPE" '.scopes | index($scope) != null' "$CONFIG_SCHEMA_PATH" >/dev/null; then
-  echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
-  exit 1
-fi
-
-required_keys="$(
-  jq -r --arg scope "$CONFIG_SCOPE" '
-    .keys
-    | to_entries
-    | map(select((.value.required_in_scopes // []) | index($scope) != null) | .key)
-    | .[]
-  ' "$CONFIG_SCHEMA_PATH"
-)"
-
-if [ -n "$required_keys" ]; then
-  # shellcheck disable=SC2086
-  wp_plugin_base_require_vars $required_keys
-fi
-
-wp_plugin_base_validate_regex "$FOUNDATION_REPOSITORY" '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' 'FOUNDATION_REPOSITORY'
-wp_plugin_base_validate_regex "$FOUNDATION_VERSION" '^v[0-9]+\.[0-9]+\.[0-9]+$' 'FOUNDATION_VERSION'
-wp_plugin_base_validate_regex "$PRODUCTION_ENVIRONMENT" '^[A-Za-z0-9_.-]+$' 'PRODUCTION_ENVIRONMENT'
-
-if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)$ ]]; then
+wp_plugin_base_validate_project_metadata() {
   wp_plugin_base_validate_regex "$PLUGIN_NAME" '^[^[:cntrl:]]+$' 'PLUGIN_NAME'
   wp_plugin_base_validate_regex "$PLUGIN_SLUG" '^[a-z0-9][a-z0-9-]*$' 'PLUGIN_SLUG'
   wp_plugin_base_validate_regex "$ZIP_FILE" '^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$' 'ZIP_FILE'
@@ -208,6 +185,16 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   if [ -n "${WORDPRESS_ORG_SLUG:-}" ]; then
     wp_plugin_base_validate_regex "$WORDPRESS_ORG_SLUG" '^[a-z0-9][a-z0-9-]*$' 'WORDPRESS_ORG_SLUG'
   fi
+
+  if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
+    while IFS= read -r host; do
+      wp_plugin_base_validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
+    done < <(wp_plugin_base_csv_to_lines "$EXTRA_ALLOWED_HOSTS")
+  fi
+}
+
+wp_plugin_base_validate_project_paths() {
+  local build_script_requires_existing_path
 
   if [ -n "${POT_FILE:-}" ]; then
     wp_plugin_base_validate_output_path "$POT_FILE" "POT file"
@@ -232,19 +219,20 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
     fi
     wp_plugin_base_validate_repo_relative_paths "$BUILD_SCRIPT" "BUILD_SCRIPT" "$build_script_requires_existing_path"
   fi
+}
 
-  if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
-    while IFS= read -r host; do
-      wp_plugin_base_validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
-    done < <(wp_plugin_base_csv_to_lines "$EXTRA_ALLOWED_HOSTS")
-  fi
-
+wp_plugin_base_validate_wordpress_readiness_settings() {
   wp_plugin_base_validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   wp_plugin_base_validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
   wp_plugin_base_validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
   wp_plugin_base_validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
   wp_plugin_base_validate_regex "${WOOCOMMERCE_COM_PRODUCT_ID:-}" '^$|^[0-9]+$' 'WOOCOMMERCE_COM_PRODUCT_ID'
   wp_plugin_base_validate_regex "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" '^[1-9][0-9]*$' 'WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS'
+}
+
+wp_plugin_base_validate_runtime_pack_settings() {
+  local github_repo_path
+
   wp_plugin_base_validate_regex "${GITHUB_RELEASE_UPDATER_ENABLED:-false}" '^(true|false)$' 'GITHUB_RELEASE_UPDATER_ENABLED'
   wp_plugin_base_validate_regex "${REST_OPERATIONS_PACK_ENABLED:-false}" '^(true|false)$' 'REST_OPERATIONS_PACK_ENABLED'
   wp_plugin_base_validate_regex "${REST_API_NAMESPACE:-}" '^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$' 'REST_API_NAMESPACE'
@@ -252,6 +240,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   wp_plugin_base_validate_regex "${ADMIN_UI_PACK_ENABLED:-false}" '^(true|false)$' 'ADMIN_UI_PACK_ENABLED'
   wp_plugin_base_validate_regex "${ADMIN_UI_STARTER:-}" '^$|^(basic|dataviews)$' 'ADMIN_UI_STARTER'
   wp_plugin_base_validate_regex "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS:-false}" '^(true|false)$' 'ADMIN_UI_EXPERIMENTAL_DATAVIEWS'
+
   if [ -n "${GITHUB_RELEASE_UPDATER_REPO_URL:-}" ]; then
     wp_plugin_base_validate_https_url "$GITHUB_RELEASE_UPDATER_REPO_URL" 'GITHUB_RELEASE_UPDATER_REPO_URL'
     if [[ "$GITHUB_RELEASE_UPDATER_REPO_URL" != https://github.com/* ]]; then
@@ -265,7 +254,40 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
       exit 1
     fi
   fi
+}
 
+wp_plugin_base_validate_plugin_check_settings() {
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}" '^(true|false)$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY'
+  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY'
+}
+
+wp_plugin_base_validate_release_automation_settings() {
+  wp_plugin_base_validate_regex "${PHPDOC_VERSION_REPLACEMENT_ENABLED:-false}" '^(true|false)$' 'PHPDOC_VERSION_REPLACEMENT_ENABLED'
+  wp_plugin_base_validate_regex "${CHANGELOG_MD_SYNC_ENABLED:-false}" '^(true|false)$' 'CHANGELOG_MD_SYNC_ENABLED'
+  wp_plugin_base_validate_regex "${CHANGELOG_SOURCE:-commits}" '^(commits|prs_titles)$' 'CHANGELOG_SOURCE'
+  wp_plugin_base_validate_regex "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}" '^(true|false)$' 'SIMULATE_RELEASE_WORKFLOW_ENABLED'
+  wp_plugin_base_validate_regex "${GLOTPRESS_TRIGGER_ENABLED:-false}" '^(true|false)$' 'GLOTPRESS_TRIGGER_ENABLED'
+  wp_plugin_base_validate_regex "${GLOTPRESS_FAIL_ON_ERROR:-false}" '^(true|false)$' 'GLOTPRESS_FAIL_ON_ERROR'
+  wp_plugin_base_validate_regex "${DEPLOY_NOTIFICATION_ENABLED:-false}" '^(true|false)$' 'DEPLOY_NOTIFICATION_ENABLED'
+
+  if wp_plugin_base_is_true "${GLOTPRESS_TRIGGER_ENABLED:-false}"; then
+    if [ -z "${GLOTPRESS_URL:-}" ] || [ -z "${GLOTPRESS_PROJECT_SLUG:-}" ]; then
+      echo "GLOTPRESS_TRIGGER_ENABLED=true requires GLOTPRESS_URL and GLOTPRESS_PROJECT_SLUG." >&2
+      exit 1
+    fi
+    wp_plugin_base_validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+  elif [ -n "${GLOTPRESS_URL:-}" ]; then
+    wp_plugin_base_validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+  fi
+}
+
+wp_plugin_base_validate_config_relationships() {
   if wp_plugin_base_is_true "${REST_ABILITIES_ENABLED:-false}" && ! wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
     echo "REST_ABILITIES_ENABLED=true requires REST_OPERATIONS_PACK_ENABLED=true." >&2
     exit 1
@@ -295,31 +317,6 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
     echo "ADMIN_UI_PACK_ENABLED=true requires BUILD_SCRIPT to be set." >&2
     exit 1
   fi
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}" '^$|^[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+)*$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}" '^(true|false)$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY'
-  wp_plugin_base_validate_regex "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" '^$|^[0-9]+$' 'WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY'
-  wp_plugin_base_validate_regex "${PHPDOC_VERSION_REPLACEMENT_ENABLED:-false}" '^(true|false)$' 'PHPDOC_VERSION_REPLACEMENT_ENABLED'
-  wp_plugin_base_validate_regex "${CHANGELOG_MD_SYNC_ENABLED:-false}" '^(true|false)$' 'CHANGELOG_MD_SYNC_ENABLED'
-  wp_plugin_base_validate_regex "${CHANGELOG_SOURCE:-commits}" '^(commits|prs_titles)$' 'CHANGELOG_SOURCE'
-  wp_plugin_base_validate_regex "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}" '^(true|false)$' 'SIMULATE_RELEASE_WORKFLOW_ENABLED'
-  wp_plugin_base_validate_regex "${GLOTPRESS_TRIGGER_ENABLED:-false}" '^(true|false)$' 'GLOTPRESS_TRIGGER_ENABLED'
-  wp_plugin_base_validate_regex "${GLOTPRESS_FAIL_ON_ERROR:-false}" '^(true|false)$' 'GLOTPRESS_FAIL_ON_ERROR'
-  wp_plugin_base_validate_regex "${DEPLOY_NOTIFICATION_ENABLED:-false}" '^(true|false)$' 'DEPLOY_NOTIFICATION_ENABLED'
-
-  if wp_plugin_base_is_true "${GLOTPRESS_TRIGGER_ENABLED:-false}"; then
-    if [ -z "${GLOTPRESS_URL:-}" ] || [ -z "${GLOTPRESS_PROJECT_SLUG:-}" ]; then
-      echo "GLOTPRESS_TRIGGER_ENABLED=true requires GLOTPRESS_URL and GLOTPRESS_PROJECT_SLUG." >&2
-      exit 1
-    fi
-    wp_plugin_base_validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
-  elif [ -n "${GLOTPRESS_URL:-}" ]; then
-    wp_plugin_base_validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
-  fi
 
   if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
     echo "WORDPRESS_QUALITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2
@@ -335,6 +332,39 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
     echo "GITHUB_RELEASE_UPDATER_ENABLED=true requires GITHUB_RELEASE_UPDATER_REPO_URL." >&2
     exit 1
   fi
+}
+
+if ! jq -e --arg scope "$CONFIG_SCOPE" '.scopes | index($scope) != null' "$CONFIG_SCHEMA_PATH" >/dev/null; then
+  echo "Unsupported config validation scope: ${CONFIG_SCOPE}" >&2
+  exit 1
+fi
+
+required_keys="$(
+  jq -r --arg scope "$CONFIG_SCOPE" '
+    .keys
+    | to_entries
+    | map(select((.value.required_in_scopes // []) | index($scope) != null) | .key)
+    | .[]
+  ' "$CONFIG_SCHEMA_PATH"
+)"
+
+if [ -n "$required_keys" ]; then
+  # shellcheck disable=SC2086
+  wp_plugin_base_require_vars $required_keys
+fi
+
+wp_plugin_base_validate_regex "$FOUNDATION_REPOSITORY" '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' 'FOUNDATION_REPOSITORY'
+wp_plugin_base_validate_regex "$FOUNDATION_VERSION" '^v[0-9]+\.[0-9]+\.[0-9]+$' 'FOUNDATION_VERSION'
+wp_plugin_base_validate_regex "$PRODUCTION_ENVIRONMENT" '^[A-Za-z0-9_.-]+$' 'PRODUCTION_ENVIRONMENT'
+
+if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)$ ]]; then
+  wp_plugin_base_validate_project_metadata
+  wp_plugin_base_validate_project_paths
+  wp_plugin_base_validate_wordpress_readiness_settings
+  wp_plugin_base_validate_runtime_pack_settings
+  wp_plugin_base_validate_plugin_check_settings
+  wp_plugin_base_validate_release_automation_settings
+  wp_plugin_base_validate_config_relationships
 fi
 
 echo "Validated ${CONFIG_PATH} for scope ${CONFIG_SCOPE}."

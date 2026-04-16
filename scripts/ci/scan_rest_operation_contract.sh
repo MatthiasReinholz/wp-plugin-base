@@ -15,11 +15,39 @@ wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
 BOOTSTRAP_PATH="$(wp_plugin_base_resolve_path "includes/rest-operations/bootstrap.php")"
 SUPPRESSIONS_PATH="$(wp_plugin_base_resolve_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
+MANIFEST_CONTRACT_PATH="$(wp_plugin_base_resolve_path "docs/rest-operation-manifest-contract.json")"
 
 if [ ! -f "$BOOTSTRAP_PATH" ]; then
   echo "REST operations bootstrap not found: includes/rest-operations/bootstrap.php" >&2
   exit 1
 fi
+
+if [ ! -f "$MANIFEST_CONTRACT_PATH" ]; then
+  MANIFEST_CONTRACT_PATH="$(wp_plugin_base_root)/templates/child/rest-operations-pack/docs/rest-operation-manifest-contract.json"
+fi
+
+if [ ! -f "$MANIFEST_CONTRACT_PATH" ]; then
+  echo "REST operation manifest contract not found: $MANIFEST_CONTRACT_PATH" >&2
+  exit 1
+fi
+
+jq -e '
+  .schema_version == 1 and
+  (.required_operation_keys | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
+  (.optional_operation_keys | type == "array" and all(.[]; type == "string" and length > 0)) and
+  (.visibility_values | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
+  (.non_public_requirements | type == "object") and
+  (.non_public_requirements.requires_one_of | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
+  (.non_public_requirements.requires_keys | type == "array" and all(.[]; type == "string" and length > 0))
+' "$MANIFEST_CONTRACT_PATH" >/dev/null
+
+allowed_operation_keys_json="$(
+  jq -c '[.required_operation_keys[], .optional_operation_keys[]] | unique' "$MANIFEST_CONTRACT_PATH"
+)"
+required_operation_keys_json="$(jq -c '.required_operation_keys' "$MANIFEST_CONTRACT_PATH")"
+visibility_values_json="$(jq -c '.visibility_values' "$MANIFEST_CONTRACT_PATH")"
+non_public_requires_one_of_json="$(jq -c '.non_public_requirements.requires_one_of' "$MANIFEST_CONTRACT_PATH")"
+non_public_required_keys_json="$(jq -c '.non_public_requirements.requires_keys' "$MANIFEST_CONTRACT_PATH")"
 
 operations_json="$(
   php -r '
@@ -127,43 +155,60 @@ echo "false";
 ' "$file_path"
 }
 
-if ! jq -e '
+if ! jq -e \
+  --argjson allowed_operation_keys "$allowed_operation_keys_json" \
+  --argjson required_operation_keys "$required_operation_keys_json" \
+  --argjson visibility_values "$visibility_values_json" \
+  --argjson non_public_requires_one_of "$non_public_requires_one_of_json" \
+  --argjson non_public_required_keys "$non_public_required_keys_json" \
+  '
   type == "array" and
   length > 0 and
   all(
     .[];
+    . as $operation |
     def callable:
       (type == "string" and length > 0) or
       (type == "array" and length == 2 and all(.[]; type == "string" and length > 0));
     def capability_declared:
-      (
-        (.capability | type) == "string" and (.capability | length > 0)
-      ) or (
-        (.capability | type) == "array" and (.capability | length > 0) and all(.capability[]; type == "string" and length > 0)
+      (($non_public_requires_one_of | index("capability")) != null) and (
+        (($operation.capability | type) == "string" and ($operation.capability | length > 0)) or
+        (($operation.capability | type) == "array" and ($operation.capability | length > 0) and all($operation.capability[]; type == "string" and length > 0))
       );
-    type == "object" and
-    (.id | type == "string" and length > 0) and
-    (.route | type == "string" and test("^/")) and
-    (.callback | callable) and
+    ($operation | type == "object") and
+    ($operation | keys | all(. as $key | $allowed_operation_keys | index($key) != null)) and
+    ($required_operation_keys | all(. as $required_key | ($operation | has($required_key)))) and
+    ($operation.id | type == "string" and length > 0) and
+    ($operation.route | type == "string" and test("^/")) and
+    ($operation.callback | callable) and
     (
-      (.source_file // null) == null or
-      (.source_file | type == "string" and length > 0)
+      ($operation.source_file // null) == null or
+      ($operation.source_file | type == "string" and length > 0)
     ) and
     (
-      (.methods | type == "string" and length > 0) or
-      (.methods | type == "array" and length > 0 and all(.[]; type == "string" and length > 0))
+      ($operation.methods | type == "string" and length > 0) or
+      ($operation.methods | type == "array" and length > 0 and all(.[]; type == "string" and length > 0))
     ) and
-    (.visibility | type == "string" and (. == "public" or . == "authenticated" or . == "admin")) and
+    ($operation.visibility | type == "string" and ($visibility_values | index($operation.visibility) != null)) and
     (
-      .visibility == "public" or
+      $operation.visibility == "public" or
       (
-        (capability_declared or ((.capability_callback // null) != null and (.capability_callback | callable))) and
-        (.required_scopes | type == "array" and length > 0 and all(.[]; type == "string" and length > 0))
+        (
+          capability_declared or
+          (
+            (($non_public_requires_one_of | index("capability_callback")) != null) and
+            (($operation.capability_callback // null) != null and ($operation.capability_callback | callable))
+          )
+        ) and
+        (
+          $non_public_required_keys
+          | all(.[]; . as $required_key | ($operation[$required_key] | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)))
+        )
       )
     ) and
     (
-      (.ability // null) == null or
-      (.ability | type == "object")
+      ($operation.ability // null) == null or
+      ($operation.ability | type == "object")
     )
   )
 ' <<<"$operations_json" >/dev/null; then

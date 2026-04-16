@@ -21,6 +21,26 @@
       "lockfile": "tools/wordpress-env/package-lock.json"
     },
     {
+      "id": "admin-ui-basic-starter-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/templates/child/admin-ui-pack-seed-basic/.wp-plugin-base-admin-ui"
+      },
+      "lockfile": "templates/child/admin-ui-pack-seed-basic/.wp-plugin-base-admin-ui/package-lock.json"
+    },
+    {
+      "id": "admin-ui-dataviews-starter-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui"
+      },
+      "lockfile": "templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui/package-lock.json"
+    },
+    {
       "id": "markdownlint-tooling",
       "tier": "lockfile-backed",
       "update": {

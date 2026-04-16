@@ -26,6 +26,8 @@ export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 ```
 
+Automatic binary-tool bootstrap currently supports Linux `x86_64` plus macOS `x86_64`/`arm64`. On Linux `arm64`, install `shellcheck`, `actionlint`, `editorconfig-checker`, and `gitleaks` manually before running `strict-local`.
+
 `gh`, `svn`, and similar tools are still required for release, update, or deploy flows, but they are not baseline prerequisites for `validate_project.sh`.
 
 If you are bootstrapping a blank repo, create the plugin main file and `readme.txt` before the first sync. The foundation expects those files to exist before validation can pass.

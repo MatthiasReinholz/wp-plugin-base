@@ -17,6 +17,22 @@ updates:
       prefix: chore
       include: scope
   - package-ecosystem: npm
+    directory: /templates/child/admin-ui-pack-seed-basic/.wp-plugin-base-admin-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+      include: scope
+  - package-ecosystem: npm
+    directory: /templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+      include: scope
+  - package-ecosystem: npm
     directory: /tools/markdownlint
     schedule:
       interval: weekly

@@ -2,6 +2,8 @@
 
 Enable `REST_OPERATIONS_PACK_ENABLED=true` to sync the managed REST operations bootstrap into your project.
 
+`REST_API_NAMESPACE` defaults to `<plugin-slug>/v1`, derived from `PLUGIN_SLUG`. Override it only when the child plugin needs a non-default namespace contract.
+
 This pack uses a hybrid ownership model:
 
 - managed under `lib/wp-plugin-base/rest-operations/`
@@ -17,7 +19,7 @@ require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';
 
 ## Operation Model
 
-Your child-owned `includes/rest-operations/bootstrap.php` file must return an array of operation manifests.
+Your child-owned `includes/rest-operations/bootstrap.php` file must return an array of operation manifests. The canonical manifest contract is tracked in `docs/rest-operation-manifest-contract.json`, and foundation validation enforces the generated bootstrap against that contract.
 
 Each operation manifest should declare:
 

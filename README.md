@@ -119,6 +119,8 @@ export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 ```
 
+Automatic binary-tool bootstrap currently supports Linux `x86_64` plus macOS `x86_64`/`arm64`. On Linux `arm64`, install the binary tools manually before running `strict-local`.
+
 ## Security Model
 
 `wp-plugin-base` assumes a locked-down GitHub Actions posture:
@@ -361,7 +363,7 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `GITHUB_RELEASE_UPDATER_ENABLED=true` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-github-updater.php`. Set `GITHUB_RELEASE_UPDATER_REPO_URL=https://github.com/<owner>/<repo>` and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';` to the plugin main file.
 
-`REST_OPERATIONS_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared REST operation registry and adapters in `lib/wp-plugin-base/rest-operations/` while seeding child-owned examples in `includes/rest-operations/`. Set `REST_API_NAMESPACE=<plugin-slug>/v1` to override the default namespace and add `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` to the plugin main file.
+`REST_OPERATIONS_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared REST operation registry and adapters in `lib/wp-plugin-base/rest-operations/` while seeding child-owned examples in `includes/rest-operations/`. The managed default namespace is `<plugin-slug>/v1`, derived from `PLUGIN_SLUG`. Set `REST_API_NAMESPACE=<plugin-slug>/v1` only when you need to override that default and add `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` to the plugin main file.
 
 `REST_ABILITIES_ENABLED=true` enables the managed Abilities adapter for the REST operations pack when the target WordPress runtime exposes the Abilities API.
 
@@ -369,7 +371,7 @@ Disabling `REST_OPERATIONS_PACK_ENABLED` is also a manual reconciliation step. S
 
 `ADMIN_UI_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared admin UI bootstrap in `lib/wp-plugin-base/admin-ui/`, seeds child-owned app sources in `.wp-plugin-base-admin-ui/`, and expects `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`. Add `require_once __DIR__ . '/lib/wp-plugin-base/admin-ui/bootstrap.php';` to the plugin main file. The admin UI pack also requires `REST_OPERATIONS_PACK_ENABLED=true`.
 
-`ADMIN_UI_STARTER=basic|dataviews` selects which admin starter is seeded when the admin UI pack is enabled. `basic` is the default lighter component-only starter. `dataviews` seeds the DataForm/DataViews starter.
+`ADMIN_UI_STARTER=basic|dataviews` selects which admin starter is seeded when the admin UI pack is enabled. `basic` is the normalized default lighter component-only starter when the key is omitted. `dataviews` seeds the DataForm/DataViews starter.
 
 `ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` remains supported as a backward-compatible alias for `ADMIN_UI_STARTER=dataviews`.
 
@@ -379,7 +381,7 @@ Disabling `ADMIN_UI_PACK_ENABLED` is also a manual reconciliation step. Sync rem
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
-Local `validate.sh` defaults to `fast-local` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports which checks were skipped when local prerequisites are unavailable. Use `--mode strict-local` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for Sigstore/OIDC-sensitive checks.
+Local `validate.sh` defaults to `fast-local` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports which checks were skipped when local prerequisites are unavailable. Use `--mode strict-local` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for Sigstore/OIDC-sensitive checks. Automatic binary-tool bootstrap currently supports Linux `x86_64` plus macOS `x86_64`/`arm64`; Linux `arm64` contributors must install those binary tools manually before running strict-local validation.
 
 ## WordPress.org Deploy
 
