@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "required_operation_keys": [
+    "id",
+    "route",
+    "methods",
+    "callback",
+    "visibility"
+  ],
+  "optional_operation_keys": [
+    "required_scopes",
+    "capability",
+    "capability_callback",
+    "input_schema",
+    "output_schema",
+    "annotations",
+    "ability",
+    "source_file"
+  ],
+  "visibility_values": [
+    "public",
+    "authenticated",
+    "admin"
+  ],
+  "non_public_requirements": {
+    "requires_one_of": [
+      "capability",
+      "capability_callback"
+    ],
+    "requires_keys": [
+      "required_scopes"
+    ]
+  }
+}

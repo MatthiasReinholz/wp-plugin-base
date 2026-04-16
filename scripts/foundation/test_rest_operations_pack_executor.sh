@@ -6,10 +6,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RESPONSES_CLASS_PATH="$ROOT_DIR/templates/child/rest-operations-pack/lib/wp-plugin-base/rest-operations/class-wp-plugin-base-rest-operations-responses.php"
 EXECUTOR_CLASS_PATH="$ROOT_DIR/templates/child/rest-operations-pack/lib/wp-plugin-base/rest-operations/class-wp-plugin-base-rest-operations-executor.php"
+ERROR_LOG_PATH="$(mktemp)"
 
-RESPONSES_CLASS_PATH="$RESPONSES_CLASS_PATH" EXECUTOR_CLASS_PATH="$EXECUTOR_CLASS_PATH" php <<'PHP'
+trap 'rm -f "$ERROR_LOG_PATH"' EXIT
+
+RESPONSES_CLASS_PATH="$RESPONSES_CLASS_PATH" EXECUTOR_CLASS_PATH="$EXECUTOR_CLASS_PATH" ERROR_LOG_PATH="$ERROR_LOG_PATH" php <<'PHP'
 <?php
 define( 'ABSPATH', '/' );
+
+ini_set( 'log_errors', '1' );
+ini_set( 'error_log', getenv( 'ERROR_LOG_PATH' ) );
 
 class WP_REST_Request {}
 
@@ -96,6 +102,17 @@ $thrown_callback_result = WP_Plugin_Base_REST_Operations_Executor::execute(
 
 if ( ! is_wp_error( $thrown_callback_result ) || 'wp_plugin_base_rest_execution_failed' !== $thrown_callback_result->code || 500 !== ( $thrown_callback_result->data['status'] ?? null ) ) {
   fwrite( STDERR, "Expected thrown callbacks to fail with a normalized 500 WP_Error.\n" );
+  exit( 1 );
+}
+
+$logged_output = file_get_contents( getenv( 'ERROR_LOG_PATH' ) );
+if ( false === $logged_output || false === strpos( $logged_output, 'REST operation settings.throwing threw an uncaught RuntimeException.' ) ) {
+  fwrite( STDERR, "Expected executor failures to log a sanitized operation id + exception class.\n" );
+  exit( 1 );
+}
+
+if ( false !== strpos( $logged_output, 'Boom' ) ) {
+  fwrite( STDERR, "Executor failure logs must not include raw exception messages.\n" );
   exit( 1 );
 }
 

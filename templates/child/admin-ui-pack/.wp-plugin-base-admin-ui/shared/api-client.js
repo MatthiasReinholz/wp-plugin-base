@@ -13,11 +13,30 @@ export function getOperationSummary(operationId) {
   return getAdminUiConfig().operations?.[operationId] || null;
 }
 
-export function getRestPath(operationIdOrPath) {
-  const operation = getOperationSummary(operationIdOrPath);
-  const route = operation?.route || operationIdOrPath;
+function buildNamespacedPath(route) {
   const normalized = route.startsWith("/") ? route : `/${route}`;
   return `/${getRestNamespace()}${normalized}`;
+}
+
+export function getOperationPath(operationId) {
+  const operation = getOperationSummary(operationId);
+
+  if (!operation?.route) {
+    throw new Error(`Unknown admin UI operation: ${operationId}`);
+  }
+
+  return buildNamespacedPath(operation.route);
+}
+
+export function getPath(path) {
+  return buildNamespacedPath(path);
+}
+
+/**
+ * @deprecated Use `getOperationPath()` for registered operations or `getPath()` for explicit raw paths.
+ */
+export function getRestPath(path) {
+  return getPath(path);
 }
 
 /**
@@ -25,9 +44,16 @@ export function getRestPath(operationIdOrPath) {
  *
  * Callers are expected to handle rejections with `try/catch`.
  */
-export async function fetchOperation(operationIdOrPath, options = {}) {
+export async function fetchOperation(operationId, options = {}) {
   return apiFetch({
-    path: getRestPath(operationIdOrPath),
+    path: getOperationPath(operationId),
+    ...options,
+  });
+}
+
+export async function fetchPath(path, options = {}) {
+  return apiFetch({
+    path: getPath(path),
     ...options,
   });
 }

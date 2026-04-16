@@ -40,6 +40,8 @@ jq -e '
 required_ids=(
   github-actions-workflows
   wordpress-env-tooling
+  admin-ui-basic-starter-tooling
+  admin-ui-dataviews-starter-tooling
   markdownlint-tooling
   python-lint-tooling
   python-semgrep-tooling

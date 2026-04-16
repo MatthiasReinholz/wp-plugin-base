@@ -30,7 +30,8 @@
       "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
     },
     "README_FILE": {
-      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "default": "readme.txt"
     },
     "ZIP_FILE": {
       "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
@@ -102,7 +103,7 @@
       "pattern": "^(true|false)$"
     },
     "REST_API_NAMESPACE": {
-      "default": "",
+      "default_template": "${PLUGIN_SLUG}/v1",
       "pattern": "^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$"
     },
     "REST_ABILITIES_ENABLED": {
@@ -114,7 +115,7 @@
       "pattern": "^(true|false)$"
     },
     "ADMIN_UI_STARTER": {
-      "default": "",
+      "default": "basic",
       "pattern": "^$|^(basic|dataviews)$"
     },
     "ADMIN_UI_EXPERIMENTAL_DATAVIEWS": {
