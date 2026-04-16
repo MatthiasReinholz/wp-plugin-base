@@ -51,7 +51,8 @@ Managed workflow files:
 - the managed distignore path (`.distignore` by default, or `DISTIGNORE_FILE`)
 - `SECURITY.md`
 - `uninstall.php.example`
-- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}` when `PHP_RUNTIME_MATRIX` is non-empty and `PHP_RUNTIME_MATRIX_MODE=strict`
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
 - `docs/rest-operations-pack.md` and `lib/wp-plugin-base/rest-operations/**` when `REST_OPERATIONS_PACK_ENABLED=true`
@@ -61,6 +62,8 @@ Managed workflow files:
 `finalize-release.yml` is the normal automated publish path. `release.yml` is the manual recovery workflow for an already existing tag. `.github/dependabot.yml` opens reviewable PRs for GitHub Actions version updates.
 Managed CI also runs a separate `gitleaks` secret-scan job by default.
 When `WORDPRESS_QUALITY_PACK_ENABLED=true` or `WORDPRESS_SECURITY_PACK_ENABLED=true`, treat those settings as readiness submodes. Both require `WORDPRESS_READINESS_ENABLED=true`.
+The quality pack also seeds child-owned overlays in `phpstan.neon` and `tests/wp-plugin-base/bootstrap-child.php`; keep repo-specific bootstrap customizations there instead of drifting the managed files.
+When Docker is unavailable, `scripts/ci/run_quality_pack.sh` falls back to the installed local bundle in `.wp-plugin-base-quality-pack/vendor` if it is already present and `composer` is available for the audit step.
 
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a focused WordPress security pack:
 
@@ -70,7 +73,10 @@ When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a fo
 - a narrow REST authorization pattern scan that fails on `permission_callback => __return_true`
 - dependency audits for root `composer.lock` and runtime `package-lock.json` files when present
 
-If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation and WordPress metadata checks with each interpreter version so syntax- and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation and WordPress metadata checks with each interpreter version so syntax- and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix.
+
+When `PHP_RUNTIME_MATRIX` is non-empty, strict mode also syncs a narrower PHPUnit bridge even when `WORDPRESS_QUALITY_PACK_ENABLED=false`. That bridge manages `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}`, while seeding the child-owned `tests/wp-plugin-base/bootstrap-child.php` hook.
+The strict runtime smoke runner also falls back to an installed local PHPUnit bridge bundle when Docker is unavailable.
 
 If `WOOCOMMERCE_QIT_ENABLED=true`, sync also manages a manual `woocommerce-qit` workflow. That workflow is intentionally opt-in, expects WooCommerce QIT access plus `QIT_USER` and `QIT_APP_PASSWORD` secrets, and uses the pinned `woocommerce/qit-cli` version managed by the foundation script.
 

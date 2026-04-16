@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+QUALITY_PACK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=quality_pack.sh
+. "$QUALITY_PACK_LIB_DIR/quality_pack.sh"
+
 wp_plugin_base_child_template_dir() {
   printf '%s/.wp-plugin-base/templates/child\n' "$ROOT_DIR"
 }
@@ -56,14 +60,31 @@ wp_plugin_base_print_optional_managed_template_pairs() {
   done < <(find "$pack_dir" -type f | sort)
 }
 
+wp_plugin_base_print_quality_pack_managed_template_pairs() {
+  local template_dir="${1:-$(wp_plugin_base_child_template_dir)}"
+  local pack_dir="$template_dir/quality-pack"
+  local template_file=""
+  local relative_path=""
+
+  if [ ! -d "$pack_dir" ]; then
+    return 0
+  fi
+
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$pack_dir"/}"
+    if wp_plugin_base_quality_pack_template_mode "$relative_path" >/dev/null; then
+      printf '%s\t%s\n' "$template_file" "$relative_path"
+    fi
+  done < <(find "$pack_dir" -type f | sort)
+}
+
 wp_plugin_base_print_managed_template_pairs() {
   local template_dir="${1:-$(wp_plugin_base_child_template_dir)}"
 
   wp_plugin_base_print_base_managed_template_pairs "$template_dir"
 
-  if wp_plugin_base_is_true "${WORDPRESS_QUALITY_PACK_ENABLED:-false}"; then
-    wp_plugin_base_print_optional_managed_template_pairs "quality-pack" "$template_dir"
-  fi
+  wp_plugin_base_print_quality_pack_managed_template_pairs "$template_dir"
 
   if wp_plugin_base_is_true "${WORDPRESS_SECURITY_PACK_ENABLED:-false}"; then
     wp_plugin_base_print_optional_managed_template_pairs "security-pack" "$template_dir"
@@ -122,8 +143,29 @@ wp_plugin_base_print_seed_template_pairs() {
   done < <(find "$seed_dir" -type f | sort)
 }
 
+wp_plugin_base_print_quality_pack_seed_template_pairs() {
+  local template_dir="${1:-$(wp_plugin_base_child_template_dir)}"
+  local seed_dir="$template_dir/quality-pack-seed"
+  local template_file=""
+  local relative_path=""
+
+  if [ ! -d "$seed_dir" ]; then
+    return 0
+  fi
+
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$seed_dir"/}"
+    if wp_plugin_base_quality_pack_seed_mode "$relative_path" >/dev/null; then
+      printf '%s\t%s\n' "$template_file" "$relative_path"
+    fi
+  done < <(find "$seed_dir" -type f | sort)
+}
+
 wp_plugin_base_print_required_seed_template_pairs() {
   local template_dir="${1:-$(wp_plugin_base_child_template_dir)}"
+
+  wp_plugin_base_print_quality_pack_seed_template_pairs "$template_dir"
 
   if wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
     wp_plugin_base_print_seed_template_pairs "rest-operations-pack-seed" "$template_dir"

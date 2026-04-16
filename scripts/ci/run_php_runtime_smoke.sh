@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/quality_pack.sh
+. "$SCRIPT_DIR/../lib/quality_pack.sh"
 # shellcheck source=../lib/wordpress_tooling.sh
 . "$SCRIPT_DIR/../lib/wordpress_tooling.sh"
 
@@ -42,31 +44,38 @@ if wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
 fi
 
 if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist" ] && [ -f "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.json" ] && [ -f "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.lock" ]; then
-  wp_plugin_base_require_commands "strict PHP runtime validation" docker
+  if wp_plugin_base_docker_is_available; then
+    composer_work_dir="$(mktemp -d)"
+    composer_cache_dir="$(mktemp -d)"
 
-  composer_work_dir="$(mktemp -d)"
-  composer_cache_dir="$(mktemp -d)"
+    cp "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.json" "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.lock" "$composer_work_dir/"
 
-  cp "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.json" "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.lock" "$composer_work_dir/"
+    composer_install_command() {
+      docker run --rm \
+        -u "$(id -u):$(id -g)" \
+        -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+        -v "$composer_cache_dir":/tmp/composer-cache \
+        -v "$composer_work_dir":/workspace \
+        -w /workspace \
+        "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+        install --no-interaction --no-progress --prefer-dist >/dev/null
+    }
 
-  composer_install_command() {
-    docker run --rm \
-      -u "$(id -u):$(id -g)" \
-      -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-      -v "$composer_cache_dir":/tmp/composer-cache \
-      -v "$composer_work_dir":/workspace \
-      -w /workspace \
-      "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-      install --no-interaction --no-progress --prefer-dist >/dev/null
-  }
+    wp_plugin_base_run_with_retry 3 2 "PHP runtime smoke Composer install" composer_install_command
 
-  wp_plugin_base_run_with_retry 3 2 "PHP runtime smoke Composer install" composer_install_command
-
-  php "$composer_work_dir/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
-  rm -rf "$composer_work_dir" "$composer_cache_dir"
-  # Disarm the EXIT trap for directories that were already removed.
-  composer_work_dir=""
-  composer_cache_dir=""
+    php "$composer_work_dir/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
+    rm -rf "$composer_work_dir" "$composer_cache_dir"
+    # Disarm the EXIT trap for directories that were already removed.
+    composer_work_dir=""
+    composer_cache_dir=""
+  elif wp_plugin_base_quality_pack_has_local_phpunit_bundle "$ROOT_DIR/.wp-plugin-base-quality-pack"; then
+    echo "Docker is unavailable; using the installed local PHPUnit bridge bundle."
+    php "$ROOT_DIR/.wp-plugin-base-quality-pack/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
+  else
+    echo "PHP_RUNTIME_MATRIX_MODE=strict requires Docker or an installed local PHPUnit bridge bundle." >&2
+    echo "Run composer install in .wp-plugin-base-quality-pack or start Docker." >&2
+    exit 1
+  fi
 fi
 
 echo "Validated PHP runtime smoke checks for $PLUGIN_SLUG on PHP $(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')."

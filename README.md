@@ -335,6 +335,8 @@ Because the webhook destination is secret-sourced at runtime, workflow audit hos
 Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to include a `.github/CODEOWNERS` file. Use one or more GitHub handles or teams separated by spaces, for example `CODEOWNERS_REVIEWERS="@your-org/platform @your-user"`.
 
 `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`.
+That managed pack owns `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}` while seeding child-owned overlays in `phpstan.neon` and `tests/wp-plugin-base/bootstrap-child.php`. Use those child-owned overlays for repo-specific PHPStan bootstrap or PHPUnit bootstrap hooks instead of editing the managed files directly.
+When Docker is unavailable, `scripts/ci/run_quality_pack.sh` falls back to the installed local bundle in `.wp-plugin-base-quality-pack/vendor` if it is already present and `composer` is available for the audit step.
 
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
@@ -353,7 +355,10 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 - `..._STRICT_WARNINGS=true` fails readiness validation on warnings in addition to errors.
 - `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
 
-`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix.
+
+When `PHP_RUNTIME_MATRIX` is non-empty and `PHP_RUNTIME_MATRIX_MODE=strict`, sync also manages a narrower PHPUnit bridge even when `WORDPRESS_QUALITY_PACK_ENABLED=false`. That bridge manages `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/composer.{json,lock}`, while seeding the child-owned `tests/wp-plugin-base/bootstrap-child.php` hook. Use that mode when you need regression tests and a PHP matrix before adopting the full PHPCS/PHPStan quality pack.
+The strict runtime smoke runner also falls back to an installed local PHPUnit bridge bundle when Docker is unavailable.
 
 `WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 
