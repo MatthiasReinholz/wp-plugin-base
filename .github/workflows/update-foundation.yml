@@ -7,6 +7,9 @@ on:
         required: false
         type: string
         default: .wp-plugin-base.env
+    secrets:
+      WP_PLUGIN_BASE_PR_TOKEN:
+        required: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -162,7 +165,7 @@ jobs:
       - name: Create foundation update PR
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
           GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
         run: |
           bash scripts/update/create_or_update_pr.sh \
