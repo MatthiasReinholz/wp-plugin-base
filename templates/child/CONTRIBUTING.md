@@ -11,7 +11,7 @@ This repository uses short-lived branches:
 - `release/<version>`: release preparation only
 - `hotfix/<version>`: urgent production fixes branched from `main`
 
-Do not push directly to `main`. Open a pull request instead.
+Do not push directly to `main`. Open a change request (PR/MR) instead.
 
 ## Release Process
 

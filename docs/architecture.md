@@ -7,7 +7,7 @@
 
 This avoids runtime dependencies while still allowing upstream improvements to flow into project repositories through update PRs.
 
-Your project repository is always the release source of truth. Packaging, tagging, GitHub release creation, and optional WordPress.org deploy all run from your project repository.
+Your project repository is always the release source of truth. Packaging, tagging, Git host release creation, and optional WordPress.org deploy all run from your project repository.
 
 ## Workflow Handling
 
@@ -27,7 +27,7 @@ The local-first design also narrows the supply-chain surface:
 - workflow logic is visible in your project repository
 - shared shell logic is vendored and reviewable under `.wp-plugin-base/`
 - only a small set of external GitHub Actions remain, all pinned to commit SHAs
-- release PR creation, GitHub release publication, and WordPress.org deployment are handled by repo-local scripts instead of additional marketplace actions
+- release PR creation, Git host release publication, and WordPress.org deployment are handled by repo-local scripts instead of additional marketplace actions
 
 The only workflow that reaches back to GitHub for foundation content is `update-foundation`, and that path verifies release provenance before it proposes an update.
 

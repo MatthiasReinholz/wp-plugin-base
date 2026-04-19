@@ -12,6 +12,8 @@ The scheduled `update-foundation` automation:
 - regenerates managed files from templates
 - opens a reviewable change request on the selected automation host
 
+This flow consumes the authoritative foundation release source only. Optional runtime updater settings such as `PLUGIN_RUNTIME_UPDATE_PROVIDER` do not change which release surface managed automation uses.
+
 Major-version updates are intentionally manual.
 
 For external GitHub dependencies that do not have first-party provenance the framework can verify automatically, automated update PRs are still allowed, but they must use the shared external-dependency PR-body helper so reviewers get a standardized warning to verify the upstream release manually before merge.

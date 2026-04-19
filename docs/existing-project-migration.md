@@ -71,8 +71,8 @@ Before enabling WordPress.org deploy, confirm:
 - the plugin main file and `readme.txt` already exist before validation
 - the selected CI host policy matches the allowlist and pinning rules documented in [Security model](security-model.md)
 
-If you later need to repair a published GitHub release manually, `release.yml` verifies the existing tag and skips WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
-Downstream channels can fail after GitHub release publication; use `release.yml` and `woocommerce-status.yml` as the post-publish channel repair path.
+If you later need to repair a published host release manually, use the selected host's repair release flow. It verifies the existing tag and skips WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
+Downstream channels can fail after host-release publication; use the selected host's repair release flow and `woocommerce-status.yml` as the post-publish channel repair path.
 
 ## Release-Order Behavior Change
 

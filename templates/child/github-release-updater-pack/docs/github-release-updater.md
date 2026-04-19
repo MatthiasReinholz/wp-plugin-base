@@ -15,6 +15,8 @@ Host-backed providers must match the selected downstream host:
 - `gitlab-release` requires `AUTOMATION_PROVIDER=gitlab`
 - `generic-json` is host-agnostic
 
+This runtime updater does not replace the authoritative Git host release surface for external automation/downstream consumers. Systems such as `wp-core-base` should continue to consume the selected Git host release.
+
 ## Required plugin bootstrap include
 
 Add to your main plugin file exactly once:
@@ -29,6 +31,7 @@ require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';
 - Release asset ZIP filtering to avoid SBOM/signature artifacts.
 - No behavior change unless explicitly enabled.
 - Do not embed long-lived secrets in `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`.
+- `generic-json` is a runtime updater transport only, not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation.
 
 ## Local smoke test
 
