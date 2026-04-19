@@ -27,7 +27,7 @@
     },
     "FOUNDATION_RELEASE_SOURCE_API_BASE": {
       "description": "Optional API base for the authoritative upstream release provider. Runtime validation only trusts default GitHub/GitLab hosts unless TRUSTED_GIT_HOSTS explicitly allowlists a self-managed host.",
-      "default": "",
+      "default": "https://api.github.com",
       "pattern": "^$|^https://[^[:space:]]+$"
     },
     "FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER": {
@@ -46,7 +46,7 @@
     },
     "AUTOMATION_API_BASE": {
       "description": "Optional API base for the downstream automation host. Runtime validation only trusts default GitHub/GitLab hosts unless TRUSTED_GIT_HOSTS explicitly allowlists a self-managed host.",
-      "default": "",
+      "default": "https://api.github.com",
       "pattern": "^$|^https://[^[:space:]]+$"
     },
     "TRUSTED_GIT_HOSTS": {
