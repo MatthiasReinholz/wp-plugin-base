@@ -64,6 +64,10 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      - dependency-name: phpunit/phpunit
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: composer
     directory: /templates/child/security-pack/.wp-plugin-base-security-pack
     schedule:
