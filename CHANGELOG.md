@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.7.3
+
+* Prune disabled pack trees from REST contract scan
+* Prune disabled pack trees from lint traversal
+
 ## v1.7.2
 
 * Clarify host-specific release repair documentation
