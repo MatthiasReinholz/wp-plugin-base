@@ -32,6 +32,11 @@ This can produce a public Git host release even when a downstream channel fails.
 
 External automation/downstream consumers such as `wp-core-base` should consume that authoritative Git host release surface, whether or not the plugin also enables the optional runtime updater pack. The runtime updater is an end-user wp-admin channel, not the managed downstream automation contract.
 
+## Repair Entry Points
+
+- GitHub: run the manual `release.yml` workflow for the existing tag; run `woocommerce-status.yml` as a separate diagnostics step when WooCommerce.com is enabled
+- GitLab: rerun the tagged `release` job in the managed `.gitlab-ci.yml` for the existing tag; there is no separate WooCommerce status workflow on GitLab
+
 ## Migration Note
 
 For repositories migrating from older behavior where WordPress.org deploy ran before tag publication, this is an intentional behavioral change: WordPress.org channel failures no longer block tag + host-release publication.

@@ -130,14 +130,15 @@ If it fails:
 
 ## Finalize Release Failed In Distribution Channels
 
-`finalize-release` publishes GitHub tag/release first, then runs downstream channel deploy steps (WordPress.org and WooCommerce.com when enabled). A channel failure can therefore happen after GitHub release publication; the workflow still ends failed.
+The selected host release flow publishes the Git tag/release first, then runs downstream channel deploy steps (WordPress.org and WooCommerce.com when enabled). A channel failure can therefore happen after host-release publication; the workflow still ends failed.
 
 Repair path:
 
-1. run `release.yml` for the existing release tag
-2. review WordPress.org/WooCommerce.com channel logs
-3. run `woocommerce-status.yml` when Woo is enabled
-4. rerun `release.yml` until the failed channel succeeds or reports already-live state
+1. on GitHub, run `release.yml` for the existing release tag
+2. on GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`
+3. review WordPress.org/WooCommerce.com channel logs
+4. on GitHub, run `woocommerce-status.yml` when Woo is enabled
+5. rerun the same host-specific repair path until the failed channel succeeds or reports already-live state
 
 If a tag with the release version exists on a different commit, stop and resolve the mismatch manually before retrying automated release flows.
 
@@ -152,7 +153,7 @@ Common WooCommerce.com-specific failures and actions:
 3. API timeout or transport error:
    rerun release repair and, if needed, increase `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`.
 4. QIT rejection after queue acceptance:
-   inspect Woo vendor/QIT diagnostics, fix package issues, then rerun `release.yml` for the same tag.
+   inspect Woo vendor/QIT diagnostics, fix package issues, then rerun the same host-specific release repair path for the same tag.
 
 See:
 

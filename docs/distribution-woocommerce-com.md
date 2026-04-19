@@ -4,11 +4,11 @@ WooCommerce.com distribution is an opt-in channel and is disabled by default.
 
 ## Enablement
 
-Set this GitHub Actions variable:
+Set this CI variable on the selected host:
 
 - `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`
 
-Set these deployment-environment secrets:
+Set these protected deployment secrets on the selected host:
 
 - `WOO_COM_USERNAME`
 - `WOO_COM_APP_PASSWORD` (WordPress application password)
@@ -36,10 +36,14 @@ A Woo or WordPress.org channel failure can happen after host-release publication
 
 ## Repair Runbook
 
-1. Run manual `release.yml` for the existing tag.
-2. Run manual `woocommerce-status.yml` to inspect channel state (this managed workflow appears once `WOOCOMMERCE_COM_PRODUCT_ID` is configured).
-3. If Woo reports in-flight deployment, wait and re-check status.
-4. If Woo reports failed/idle with missing version, rerun `release.yml` and verify status again.
+- GitHub:
+  - run manual `release.yml` for the existing tag
+  - run manual `woocommerce-status.yml` to inspect channel state
+- GitLab:
+  - rerun the tagged `release` job from the managed `.gitlab-ci.yml` for the existing tag
+  - inspect Woo vendor/QIT status directly because there is no separate `woocommerce-status.yml` workflow
+- If Woo reports an in-flight deployment, wait and re-check status.
+- If Woo reports failed or idle with the target version missing, rerun the same host-specific repair path and verify status again.
 
 ## Woo Header Contract
 
@@ -53,15 +57,15 @@ There is intentionally no config escape hatch to disable Woo header validation. 
 
 ## Application Password Setup
 
-Generate the Woo deployment credential as a WordPress Application Password in your Woo vendor account settings, then store it in `WOO_COM_APP_PASSWORD` (GitHub deployment-environment secret). Do not use your interactive account password.
+Generate the Woo deployment credential as a WordPress Application Password in your Woo vendor account settings, then store it in `WOO_COM_APP_PASSWORD` as a protected deployment secret on the selected host. Do not use your interactive account password.
 
 ## QIT Failure Handling
 
-Queue-and-exit means failures can occur asynchronously after upload. Use `woocommerce-status.yml` to inspect state:
+Queue-and-exit means failures can occur asynchronously after upload. On GitHub, use `woocommerce-status.yml` to inspect state. On GitLab, inspect the Woo vendor/QIT status directly:
 
 - `running` or `queued`: wait, then rerun status.
-- `failed`: inspect Woo/QIT error details in vendor tooling, fix the package, and rerun `release.yml` for the same tag.
-- `idle`/missing target version: rerun `release.yml` and verify status again.
+- `failed`: inspect Woo/QIT error details in vendor tooling, fix the package, and rerun the same host-specific release repair path for the same tag.
+- `idle`/missing target version: rerun the same host-specific release repair path and verify status again.
 
 ## References
 

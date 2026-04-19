@@ -97,6 +97,7 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.ym
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'concurrency:' "update-foundation workflow must serialize update automation."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-release.yml" 'concurrency:' "finalize-release workflow must serialize release publication."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-foundation-release.yml" 'concurrency:' "finalize-foundation-release workflow must serialize foundation release publication."
+assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "Security documentation must advertise the reviewed upload-artifact SHA."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225' "Root CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225' "Child CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225' "Security documentation must advertise the reviewed upload-sarif SHA."
@@ -106,6 +107,7 @@ assert_file_contains_literal "$ROOT_DIR/docs/troubleshooting.md" 'WP_PLUGIN_BASE
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'workflow-changing update automation' "Security model documentation must document the narrow exception for workflow-writing PR tokens."
 assert_file_contains_literal "$ROOT_DIR/templates/child/CONTRIBUTING.md" 'WP_PLUGIN_BASE_PR_TOKEN' "Managed child contributing guide must document the workflow-writing PR token override."
 assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Child CI workflow must not carry the stale upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' "Security documentation must not carry a stale upload-artifact SHA."
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Security documentation must not carry a stale upload-sarif SHA."
 assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Workflow audit allowlist must not accept stale upload-sarif SHAs."
 

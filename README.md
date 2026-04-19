@@ -101,6 +101,7 @@ Fast local validation depends on these commands being available:
 Full local validation and optional flows need additional tools:
 
 - `gh` for GitHub release and pull request automation
+- `curl` for GitLab release publication, repair, and API-backed update flows
 - `docker` for WordPress readiness validation, Plugin Check, and the full foundation validation suite
 - `python3` for WordPress.org deployment credential handling
 - `svn` for WordPress.org deployment
@@ -336,7 +337,7 @@ Optional keys:
 
 Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`. `ZIP_FILE` must be a simple `.zip` filename, not a path.
 
-`.wp-plugin-base.env` is a file committed in your project repository. It is not a GitHub Actions variable.
+`.wp-plugin-base.env` is a file committed in your project repository. It is not a CI variable on GitHub or GitLab.
 
 The canonical machine-readable config contract is tracked in [`docs/config-schema.json`](docs/config-schema.json). Foundation validation enforces parity between that schema, `load_config.sh`, this README key list, and `templates/child/.wp-plugin-base.env.example`.
 
@@ -426,12 +427,18 @@ If `WP_ORG_DEPLOY_ENABLED` is unset or any value other than `true`, the release 
 
 Release publication uses host-release-first ordering: the selected Git host release publishes first, then enabled distribution channels (WordPress.org and WooCommerce.com) run post-publish.
 
-WordPress.org can therefore fail after the selected Git host release is already public. Use the selected host's repair release flow plus `woocommerce-status.yml` as the post-publish channel repair runbook.
+WordPress.org can therefore fail after the selected Git host release is already public.
+
+Repair runbook after publication:
+
+- GitHub: run the manual `release.yml` workflow for the existing tag, then run `woocommerce-status.yml` when WooCommerce.com is enabled
+- GitLab: rerun the tagged `release` job from the managed `.gitlab-ci.yml`; there is no separate `woocommerce-status.yml` workflow on GitLab, so inspect Woo vendor/QIT status directly when that channel is enabled
+
 If you are migrating from older internal release ordering where WordPress.org deploy blocked tag publication, treat this as a behavior change and update release runbooks.
 
 For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. GitHub validation checks this automatically. GitLab validation fails closed until you rerun with `WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true` after manually reviewing the protected environment rules.
 
-The manual `release.yml` workflow is a recovery path for an already existing Git tag. It verifies that the tag exists remotely, checks out that exact tag, and skips WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+Repair flows skip WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. On GitHub that behavior lives in the manual `release.yml` workflow. On GitLab it lives in the tagged `release` job from the managed `.gitlab-ci.yml`. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Guides
 
