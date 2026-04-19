@@ -27,7 +27,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Read config
         id: config
@@ -39,22 +38,32 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Add foundation remote
+        run: |
+          source .wp-plugin-base/scripts/lib/provider.sh
+          git remote remove foundation >/dev/null 2>&1 || true
+          git remote add foundation "$(wp_plugin_base_provider_reference_git_url "${{ steps.config.outputs.release_source_provider }}" "${{ steps.config.outputs.release_source_api_base }}" "${{ steps.config.outputs.release_source_reference }}")"
+
       - name: Resolve latest compatible released version
         id: latest
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           bash .wp-plugin-base/scripts/update/resolve_latest_foundation_version.sh \
             "${{ steps.config.outputs.version }}" \
-            "${{ steps.config.outputs.repository }}" \
-            "$GITHUB_OUTPUT"
+            "${{ steps.config.outputs.release_source_reference }}" \
+            "$GITHUB_OUTPUT" \
+            "${{ steps.config.outputs.release_source_provider }}" \
+            "${{ steps.config.outputs.release_source_api_base }}"
 
       - name: Verify foundation release provenance
         id: verify
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           set -euo pipefail
           while IFS= read -r candidate_version; do
@@ -62,9 +71,12 @@ jobs:
             verify_output="$(mktemp)"
             verify_log="$(mktemp)"
             if bash .wp-plugin-base/scripts/update/verify_foundation_release.sh \
-              "${{ steps.config.outputs.repository }}" \
+              "${{ steps.config.outputs.release_source_reference }}" \
               "$candidate_version" \
-              "$verify_output" >"$verify_log" 2>&1; then
+              "$verify_output" \
+              "${{ steps.config.outputs.release_source_provider }}" \
+              "${{ steps.config.outputs.release_source_api_base }}" \
+              "${{ steps.config.outputs.release_source_sigstore_issuer }}" >"$verify_log" 2>&1; then
               cat "$verify_output" >> "$GITHUB_OUTPUT"
               rm -f "$verify_output" "$verify_log"
               exit 0
@@ -83,7 +95,7 @@ jobs:
         run: |
           rm -rf "$RUNNER_TEMP/wp-plugin-base"
           git init "$RUNNER_TEMP/wp-plugin-base"
-          git -C "$RUNNER_TEMP/wp-plugin-base" remote add origin "https://github.com/${{ steps.config.outputs.repository }}.git"
+          git -C "$RUNNER_TEMP/wp-plugin-base" remote add origin "$(git remote get-url foundation)"
           git -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
           git -C "$RUNNER_TEMP/wp-plugin-base" checkout --detach FETCH_HEAD
 
@@ -132,9 +144,9 @@ jobs:
           - `${{ steps.config.outputs.version }}` -> `${{ steps.verify.outputs.version }}`
 
           Security checks performed before proposing this update:
-          - release is published and not draft/prerelease
+          - release is published and supported by the configured foundation source provider
           - tag matches the foundation semver contract
-          - signed release metadata matches the repository, version, and commit
+          - signed release metadata matches the authoritative source, version, and commit
           - tag commit is reachable from the foundation `main`
           - release was produced by the protected foundation release flow
           - release author is in the allowed release-author list
@@ -144,7 +156,7 @@ jobs:
       - name: Create foundation update PR
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
           GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
         run: |
           bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \

@@ -59,13 +59,13 @@ jobs:
 
       - name: Create foundation release metadata asset
         run: |
-          cat > dist-foundation-release.json <<EOF
-          {
-            "repository": "${GITHUB_REPOSITORY}",
-            "version": "${{ steps.release.outputs.version }}",
-            "commit": "$(git rev-parse HEAD)"
-          }
-          EOF
+          bash scripts/foundation/write_release_metadata.sh \
+            "${{ steps.release.outputs.version }}" \
+            "$(git rev-parse HEAD)" \
+            dist-foundation-release.json \
+            github-release \
+            "${GITHUB_REPOSITORY}" \
+            https://api.github.com
 
       - name: Install SBOM and signing tools
         run: |

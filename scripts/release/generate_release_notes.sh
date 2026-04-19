@@ -16,7 +16,7 @@ fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
-if [ "${CHANGELOG_SOURCE:-commits}" = "prs_titles" ]; then
+if [ "${CHANGELOG_SOURCE:-commits}" = "change_request_titles" ] || [ "${CHANGELOG_SOURCE:-commits}" = "prs_titles" ]; then
   exec bash "$SCRIPT_DIR/generate_release_notes_from_pr_titles.sh" "$VERSION" "$CONFIG_OVERRIDE"
 fi
 

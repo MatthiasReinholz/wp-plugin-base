@@ -2,6 +2,8 @@
 
 Use this path when migrating an existing plugin repository onto `wp-plugin-base`.
 
+Each downstream project should choose one automation host profile. The only normal cross-host case is `FOUNDATION_RELEASE_SOURCE_*`, which describes where `wp-plugin-base` itself is officially published.
+
 ## Recommended Migration Order
 
 1. Add the foundation repo into `.wp-plugin-base/`.
@@ -22,15 +24,11 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 8. Optionally validate release-branch metadata with `bash .wp-plugin-base/scripts/ci/validate_project.sh .wp-plugin-base.env release/x.y.z`.
 9. Review the generated ZIP to confirm that only installable plugin files are included and that nested file paths are preserved.
 10. Merge only after the repo-local packaging and release semantics still match the previous behavior.
-11. In GitHub, open `Settings` -> `Actions` -> `General`.
-12. Under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
-13. Allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
-14. Enable `Require actions to be pinned to a full-length commit SHA`.
-15. Under `Workflow permissions`, select `Read and write permissions`.
-16. Enable `Allow GitHub Actions to create and approve pull requests` so `prepare-release` and `update-foundation` can open PRs.
-17. If that option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
-18. If you plan to use automated foundation self-updates, confirm that GitHub Actions in the repository can access releases from `FOUNDATION_REPOSITORY`.
-19. If WordPress.org deploy will remain enabled, move `SVN_USERNAME` and `SVN_PASSWORD` into deployment-environment secrets and protect the selected deployment environment with at least one reviewer. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
+11. Configure automation permissions for the selected host so release preparation and foundation updates can push branches and open PRs or MRs.
+12. If the host supports action or pipeline allowlists, restrict them to the pinned tools documented in [Security model](security-model.md).
+13. If the host supports SHA pinning or protected includes, require those protections for privileged automation.
+14. If you plan to use automated foundation self-updates, confirm that the selected automation host can access releases from `FOUNDATION_RELEASE_SOURCE_REFERENCE`.
+15. If WordPress.org deploy will remain enabled, move `SVN_USERNAME` and `SVN_PASSWORD` into protected CI secrets and protect the selected deployment environment with at least one reviewer. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
 
 ## Common Migration Adjustments
 
@@ -45,21 +43,39 @@ Use this path when migrating an existing plugin repository onto `wp-plugin-base`
 - Treat `WORDPRESS_READINESS_ENABLED=true` as a contract change, not a cosmetic flag. It turns on the stricter metadata checks described in the readiness docs.
 - Treat `WORDPRESS_QUALITY_PACK_ENABLED=true` and `WORDPRESS_SECURITY_PACK_ENABLED=true` as readiness submodes, not standalone toggles. Both require `WORDPRESS_READINESS_ENABLED=true`.
 
+## Host-Specific Guidance
+
+### Staying On GitHub
+
+If the project already lives on GitHub and will stay there, no host migration is required. Legacy GitHub aliases such as `FOUNDATION_REPOSITORY`, `GITHUB_RELEASE_UPDATER_ENABLED`, and `GITHUB_RELEASE_UPDATER_REPO_URL` remain accepted.
+
+### Moving From GitHub To GitLab
+
+When the downstream repo moves from GitHub to GitLab, update the downstream host-facing keys together:
+
+- `AUTOMATION_PROVIDER=gitlab`
+- `AUTOMATION_API_BASE=https://gitlab.example.com/api/v4` when self-managed, or leave the default for `gitlab.com`
+- `PLUGIN_RUNTIME_UPDATE_PROVIDER=gitlab-release` only if you also want the plugin runtime updater and the downstream project will publish releases from GitLab
+- `PLUGIN_RUNTIME_UPDATE_SOURCE_URL=https://gitlab.example.com/group/project` for host-backed runtime updates
+
+Do not treat this as a mixed-host downstream setup. If the project moves to GitLab, the downstream automation host and any host-backed runtime updater should move with it. `FOUNDATION_RELEASE_SOURCE_*` may remain on GitHub if the authoritative `wp-plugin-base` source still publishes there.
+
 ## Safety Checks
 
 Before enabling WordPress.org deploy, confirm:
 
 - `WORDPRESS_ORG_SLUG` is correct
 - `WP_ORG_DEPLOY_ENABLED` is still unset or `false` in GitHub Actions repository variables or environment variables during migration
+- `WP_ORG_DEPLOY_ENABLED` is still unset or `false` in your selected CI host during migration
 - the generated ZIP matches the existing install artifact shape
 - the plugin main file and `readme.txt` already exist before validation
-- the GitHub Actions policy for the repository matches the allowlist and pinning rules documented in [Security model](security-model.md)
+- the selected CI host policy matches the allowlist and pinning rules documented in [Security model](security-model.md)
 
 If you later need to repair a published GitHub release manually, `release.yml` verifies the existing tag and skips WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
 Downstream channels can fail after GitHub release publication; use `release.yml` and `woocommerce-status.yml` as the post-publish channel repair path.
 
 ## Release-Order Behavior Change
 
-Current release flow is GitHub-first: tag + GitHub release publish before downstream channel deploy steps.
+Current release flow is host-release-first: the selected Git host publishes first, then downstream channel deploy steps run after that.
 
 If your previous internal process expected WordPress.org deploy to gate tag publication, treat this as an operational behavior change and update your release runbooks accordingly.

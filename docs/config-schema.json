@@ -12,12 +12,58 @@
   ],
   "keys": {
     "FOUNDATION_REPOSITORY": {
-      "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "FOUNDATION_RELEASE_SOURCE_PROVIDER": {
+      "description": "Authoritative upstream wp-plugin-base release provider. This may differ from the downstream repository host during planned migrations.",
+      "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "default": "github-release",
+      "pattern": "^(github-release|gitlab-release)$"
+    },
+    "FOUNDATION_RELEASE_SOURCE_REFERENCE": {
+      "description": "Provider-specific authoritative upstream release reference. Use the neutral FOUNDATION_RELEASE_SOURCE_* keys for new configuration; FOUNDATION_REPOSITORY remains a GitHub compatibility alias.",
+      "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
+      "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$"
+    },
+    "FOUNDATION_RELEASE_SOURCE_API_BASE": {
+      "description": "Optional API base for the authoritative upstream release provider. Runtime validation only trusts default GitHub/GitLab hosts unless TRUSTED_GIT_HOSTS explicitly allowlists a self-managed host.",
+      "default": "",
+      "pattern": "^$|^https://[^[:space:]]+$"
+    },
+    "FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER": {
+      "description": "Optional explicit Sigstore/OIDC issuer override for authoritative upstream release verification. Required for self-managed GitLab foundation sources because issuer URLs are instance-specific.",
+      "default": "",
+      "pattern": "^$|^https://[^[:space:]]+$"
     },
     "FOUNDATION_VERSION": {
       "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
       "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "AUTOMATION_PROVIDER": {
+      "description": "Canonical downstream repository host selector. A downstream project uses one automation host profile at a time in this release.",
+      "default": "github",
+      "pattern": "^(github|gitlab)$"
+    },
+    "AUTOMATION_API_BASE": {
+      "description": "Optional API base for the downstream automation host. Runtime validation only trusts default GitHub/GitLab hosts unless TRUSTED_GIT_HOSTS explicitly allowlists a self-managed host.",
+      "default": "",
+      "pattern": "^$|^https://[^[:space:]]+$"
+    },
+    "TRUSTED_GIT_HOSTS": {
+      "description": "Comma-separated allowlist for self-managed GitHub Enterprise or GitLab hosts that are permitted as API or runtime-update endpoints. Localhost, private-network, link-local, and *.internal hosts are rejected.",
+      "default": "",
+      "pattern": "^[A-Za-z0-9.-]+$",
+      "csv": true
+    },
+    "PLUGIN_RUNTIME_UPDATE_PROVIDER": {
+      "description": "Optional runtime updater provider. Host-backed providers follow the downstream single-host contract: github-release requires AUTOMATION_PROVIDER=github and gitlab-release requires AUTOMATION_PROVIDER=gitlab.",
+      "default": "none",
+      "pattern": "^(none|github-release|gitlab-release|generic-json)$"
+    },
+    "PLUGIN_RUNTIME_UPDATE_SOURCE_URL": {
+      "description": "Runtime updater source URL. Host-backed providers must point at trusted GitHub/GitLab hosts or allowlisted self-managed hosts. Do not embed secrets in this URL because it ships in the plugin payload.",
+      "default": "",
+      "pattern": "^$|^https://[^[:space:]]+$"
     },
     "PLUGIN_NAME": {
       "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
@@ -30,8 +76,7 @@
       "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
     },
     "README_FILE": {
-      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
-      "default": "readme.txt"
+      "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"]
     },
     "ZIP_FILE": {
       "required_in_scopes": ["project", "ci", "readiness", "release", "deploy-structure", "deploy"],
@@ -103,7 +148,7 @@
       "pattern": "^(true|false)$"
     },
     "REST_API_NAMESPACE": {
-      "default_template": "${PLUGIN_SLUG}/v1",
+      "default": "",
       "pattern": "^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$"
     },
     "REST_ABILITIES_ENABLED": {
@@ -115,7 +160,7 @@
       "pattern": "^(true|false)$"
     },
     "ADMIN_UI_STARTER": {
-      "default": "basic",
+      "default": "",
       "pattern": "^$|^(basic|dataviews)$"
     },
     "ADMIN_UI_EXPERIMENTAL_DATAVIEWS": {
@@ -199,7 +244,7 @@
     },
     "CHANGELOG_SOURCE": {
       "default": "commits",
-      "pattern": "^(commits|prs_titles)$"
+      "pattern": "^(commits|prs_titles|change_request_titles)$"
     },
     "SIMULATE_RELEASE_WORKFLOW_ENABLED": {
       "default": "false",

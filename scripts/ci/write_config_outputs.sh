@@ -33,6 +33,9 @@ wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 case "$OUTPUT_SCOPE" in
   project)
     {
+      echo "automation_provider=${AUTOMATION_PROVIDER}"
+      echo "automation_api_base=${AUTOMATION_API_BASE}"
+      echo "trusted_git_hosts=${TRUSTED_GIT_HOSTS}"
       echo "plugin_slug=${PLUGIN_SLUG}"
       echo "plugin_name=${PLUGIN_NAME}"
       echo "zip_file=${ZIP_FILE}"
@@ -45,6 +48,8 @@ case "$OUTPUT_SCOPE" in
       echo "wordpress_quality_pack_enabled=${WORDPRESS_QUALITY_PACK_ENABLED}"
       echo "wordpress_security_pack_enabled=${WORDPRESS_SECURITY_PACK_ENABLED}"
       echo "woocommerce_com_product_id=${WOOCOMMERCE_COM_PRODUCT_ID}"
+      echo "plugin_runtime_update_provider=${PLUGIN_RUNTIME_UPDATE_PROVIDER}"
+      echo "plugin_runtime_update_source_url=${PLUGIN_RUNTIME_UPDATE_SOURCE_URL}"
       echo "github_release_updater_enabled=${GITHUB_RELEASE_UPDATER_ENABLED}"
       echo "github_release_updater_repo_url=${GITHUB_RELEASE_UPDATER_REPO_URL}"
       echo "build_script=${BUILD_SCRIPT}"
@@ -65,6 +70,10 @@ case "$OUTPUT_SCOPE" in
   foundation)
     {
       echo "repository=${FOUNDATION_REPOSITORY}"
+      echo "release_source_provider=${FOUNDATION_RELEASE_SOURCE_PROVIDER}"
+      echo "release_source_reference=${FOUNDATION_RELEASE_SOURCE_REFERENCE}"
+      echo "release_source_api_base=${FOUNDATION_RELEASE_SOURCE_API_BASE}"
+      echo "release_source_sigstore_issuer=${FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER}"
       echo "version=${FOUNDATION_VERSION}"
     } >> "$OUTPUT_PATH"
     ;;

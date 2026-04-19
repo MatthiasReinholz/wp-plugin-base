@@ -432,7 +432,7 @@ fi
 declare -a allowed_actions=(
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f"
-  "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+  "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
   "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
   "github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13"
   "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
@@ -550,6 +550,7 @@ fi
 declare -a default_allowed_hosts=(
   'api.github.com'
   'github.com'
+  'gitlab.com'
   'uploads.github.com'
   'downloads.wordpress.org'
   'plugins.svn.wordpress.org'
@@ -599,8 +600,21 @@ while IFS=: read -r file line url; do
   host="${host#http://}"
   host="${host%%/*}"
   host="${host%%\$\{*}"
+  while :; do
+    case "$host" in
+      *.|*,|*\)|*\]|*\;|*\!|*\?)
+        host="${host%?}"
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
   if ! host_is_allowlisted "$host"; then
     echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
+    if [[ "$host" == gitlab.* ]] || [[ "$host" == *gitlab* ]]; then
+      echo "If this is a trusted self-managed GitLab instance, add the host to EXTRA_ALLOWED_HOSTS for workflow-audit allowlisting." >&2
+    fi
     exit 1
   fi
 done < <(perl -ne 'while (m{(https?://[^\s"'\''()]+)}g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")

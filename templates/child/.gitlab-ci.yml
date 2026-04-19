@@ -1,0 +1,62 @@
+stages:
+  - validate
+  - maintenance
+  - release
+
+default:
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby unzip zip
+
+variables:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+validate:
+  stage: validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - bash .wp-plugin-base/scripts/ci/validate_project.sh ".wp-plugin-base.env" "${CI_COMMIT_REF_NAME}"
+  artifacts:
+    when: always
+    paths:
+      - dist/
+
+prepare_release:
+  stage: maintenance
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
+  script:
+    - test -n "${RELEASE_TYPE:-}" || { echo "Set RELEASE_TYPE to patch, minor, major, or custom when starting the pipeline."; exit 1; }
+    - bash .wp-plugin-base/scripts/release/prepare_release_change_request.sh "${RELEASE_TYPE}" "${RELEASE_VERSION:-}" "${BASE_REF:-main}" ".wp-plugin-base.env"
+
+update_foundation:
+  stage: maintenance
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
+  script:
+    - bash .wp-plugin-base/scripts/update/run_foundation_update.sh ".wp-plugin-base.env" "${BASE_REF:-main}"
+
+release:
+  stage: release
+  environment:
+    name: __PRODUCTION_ENVIRONMENT__
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+$/'
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby subversion unzip zip
+  script:
+    - bash .wp-plugin-base/scripts/release/run_gitlab_release.sh "${CI_COMMIT_TAG}" ".wp-plugin-base.env"
+  artifacts:
+    when: always
+    paths:
+      - dist/
