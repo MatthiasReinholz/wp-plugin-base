@@ -65,7 +65,7 @@ cat > "$wp_tests_dir/includes/functions.php" <<'EOF_FUNCTIONS'
 declare(strict_types=1);
 
 function tests_add_filter($hook, $callback): void {
-	file_put_contents((string) getenv('WP_PLUGIN_BASE_TEST_LOG'), $hook . PHP_EOL, FILE_APPEND);
+    file_put_contents((string) getenv('WP_PLUGIN_BASE_TEST_LOG'), $hook . PHP_EOL, FILE_APPEND);
 }
 EOF_FUNCTIONS
 
@@ -80,8 +80,8 @@ cat > "$full_fixture/tests/wp-plugin-base/bootstrap-child.php" <<'EOF_CHILD'
 declare(strict_types=1);
 
 tests_add_filter(
-	'child-overlay-loaded',
-	static function (): void {}
+    'child-overlay-loaded',
+    static function (): void {}
 );
 EOF_CHILD
 
