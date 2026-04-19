@@ -1380,12 +1380,11 @@ cat > "$pr_auth_helper_dir/bin/git" <<EOF
 #!/usr/bin/env bash
 log_file="\${PR_AUTH_GIT_LOG:?}"
 printf '%s\n' "\$*" >> "\$log_file"
-if [ "\$1" = "fetch" ]; then
-  exit 0
-fi
-if [ "\$1" = "push" ]; then
-  exit 0
-fi
+for arg in "\$@"; do
+  if [ "\$arg" = "fetch" ] || [ "\$arg" = "push" ]; then
+    exit 0
+  fi
+done
 exec "$real_git_path" "\$@"
 EOF
 chmod +x "$pr_auth_helper_dir/bin/git"
