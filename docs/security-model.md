@@ -40,6 +40,8 @@ Recommended settings:
 5. Under `Workflow permissions`, use `Read and write permissions` only because release and update workflows need repository writes
 6. Enable `Allow GitHub Actions to create and approve pull requests` if you want `prepare-release` or `update-foundation` to open PRs
 
+For workflow-changing update automation on GitHub, the managed updater workflows support one narrow exception to the "prefer ephemeral tokens" rule: an optional repository secret named `WP_PLUGIN_BASE_PR_TOKEN`. Use it only when update automation must push `.github/workflows/*` changes and `github.token` is not sufficient. Scope that token as narrowly as possible and reserve it for the managed PR-creation steps.
+
 ## GitLab Settings
 
 For GitLab-hosted downstream repos:
@@ -190,6 +192,7 @@ For agent-oriented implementation guidance, see [Secure plugin coding contract](
 
 - Prefer the host-native ephemeral CI token over personal access tokens whenever possible
 - Do not add long-lived PAT-based automation to projects using this foundation unless there is no host-native alternative
+- On GitHub, only use `WP_PLUGIN_BASE_PR_TOKEN` for workflow-changing update automation when `github.token` cannot push the managed workflow changes
 - Keep WordPress.org credentials in protected deployment-environment secrets or variables, not in `.wp-plugin-base.env`
 - Protect the production deployment environment and require at least one reviewer before deploy jobs can access those credentials
 
