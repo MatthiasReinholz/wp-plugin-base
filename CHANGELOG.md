@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.2
+
+* Clarify host-specific release repair documentation
+
 ## v1.7.1
 
 * chore(deps-dev): bump phpstan/phpstan (#85)
