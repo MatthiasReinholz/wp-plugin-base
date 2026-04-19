@@ -502,6 +502,32 @@ cat > "$runtime_pack_abilities_fixture/includes/comment-only.php" <<'EOF'
 EOF
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" ""
 
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+cat >> "$runtime_pack_abilities_fixture/.wp-plugin-base.env" <<'EOF'
+WORDPRESS_QUALITY_PACK_ENABLED=false
+WORDPRESS_SECURITY_PACK_ENABLED=false
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base-quality-pack/vendor/example"
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-quality-pack/vendor/example/legacy-rest.php" <<'EOF'
+<?php
+
+register_rest_route(
+  'runtime-pack-ready/v1',
+  '/pack-fixture',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => '__return_false',
+  )
+);
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" ""
+
 release_features_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/wp-build-plugin/." "$release_features_fixture/"
 mkdir -p "$release_features_fixture/.wp-plugin-base"
