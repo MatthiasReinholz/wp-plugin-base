@@ -30,6 +30,8 @@ Release publication is host-release-first: the selected Git host release publish
 
 This can produce a public Git host release even when a downstream channel fails. That is intentional: channel failures remain visible and are repaired through the selected host's repair path.
 
+External automation/downstream consumers such as `wp-core-base` should consume that authoritative Git host release surface, whether or not the plugin also enables the optional runtime updater pack. The runtime updater is an end-user wp-admin channel, not the managed downstream automation contract.
+
 ## Migration Note
 
 For repositories migrating from older behavior where WordPress.org deploy ran before tag publication, this is an intentional behavioral change: WordPress.org channel failures no longer block tag + host-release publication.

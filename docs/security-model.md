@@ -141,6 +141,8 @@ Release workflows now also attach a CycloneDX SBOM for the packaged artifact con
 - SBOM answers "what dependencies and packages were present in the released contents?"
 - cosign bundle answers "can I verify this exact release blob independently with Sigstore tooling?"
 
+For plugin releases, the default published evidence on GitHub and GitLab is the installable ZIP plus the SBOM and Sigstore bundle. A `.sha256` sidecar is not guaranteed unless a project intentionally adds one, so checksum-only consumers must not assume that asset exists by default.
+
 Strict verification flow for a released plugin ZIP:
 
 ```bash

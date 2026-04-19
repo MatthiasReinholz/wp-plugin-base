@@ -9,6 +9,8 @@ It is distinct from:
 
 This feature adds classic wp-admin plugin update prompts for plugins distributed through GitHub Releases, GitLab Releases, or a generic JSON metadata endpoint.
 
+It does not replace the authoritative Git host release surface for external automation/downstream consumers. Systems such as `wp-core-base` should continue to consume the selected Git host release, whether or not the plugin ships this optional runtime updater pack.
+
 ## Downstream Host Contract
 
 Most projects should use one downstream host profile:
@@ -52,6 +54,7 @@ Add this line to the plugin main file:
 - The metadata endpoint should expose, at minimum: `version`, `download_url`, `requires`, `tested`, and `requires_php`
 - `download_url` must point to the installable ZIP, not to source archives or review artifacts
 - Use this provider when the update source is not a supported Git release host or when you need a host-neutral update endpoint
+- This provider is a runtime updater transport only; it is not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation consumers such as `wp-core-base`
 
 ## Authentication And Secrets
 
@@ -95,6 +98,7 @@ If you change runtime updater behavior in the foundation:
 1. update both docs:
    - `docs/distribution-runtime-updater.md`
    - `templates/child/github-release-updater-pack/docs/github-release-updater.md`
+   - the `github-release-updater-pack` directory name is intentionally legacy for compatibility; do not rename it as part of a routine docs-only change
 2. keep managed pack templates and validation rules consistent:
    - `templates/child/github-release-updater-pack/**`
    - `scripts/ci/validate_project.sh`

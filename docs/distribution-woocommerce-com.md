@@ -30,9 +30,9 @@ If `WOOCOMMERCE_COM_PRODUCT_ID` is empty, validation soft-skips with a warning s
 
 ## Release-Order Interaction
 
-Tag + GitHub release are published first, then channel deploy steps run.
+The selected Git host tag + release are published first, then channel deploy steps run.
 
-A Woo or WordPress.org channel failure can happen after GitHub release publication. The workflow is still marked failed so operators can repair channels without losing visibility.
+A Woo or WordPress.org channel failure can happen after host-release publication. The workflow is still marked failed so operators can repair channels without losing visibility.
 
 ## Repair Runbook
 
