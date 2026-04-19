@@ -73,7 +73,7 @@ print_github_workflow_scope_guidance() {
   cat >&2 <<'EOF'
 GitHub automation is trying to push or open a pull request that includes workflow changes.
 If this token does not have workflows scope, GitHub will reject the operation.
-Grant the token workflows scope or remove the workflow-file edits from this change request.
+Provide a token with workflows scope via WP_PLUGIN_BASE_PR_TOKEN, or remove the workflow-file edits from this change request.
 EOF
 }
 
