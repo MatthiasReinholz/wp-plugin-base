@@ -77,6 +77,24 @@ Grant the token workflows scope or remove the workflow-file edits from this chan
 EOF
 }
 
+configure_github_git_auth() {
+  local token=""
+  local basic_auth=""
+
+  if [ "$AUTOMATION_PROVIDER" != "github" ]; then
+    return
+  fi
+
+  token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  if [ -z "$token" ]; then
+    return
+  fi
+
+  basic_auth="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
+  git -C "$ROOT_DIR" config --local --unset-all http.https://github.com/.extraheader >/dev/null 2>&1 || true
+  git -C "$ROOT_DIR" config --local --add http.https://github.com/.extraheader "AUTHORIZATION: basic ${basic_auth}"
+}
+
 git_push_with_auth() {
   local token=""
   local scheme=""
@@ -85,6 +103,7 @@ git_push_with_auth() {
   if [ "$AUTOMATION_PROVIDER" = "github" ]; then
     token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -n "$token" ]; then
+      configure_github_git_auth
       scheme="https:"
       rewrite_base="${scheme}//x-access-token:${token}"
       rewrite_base="${rewrite_base}@github.com/"
@@ -98,6 +117,7 @@ git_push_with_auth() {
   git -C "$ROOT_DIR" push "$@"
 }
 
+configure_github_git_auth
 git -C "$ROOT_DIR" fetch origin "$BRANCH_NAME" >/dev/null 2>&1 || true
 
 if git -C "$ROOT_DIR" show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
