@@ -77,6 +77,27 @@ Grant the token workflows scope or remove the workflow-file edits from this chan
 EOF
 }
 
+git_push_with_auth() {
+  local token=""
+  local scheme=""
+  local rewrite_base=""
+
+  if [ "$AUTOMATION_PROVIDER" = "github" ]; then
+    token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    if [ -n "$token" ]; then
+      scheme="https:"
+      rewrite_base="${scheme}//x-access-token:${token}"
+      rewrite_base="${rewrite_base}@github.com/"
+      git -C "$ROOT_DIR" \
+        -c "url.${rewrite_base}.insteadOf=${scheme}//github.com/" \
+        push "$@"
+      return
+    fi
+  fi
+
+  git -C "$ROOT_DIR" push "$@"
+}
+
 git -C "$ROOT_DIR" fetch origin "$BRANCH_NAME" >/dev/null 2>&1 || true
 
 if git -C "$ROOT_DIR" show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
@@ -91,14 +112,14 @@ if ! git -C "$ROOT_DIR" diff --cached --quiet; then
   git -C "$ROOT_DIR" commit -m "$COMMIT_MESSAGE"
   changes_committed=true
   push_output=""
-  if ! push_output="$(git -C "$ROOT_DIR" push origin "HEAD:$BRANCH_NAME" 2>&1)"; then
+  if ! push_output="$(git_push_with_auth origin "HEAD:$BRANCH_NAME" 2>&1)"; then
     if printf '%s' "$push_output" | grep -Eqi 'workflow|workflows|resource not accessible by integration|refusing to allow'; then
       printf '%s\n' "$push_output" >&2
       print_github_workflow_scope_guidance
       exit 1
     fi
     echo "Non-fast-forward push for $BRANCH_NAME; retrying with --force-with-lease." >&2
-    if ! push_output="$(git -C "$ROOT_DIR" push --force-with-lease origin "HEAD:$BRANCH_NAME" 2>&1)"; then
+    if ! push_output="$(git_push_with_auth --force-with-lease origin "HEAD:$BRANCH_NAME" 2>&1)"; then
       printf '%s\n' "$push_output" >&2
       if printf '%s' "$push_output" | grep -Eqi 'workflow|workflows|resource not accessible by integration|refusing to allow'; then
         print_github_workflow_scope_guidance
