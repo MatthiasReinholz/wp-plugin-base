@@ -248,7 +248,7 @@ while IFS= read -r file; do
   php_files+=("$file")
 done < <(
   find "$ROOT_DIR" \
-    \( -path "$ROOT_DIR/.git" -o -path "$ROOT_DIR/.github" -o -path "$ROOT_DIR/.wp-plugin-base" -o -path "$ROOT_DIR/dist" -o -path "$ROOT_DIR/node_modules" -o -path "$ROOT_DIR/vendor" \) -prune \
+    \( -path "$ROOT_DIR/.git" -o -path "$ROOT_DIR/.github" -o -path "$ROOT_DIR/.wp-plugin-base" -o -path "$ROOT_DIR/.wp-plugin-base-quality-pack" -o -path "$ROOT_DIR/.wp-plugin-base-security-pack" -o -path "$ROOT_DIR/dist" -o -path "$ROOT_DIR/node_modules" -o -path "$ROOT_DIR/vendor" \) -prune \
     -o -type f -name '*.php' -print | sort
 )
 
