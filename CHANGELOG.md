@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.7.1
+
+* chore(deps-dev): bump phpstan/phpstan (#85)
+* Close dependency backlog and refresh reviewed CodeQL pin (#84)
+* chore(deps): bump python-multipart in /tools/python-semgrep (#61)
+* chore(deps-dev): bump phpstan/phpstan (#65)
+* Clarify downstream release and runtime updater contracts
+
 ## v1.7.0
 
 * Fix remaining auth fixture wrapper handling
