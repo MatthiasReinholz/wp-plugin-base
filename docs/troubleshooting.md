@@ -26,25 +26,23 @@ export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 ```
 
-Automatic binary-tool bootstrap currently supports Linux `x86_64` plus macOS `x86_64`/`arm64`. On Linux `arm64`, install `shellcheck`, `actionlint`, `editorconfig-checker`, and `gitleaks` manually before running `strict-local`.
-
 `gh`, `svn`, and similar tools are still required for release, update, or deploy flows, but they are not baseline prerequisites for `validate_project.sh`.
 
 If you are bootstrapping a blank repo, create the plugin main file and `readme.txt` before the first sync. The foundation expects those files to exist before validation can pass.
 
-## Pull Request Creation Fails
+## Change Request Creation Fails
 
-Some foundation workflows create pull requests automatically, including:
+Some foundation automation flows create change requests automatically, including:
 
 - `prepare-release`
 - `prepare-foundation-release`
 - `update-foundation`
 
-If those workflows fail when they try to open a pull request, check the GitHub Actions repository setting named `Allow GitHub Actions to create and approve pull requests`.
+Use the troubleshooting path that matches the selected automation host.
 
-### Case 1: The Setting Is Available But Disabled
+### GitHub
 
-If the setting is visible in the repository settings, enable it:
+If GitHub-hosted workflows fail when they try to open a pull request, check the GitHub Actions repository setting named `Allow GitHub Actions to create and approve pull requests`.
 
 1. Open your repository on GitHub.
 2. Go to `Settings` -> `Actions` -> `General`.
@@ -52,9 +50,7 @@ If the setting is visible in the repository settings, enable it:
 4. Enable `Allow GitHub Actions to create and approve pull requests`.
 5. Save the change and rerun the failed workflow.
 
-Without that setting, workflows can still run, but workflows that use the foundation's `gh pr` automation cannot open or update pull requests.
-
-### Case 2: The Setting Is Greyed Out
+Without that setting, workflows can still run, but workflows that use the foundation's `gh pr` automation cannot open or update GitHub pull requests.
 
 If the setting is greyed out, the repository is usually inheriting an organization-level restriction.
 
@@ -67,15 +63,25 @@ In that case, an organization owner must allow it first:
 
 If you do not have organization admin access, ask an organization owner to make that change.
 
+If the error mentions workflow-file permissions, the automation token likely cannot push or open a PR that includes `.github/workflows/*` changes. Grant the token workflow scope or remove the workflow-file edits from that change request.
+
+### GitLab
+
+If GitLab-hosted automation fails to open a merge request:
+
+- confirm `GITLAB_TOKEN` or `CI_JOB_TOKEN` is available to the job
+- confirm that token can push branches and create merge requests in the project
+- confirm `AUTOMATION_API_BASE` points at the correct GitLab API base for the selected instance
+- if you use a self-managed instance, add the Git host to `TRUSTED_GIT_HOSTS`
+
 ## Readiness Fails On Deployment Environment Protection
 
 When `WP_ORG_DEPLOY_ENABLED=true`, CI/release readiness now enforces deployment environment protection in strict mode.
 
 If readiness fails with reviewer-protection errors:
 
-- confirm the GitHub environment named by `PRODUCTION_ENVIRONMENT` exists in the repository; the config defaults to `production` when unset
-- require at least one reviewer on that environment
-- ensure the readiness step has `GH_TOKEN` available so it can query environment protection rules
+- on GitHub: confirm the environment named by `PRODUCTION_ENVIRONMENT` exists in the repository, require at least one reviewer, and ensure the readiness step has `GH_TOKEN`
+- on GitLab: confirm the environment named by `PRODUCTION_ENVIRONMENT` exists, protect it, require reviewer approval, and rerun only with `WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true` once that review is complete
 
 ## Install ZIP Is Missing Nested Files
 
@@ -94,37 +100,9 @@ If the ZIP root looks flattened, check that file entries in `PACKAGE_INCLUDE` ar
 If `update-foundation` detects a newer version but fails during pull request creation, check both of these:
 
 - `Allow GitHub Actions to create and approve pull requests` is enabled for the repository
-- GitHub Actions in your repository can read releases from `FOUNDATION_REPOSITORY`
+- automation on the selected host can read releases from `FOUNDATION_RELEASE_SOURCE_REFERENCE`
 
 Both conditions are required for the automated update PR flow to work.
-
-If the failure log says GitHub is refusing to create or update workflow files without workflows permission, the update includes managed files under `.github/workflows/`.
-
-Resolution:
-
-1. create a repository or organization secret named `WP_PLUGIN_BASE_PR_TOKEN`
-2. give that token repository write access for contents, pull requests, and workflows
-3. rerun the workflow
-
-For child repositories that still vendor an older updater workflow, apply this one-time bootstrap patch first so the workflow prefers the secret:
-
-```yaml
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-```
-
-```yaml
-      - name: Create foundation update PR
-        if: ${{ steps.latest.outputs.update_needed == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
-          GIT_ADD_PATHS: ${{ steps.managed-paths.outputs.value }}
-```
-
-After that bootstrap change lands once, future workflow-changing foundation updates can use the configured secret automatically.
 
 ## External Dependency Updater Workflow Fails
 

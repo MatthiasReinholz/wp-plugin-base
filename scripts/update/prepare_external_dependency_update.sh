@@ -27,7 +27,6 @@ else
 fi
 
 TMP_DIR="$(mktemp -d)"
-DEPENDENCY_INVENTORY_PATH="$ROOT_DIR/docs/dependency-inventory.json"
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -63,32 +62,6 @@ compute_sha256() {
   fi
 
   shasum -a 256 "$file" | awk '{print $1}'
-}
-
-dependency_inventory_pinned_file() {
-  local dependency_id="$1"
-
-  jq -r \
-    --arg dependency_id "$dependency_id" \
-    '
-      .dependencies[]
-      | select(.id == $dependency_id)
-      | .pin.file // empty
-    ' \
-    "$DEPENDENCY_INVENTORY_PATH"
-}
-
-require_dependency_inventory_pinned_file() {
-  local dependency_id="$1"
-  local pinned_file
-
-  pinned_file="$(dependency_inventory_pinned_file "$dependency_id")"
-  if [ -z "$pinned_file" ]; then
-    echo "Pinned file not declared in docs/dependency-inventory.json for dependency id: $dependency_id" >&2
-    exit 1
-  fi
-
-  printf '%s\n' "$ROOT_DIR/$pinned_file"
 }
 
 github_api_get() {
@@ -311,10 +284,8 @@ emit_update_outputs() {
 }
 
 prepare_plugin_check_update() {
-  local tooling_script
-  tooling_script="$(require_dependency_inventory_pinned_file 'plugin-check')"
   local current_version
-  current_version="$(sed -n "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='\([0-9][0-9.]*\)'$/\1/p" "$tooling_script")"
+  current_version="$(sed -n "s/^WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='\([0-9][0-9.]*\)'$/\1/p" "$ROOT_DIR/scripts/lib/wordpress_tooling.sh")"
 
   if [ -z "$current_version" ]; then
     echo "Unable to resolve WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION." >&2
@@ -340,7 +311,7 @@ prepare_plugin_check_update() {
     return
   fi
 
-  replace_variable_assignment "$tooling_script" 'WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION' "$latest_version"
+  replace_variable_assignment "$ROOT_DIR/scripts/lib/wordpress_tooling.sh" 'WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION' "$latest_version"
 
   local body_file="${RUNNER_TEMP:-$TMP_DIR}/plugin-check-update-pr.md"
   prepare_pr_body \
@@ -351,21 +322,20 @@ prepare_plugin_check_update() {
     "$latest_version" \
     'used by WordPress readiness validation' \
     'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nconstrained to the current major version series\nrelease author matched the reviewed allowlist\nrelease satisfied the 7-day stabilization window before automation\nversion pin updated in the dependency-inventory-backed tooling script'
+    $'selected from published, non-draft, non-prerelease releases\nconstrained to the current major version series\nrelease author matched the reviewed allowlist\nrelease satisfied the 7-day stabilization window before automation\nversion pin updated in scripts/lib/wordpress_tooling.sh'
 
   emit_update_outputs \
     "chore/update-plugin-check-${latest_version}" \
     "chore: update plugin-check to ${latest_version}" \
     "chore: update plugin-check to ${latest_version}" \
     "$body_file" \
-    "${tooling_script#"$ROOT_DIR"/}" \
+    'scripts/lib/wordpress_tooling.sh' \
     "$current_version" \
     "$latest_version"
 }
 
 prepare_puc_runtime_update() {
-  local runtime_file
-  runtime_file="$(require_dependency_inventory_pinned_file 'plugin-update-checker-runtime')"
+  local runtime_file="$ROOT_DIR/templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php"
   local current_version
   current_version="$(sed -n 's/^ \* Plugin Update Checker Library \([0-9][0-9.]*\)$/\1/p' "$runtime_file")"
 
@@ -400,17 +370,17 @@ prepare_puc_runtime_update() {
   rm -rf "$target_dir"
   mv "$extracted_dir" "$target_dir"
 
-  perl -0pi -e "s/(currently vendors \\x60YahnisElsts\\/plugin-update-checker\\x60 \\x60)v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(\\x60\\.)/\${1}v${latest_version}\${2}/" "$ROOT_DIR/docs/distribution-github-release-updater.md"
-  perl -0pi -e "s#\\[v[0-9]+\\.[0-9]+(?:\\.[0-9]+)? tar\\.gz\\]\\(https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?\\.tar\\.gz\\)#[v${latest_version} tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v${latest_version}.tar.gz)#" "$ROOT_DIR/docs/distribution-github-release-updater.md"
-  perl -0pi -e "s/- SHA256: \\x60[0-9a-f]{64}\\x60/- SHA256: \\x60${tarball_sha}\\x60/" "$ROOT_DIR/docs/distribution-github-release-updater.md"
+  perl -0pi -e "s/(currently vendors \\x60YahnisElsts\\/plugin-update-checker\\x60 \\x60)v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(\\x60\\.)/\${1}v${latest_version}\${2}/" "$ROOT_DIR/docs/distribution-runtime-updater.md"
+  perl -0pi -e "s#\\[v[0-9]+\\.[0-9]+(?:\\.[0-9]+)? tar\\.gz\\]\\(https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?\\.tar\\.gz\\)#[v${latest_version} tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v${latest_version}.tar.gz)#" "$ROOT_DIR/docs/distribution-runtime-updater.md"
+  perl -0pi -e "s/- SHA256: \\x60[0-9a-f]{64}\\x60/- SHA256: \\x60${tarball_sha}\\x60/" "$ROOT_DIR/docs/distribution-runtime-updater.md"
   perl -0pi -e "s/(Plugin Update Checker Library )[0-9]+\\.[0-9]+(?:\\.[0-9]+)?/\${1}${latest_version}/" "$ROOT_DIR/docs/dependency-inventory.json"
 
-  if ! grep -Fq "v${latest_version} tar.gz" "$ROOT_DIR/docs/distribution-github-release-updater.md"; then
-    echo "Failed to update plugin-update-checker tarball version reference in docs/distribution-github-release-updater.md" >&2
+  if ! grep -Fq "v${latest_version} tar.gz" "$ROOT_DIR/docs/distribution-runtime-updater.md"; then
+    echo "Failed to update plugin-update-checker tarball version reference in docs/distribution-runtime-updater.md" >&2
     exit 1
   fi
-  if ! grep -Fq "$tarball_sha" "$ROOT_DIR/docs/distribution-github-release-updater.md"; then
-    echo "Failed to update plugin-update-checker tarball SHA256 in docs/distribution-github-release-updater.md" >&2
+  if ! grep -Fq "$tarball_sha" "$ROOT_DIR/docs/distribution-runtime-updater.md"; then
+    echo "Failed to update plugin-update-checker tarball SHA256 in docs/distribution-runtime-updater.md" >&2
     exit 1
   fi
   if ! grep -Fq "Plugin Update Checker Library ${latest_version}" "$ROOT_DIR/docs/dependency-inventory.json"; then
@@ -427,14 +397,14 @@ prepare_puc_runtime_update() {
     "$latest_version" \
     'used by the opt-in GitHub Release updater runtime pack' \
     'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nvendored runtime refreshed from the upstream release tarball\nrelease tarball SHA256 pinned in docs/distribution-github-release-updater.md\ndependency inventory pin pattern refreshed'
+    $'selected from published, non-draft, non-prerelease releases\nvendored runtime refreshed from the upstream release tarball\nrelease tarball SHA256 pinned in docs/distribution-runtime-updater.md\ndependency inventory pin pattern refreshed'
 
   emit_update_outputs \
     "chore/update-plugin-update-checker-${latest_version}" \
     "chore: update plugin-update-checker runtime to v${latest_version}" \
     "chore: update plugin-update-checker runtime to v${latest_version}" \
     "$body_file" \
-    'templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker,docs/distribution-github-release-updater.md,docs/dependency-inventory.json' \
+    'templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker,docs/distribution-runtime-updater.md,docs/dependency-inventory.json' \
     "$current_version" \
     "$latest_version"
 }
@@ -448,8 +418,7 @@ prepare_lint_binary_update() {
   local darwin_amd64_asset_template="$6"
   local darwin_arm64_asset_template="$7"
 
-  local install_script
-  install_script="$(require_dependency_inventory_pinned_file "$dependency_name")"
+  local install_script="$ROOT_DIR/scripts/ci/install_lint_tools.sh"
   local current_version
   current_version="$(sed -n "s/^${version_variable}='\([0-9][0-9.]*\)'$/\1/p" "$install_script")"
   if [ -z "$current_version" ]; then
@@ -491,14 +460,14 @@ prepare_lint_binary_update() {
     "$latest_version" \
     'used by foundation lint and security tool bootstrap' \
     'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nrelease archives downloaded for Linux + macOS targets\nSHA256 pins refreshed in the dependency-inventory-backed lint bootstrap script'
+    $'selected from published, non-draft, non-prerelease releases\nrelease archives downloaded for Linux + macOS targets\nSHA256 pins refreshed in scripts/ci/install_lint_tools.sh'
 
   emit_update_outputs \
     "chore/update-${dependency_name}-${latest_version}" \
     "chore: update ${dependency_name} to v${latest_version}" \
     "chore: update ${dependency_name} to v${latest_version}" \
     "$body_file" \
-    "${install_script#"$ROOT_DIR"/}" \
+    'scripts/ci/install_lint_tools.sh' \
     "$current_version" \
     "$latest_version"
 }
@@ -510,8 +479,7 @@ prepare_release_security_binary_update() {
   local sha_variable="$4"
   local asset_template="$5"
 
-  local install_script
-  install_script="$(require_dependency_inventory_pinned_file "$dependency_name")"
+  local install_script="$ROOT_DIR/scripts/release/install_release_security_tools.sh"
   local current_version
   current_version="$(sed -n "s/^${version_variable}='\([0-9][0-9.]*\)'$/\1/p" "$install_script")"
   if [ -z "$current_version" ]; then
@@ -545,21 +513,20 @@ prepare_release_security_binary_update() {
     "$latest_version" \
     'used by release security tooling bootstrap' \
     'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nrelease archive downloaded for Linux/x86_64 runner target\nSHA256 pin refreshed in the dependency-inventory-backed release bootstrap script'
+    $'selected from published, non-draft, non-prerelease releases\nrelease archive downloaded for Linux/x86_64 runner target\nSHA256 pin refreshed in scripts/release/install_release_security_tools.sh'
 
   emit_update_outputs \
     "chore/update-${dependency_name}-${latest_version}" \
     "chore: update ${dependency_name} to v${latest_version}" \
     "chore: update ${dependency_name} to v${latest_version}" \
     "$body_file" \
-    "${install_script#"$ROOT_DIR"/}" \
+    'scripts/release/install_release_security_tools.sh' \
     "$current_version" \
     "$latest_version"
 }
 
 prepare_composer_image_update() {
-  local tooling_script
-  tooling_script="$(require_dependency_inventory_pinned_file 'composer-docker-image')"
+  local tooling_script="$ROOT_DIR/scripts/lib/wordpress_tooling.sh"
   local current_value
   current_value="$(sed -n "s/^WP_PLUGIN_BASE_COMPOSER_IMAGE='\(composer@sha256:[0-9a-f]\{64\}\)'$/\1/p" "$tooling_script")"
 

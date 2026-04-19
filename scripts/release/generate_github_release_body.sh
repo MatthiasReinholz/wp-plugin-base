@@ -18,6 +18,18 @@ wp_plugin_base_require_vars PLUGIN_NAME README_FILE ZIP_FILE
 
 README_PATH="$(wp_plugin_base_resolve_path "$README_FILE")"
 
+case "${AUTOMATION_PROVIDER:-github}" in
+  github)
+    source_archive_note="GitHub also provides automatic source code archives for each release. Those archives are repository snapshots and are not the recommended plugin install package."
+    ;;
+  gitlab)
+    source_archive_note="GitLab also provides automatic source code archives for each release. Those archives are repository snapshots and are not the recommended plugin install package."
+    ;;
+  *)
+    source_archive_note="The selected Git host may also provide automatic source code archives for each release. Those archives are repository snapshots and are not the recommended plugin install package."
+    ;;
+esac
+
 section="$(
   awk -v version="$VERSION" '
     $0 == "= " version " =" {
@@ -49,5 +61,5 @@ ${section}
 
 Use \`${ZIP_FILE}\` below to install or update the plugin in WordPress.
 
-GitHub also provides automatic source code archives for each release. Those archives are repository snapshots and are not the recommended plugin install package.
+${source_archive_note}
 EOF

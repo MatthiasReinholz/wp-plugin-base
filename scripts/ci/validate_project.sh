@@ -35,18 +35,32 @@ while IFS= read -r required_path; do
   fi
 done < <(wp_plugin_base_print_required_seed_paths)
 
-if wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
-  main_plugin_path="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
-  updater_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/wp-plugin-base-github-updater\.php['\''"][[:space:]]*;'
-
-  if ! grep -Eq "$updater_include_regex" "$main_plugin_path"; then
-    echo "GITHUB_RELEASE_UPDATER_ENABLED=true requires the main plugin file to include:" >&2
-    echo "require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';" >&2
-    exit 1
-  fi
+runtime_update_enabled=false
+if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] || wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
+  runtime_update_enabled=true
 fi
 
 main_plugin_path="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
+runtime_updater_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/wp-plugin-base-runtime-updater\.php['\''"][[:space:]]*;'
+updater_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/wp-plugin-base-github-updater\.php['\''"][[:space:]]*;'
+
+if wp_plugin_base_is_true "$runtime_update_enabled"; then
+  if ! grep -Eq "$runtime_updater_include_regex|$updater_include_regex" "$main_plugin_path"; then
+    echo "Runtime updater support requires the main plugin file to include one of:" >&2
+    echo "require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';" >&2
+    echo "require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-github-updater.php';" >&2
+    exit 1
+  fi
+elif grep -Eq "$runtime_updater_include_regex|$updater_include_regex" "$main_plugin_path"; then
+  echo "PLUGIN_RUNTIME_UPDATE_PROVIDER=none but the main plugin file still includes the managed runtime updater. Remove the child-owned include or re-enable the runtime updater." >&2
+  exit 1
+fi
+
+readme_path="$(wp_plugin_base_resolve_path "$README_FILE")"
+if wp_plugin_base_is_true "$runtime_update_enabled" && { [ -n "${WORDPRESS_ORG_SLUG:-}" ] || grep -Eq '^Stable tag:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$readme_path"; }; then
+  echo "Warning: runtime updater support is enabled for a WordPress.org-style plugin. Prefer PLUGIN_RUNTIME_UPDATE_PROVIDER=none unless you intentionally manage PUC slug-collision behavior." >&2
+fi
+
 rest_pack_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/rest-operations/bootstrap\.php['\''"][[:space:]]*;'
 admin_ui_pack_include_regex='^[[:space:]]*require_once[[:space:]]+__DIR__[[:space:]]*\.[[:space:]]*['\''"]/lib/wp-plugin-base/admin-ui/bootstrap\.php['\''"][[:space:]]*;'
 
@@ -123,7 +137,19 @@ bash "$SCRIPT_DIR/lint_php.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/lint_js.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/check_forbidden_files.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/check_versions.sh" "" "$CONFIG_OVERRIDE"
-bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR"
+
+case "${AUTOMATION_PROVIDER:-github}" in
+  github)
+    bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR"
+    ;;
+  gitlab)
+    bash "$SCRIPT_DIR/check_gitlab_ci.sh" "$CONFIG_OVERRIDE"
+    ;;
+  *)
+    echo "Unsupported AUTOMATION_PROVIDER: ${AUTOMATION_PROVIDER:-}" >&2
+    exit 1
+    ;;
+esac
 
 if wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
   bash "$SCRIPT_DIR/scan_rest_operation_contract.sh" "$CONFIG_OVERRIDE"
@@ -133,10 +159,20 @@ deploy_protection_args=()
 if wp_plugin_base_is_true "${WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION:-false}" || [ -n "${GITHUB_ACTIONS:-}" ]; then
   deploy_protection_args+=(--strict)
 fi
-if [ "${#deploy_protection_args[@]}" -gt 0 ]; then
-  bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "${deploy_protection_args[@]}" "$CONFIG_OVERRIDE"
-else
-  bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "$CONFIG_OVERRIDE"
+
+if [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
+  if [ "${#deploy_protection_args[@]}" -gt 0 ]; then
+    bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "${deploy_protection_args[@]}" "$CONFIG_OVERRIDE"
+  else
+    bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "$CONFIG_OVERRIDE"
+  fi
+elif wp_plugin_base_is_true "${WP_ORG_DEPLOY_ENABLED:-false}"; then
+  if wp_plugin_base_is_true "${WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED:-false}"; then
+    echo "Warning: WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true bypasses automated GitLab deploy-environment verification. Review the '${PRODUCTION_ENVIRONMENT:-production}' environment protections manually on every run." >&2
+  else
+    echo "GitLab WordPress.org deploy validation fails closed until environment protections are reviewed manually. Configure the '${PRODUCTION_ENVIRONMENT:-production}' environment in GitLab and rerun with WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true only after confirming reviewer protections." >&2
+    exit 1
+  fi
 fi
 
 if [ -n "$BRANCH_NAME" ]; then

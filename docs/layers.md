@@ -6,7 +6,7 @@
 
 This repository provides:
 
-- managed local workflows
+- managed local automation scaffolding
 - release and packaging automation
 - optional WordPress.org and WooCommerce.com distribution channels
 - workflow hardening and provenance checks
@@ -20,13 +20,13 @@ Layer 2 is now an explicit opt-in surface for narrowly scoped runtime features.
 
 Current Layer 2 pack in this repository:
 
-- GitHub Release in-dashboard updater runtime pack (`GITHUB_RELEASE_UPDATER_ENABLED=true`)
+- provider-based runtime updater pack (`PLUGIN_RUNTIME_UPDATE_PROVIDER!=none`)
 - REST operations pack (`REST_OPERATIONS_PACK_ENABLED=true`)
 - Admin UI pack (`ADMIN_UI_PACK_ENABLED=true`)
 
 Reference:
 
-- [GitHub Release updater distribution](distribution-github-release-updater.md)
+- [Runtime In-Dashboard Updater](distribution-runtime-updater.md)
 
 Layer 2 remains additive and disabled by default. It must not change Layer 1 release/delivery behavior unless explicitly enabled per project.
 

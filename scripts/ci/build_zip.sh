@@ -21,16 +21,12 @@ STAGE_ROOT="$DIST_DIR/package"
 STAGE_DIR="$STAGE_ROOT/$PLUGIN_SLUG"
 ZIP_PATH="$DIST_DIR/$ZIP_FILE"
 EXCLUDES_FILE="$(mktemp)"
-FILTERED_EXCLUDES_FILE=""
 
-wp_plugin_base_cleanup_build_zip() {
+cleanup() {
   rm -f "$EXCLUDES_FILE"
-  if [ -n "$FILTERED_EXCLUDES_FILE" ]; then
-    rm -f "$FILTERED_EXCLUDES_FILE"
-  fi
 }
 
-trap wp_plugin_base_cleanup_build_zip EXIT
+trap cleanup EXIT
 
 if [ ! -f "$MAIN_PLUGIN_PATH" ]; then
   echo "Main plugin file not found: $MAIN_PLUGIN_FILE" >&2
@@ -51,6 +47,11 @@ wp_plugin_base_assert_path_within_root "$DISTIGNORE_PATH" "Distignore file"
 cat <<'EOF' > "$EXCLUDES_FILE"
 /.git/
 /.github/
+/.gitlab/
+/.gitea/
+/.forgejo/
+/.gitlab-ci.yml
+/bitbucket-pipelines.yml
 /.wp-plugin-base/
 /.wordpress-org/
 /dist/
@@ -96,22 +97,27 @@ if ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -d "$ROOT_DIR
   exit 1
 fi
 
-managed_exclude_path="/$(wp_plugin_base_normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
+normalize_repo_relative_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s\n' "$path"
+}
+
+managed_exclude_path="/$(normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
 printf '%s\n' "$managed_exclude_path" >> "$EXCLUDES_FILE"
 
 if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
   while IFS= read -r exclude_path; do
     [ -n "$exclude_path" ] || continue
-    printf '/%s\n' "$(wp_plugin_base_normalize_repo_relative_path "$exclude_path")" >> "$EXCLUDES_FILE"
+    printf '/%s\n' "$(normalize_repo_relative_path "$exclude_path")" >> "$EXCLUDES_FILE"
   done < <(wp_plugin_base_csv_to_lines "$PACKAGE_EXCLUDE")
 fi
 
-configured_readme_path="/$(wp_plugin_base_normalize_repo_relative_path "$README_FILE")"
-FILTERED_EXCLUDES_FILE="$(mktemp)"
-grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$FILTERED_EXCLUDES_FILE" || true
-mv "$FILTERED_EXCLUDES_FILE" "$EXCLUDES_FILE"
-# Disarm the EXIT trap for the temp file that was already moved away.
-FILTERED_EXCLUDES_FILE=""
+configured_readme_path="/$(normalize_repo_relative_path "$README_FILE")"
+filtered_excludes_file="$(mktemp)"
+grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$filtered_excludes_file" || true
+mv "$filtered_excludes_file" "$EXCLUDES_FILE"
 
 rm -rf "$STAGE_ROOT" "$ZIP_PATH"
 mkdir -p "$STAGE_DIR"
@@ -126,7 +132,8 @@ if [ -n "${PACKAGE_INCLUDE:-}" ]; then
       exit 1
     fi
 
-    include_path="$(wp_plugin_base_normalize_repo_relative_path "$include_path")"
+    include_path="${include_path#./}"
+    include_path="${include_path#/}"
 
     (
       cd "$ROOT_DIR"
@@ -147,7 +154,7 @@ if [ ! -f "$STAGE_DIR/$README_FILE" ]; then
   exit 1
 fi
 
-if [ -e "$STAGE_DIR/.wp-plugin-base" ] || [ -e "$STAGE_DIR/.github" ] || [ -e "$STAGE_DIR/.wp-plugin-base.env" ]; then
+if [ -e "$STAGE_DIR/.wp-plugin-base" ] || [ -e "$STAGE_DIR/.github" ] || [ -e "$STAGE_DIR/.gitlab" ] || [ -e "$STAGE_DIR/.gitea" ] || [ -e "$STAGE_DIR/.forgejo" ] || [ -e "$STAGE_DIR/.gitlab-ci.yml" ] || [ -e "$STAGE_DIR/bitbucket-pipelines.yml" ] || [ -e "$STAGE_DIR/.wp-plugin-base.env" ]; then
   echo "Package contains foundation or CI-only files." >&2
   exit 1
 fi
@@ -157,18 +164,23 @@ if [ -e "$STAGE_DIR/$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ]; then
   exit 1
 fi
 
-if wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
-  staged_updater="$STAGE_DIR/lib/wp-plugin-base/wp-plugin-base-github-updater.php"
+runtime_update_enabled=false
+if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] || wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
+  runtime_update_enabled=true
+fi
+
+if wp_plugin_base_is_true "$runtime_update_enabled"; then
+  staged_updater="$STAGE_DIR/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php"
   staged_puc_entry="$STAGE_DIR/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php"
 
   if [ ! -f "$staged_updater" ]; then
-    echo "Build error: GITHUB_RELEASE_UPDATER_ENABLED=true but $staged_updater is missing from the package." >&2
-    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to install the GitHub release updater runtime pack." >&2
+    echo "Build error: runtime updater support is enabled but $staged_updater is missing from the package." >&2
+    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to install the runtime updater pack." >&2
     exit 1
   fi
 
   if [ ! -f "$staged_puc_entry" ]; then
-    echo "Build error: GITHUB_RELEASE_UPDATER_ENABLED=true but plugin-update-checker is missing from the package." >&2
+    echo "Build error: runtime updater support is enabled but plugin-update-checker is missing from the package." >&2
     echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to restore lib/wp-plugin-base/plugin-update-checker/." >&2
     exit 1
   fi

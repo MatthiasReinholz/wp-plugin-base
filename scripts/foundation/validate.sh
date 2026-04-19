@@ -250,6 +250,7 @@ bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-l
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_contracts.sh"
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_executor.sh"
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_abilities.sh"
+bash "$ROOT_DIR/scripts/foundation/test_gitlab_support.sh"
 
 bash "$ROOT_DIR/scripts/foundation/run_release_update_fixture_checks.sh" "$ROOT_DIR"
 echo "Validated foundation repository at $ROOT_DIR ($ASSURANCE_MODE)"
