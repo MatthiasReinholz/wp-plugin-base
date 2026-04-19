@@ -65,6 +65,14 @@ If you do not have organization admin access, ask an organization owner to make 
 
 If the error mentions workflow-file permissions, the automation token likely cannot push or open a PR that includes `.github/workflows/*` changes. Grant the token workflow scope or remove the workflow-file edits from that change request.
 
+Preferred recovery path:
+
+1. create a narrowly scoped GitHub token that can update workflow files
+2. store it as the repository secret `WP_PLUGIN_BASE_PR_TOKEN`
+3. rerun the failed `update-foundation` or `update-external-dependencies` workflow
+
+The managed GitHub update workflows prefer `WP_PLUGIN_BASE_PR_TOKEN` for PR creation when it is configured and otherwise fall back to `github.token`.
+
 ### GitLab
 
 If GitLab-hosted automation fails to open a merge request:
@@ -103,6 +111,7 @@ If `update-foundation` detects a newer version but fails during pull request cre
 - automation on the selected host can read releases from `FOUNDATION_RELEASE_SOURCE_REFERENCE`
 
 Both conditions are required for the automated update PR flow to work.
+If the change request includes `.github/workflows/*` updates, also configure `WP_PLUGIN_BASE_PR_TOKEN` so the workflow can push those changes with a token that has workflow-write permission.
 
 ## External Dependency Updater Workflow Fails
 

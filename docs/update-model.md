@@ -23,6 +23,8 @@ The foundation repository runs a single scheduled updater workflow for external 
 
 It applies the same PR-based governance model used by `update-foundation`: detect update candidates, refresh managed pins, validate, and open reviewable PRs.
 
+For GitHub-hosted repos, managed update workflows prefer an optional repository secret named `WP_PLUGIN_BASE_PR_TOKEN` when they need to push or open a PR that includes `.github/workflows/*` changes. If that secret is absent, they fall back to `github.token`.
+
 ## External Dependency Coverage
 
 Current dependency handlers in `scripts/update/prepare_external_dependency_update.sh`:

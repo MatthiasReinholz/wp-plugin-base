@@ -83,6 +83,7 @@ bash .wp-plugin-base/scripts/ci/validate_project.sh
 That command enforces the generated managed-file surface, not just one host's automation directory.
 
 GitHub projects need the repository setting `Allow GitHub Actions to create and approve pull requests` for `prepare-release` and `update-foundation`.
+If managed GitHub update workflows need to push `.github/workflows/*` changes, add the optional repository secret `WP_PLUGIN_BASE_PR_TOKEN`. The managed `update-foundation` and `update-external-dependencies` workflows prefer that token for PR creation and otherwise fall back to `github.token`.
 
 GitLab projects need CI credentials that can push branches and create merge requests. `CI_JOB_TOKEN` is enough for read-only release verification, but long-lived write flows may require a project access token exposed as `GITLAB_TOKEN`.
 
