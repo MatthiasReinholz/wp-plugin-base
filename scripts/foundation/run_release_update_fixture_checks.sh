@@ -1380,12 +1380,11 @@ cat > "$pr_auth_helper_dir/bin/git" <<EOF
 #!/usr/bin/env bash
 log_file="\${PR_AUTH_GIT_LOG:?}"
 printf '%s\n' "\$*" >> "\$log_file"
-if [ "\$1" = "fetch" ]; then
-  exit 0
-fi
-if [ "\$1" = "push" ]; then
-  exit 0
-fi
+for arg in "\$@"; do
+  if [ "\$arg" = "fetch" ] || [ "\$arg" = "push" ]; then
+    exit 0
+  fi
+done
 exec "$real_git_path" "\$@"
 EOF
 chmod +x "$pr_auth_helper_dir/bin/git"
@@ -1457,10 +1456,12 @@ pr_workflow_permission_helper_dir="$(mktemp -d)"
 mkdir -p "$pr_workflow_permission_helper_dir/bin"
 cat > "$pr_workflow_permission_helper_dir/bin/git" <<EOF
 #!/usr/bin/env bash
-if [ "\$1" = "push" ]; then
-  echo "remote: error: refusing to allow a GitHub App to create or update workflow '.github/workflows/ci.yml' without \`workflows\` permission" >&2
-  exit 1
-fi
+for arg in "\$@"; do
+  if [ "\$arg" = "push" ]; then
+    echo "remote: error: refusing to allow a GitHub App to create or update workflow '.github/workflows/ci.yml' without \`workflows\` permission" >&2
+    exit 1
+  fi
+done
 exec "$real_git_path" "\$@"
 EOF
 chmod +x "$pr_workflow_permission_helper_dir/bin/git"
