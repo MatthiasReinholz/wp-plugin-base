@@ -432,7 +432,7 @@ fi
 declare -a allowed_actions=(
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f"
-  "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
+  "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
   "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
   "github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13"
   "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
