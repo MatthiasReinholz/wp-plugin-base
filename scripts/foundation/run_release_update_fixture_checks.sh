@@ -193,6 +193,9 @@ foundation_verify_metadata_json="$foundation_verify_fixture/dist-foundation-rele
 foundation_verify_sigstore_json="$foundation_verify_fixture/dist-foundation-release.json.sigstore.json"
 foundation_verify_verify_script="$foundation_verify_fixture/verify-sigstore.sh"
 
+# Guard the GitHub compare direction expected by verify_foundation_release.sh.
+grep -Fq "compare/main...\${commit_sha}" "$ROOT_DIR/scripts/update/verify_foundation_release.sh"
+
 cat > "$foundation_verify_release_json" <<'EOF'
 {
   "draft": false,

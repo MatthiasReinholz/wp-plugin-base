@@ -283,8 +283,10 @@ case "$SOURCE_PROVIDER" in
       commit_sha="$tag_object_sha"
     fi
 
+    # GitHub compare status is directional. To assert the release commit is on main,
+    # compare main (base) against the release commit (head) and require behind/identical.
     compare_json="$(
-      api_json compare "${SOURCE_API_BASE}/repos/${REFERENCE}/compare/${commit_sha}...main"
+      api_json compare "${SOURCE_API_BASE}/repos/${REFERENCE}/compare/main...${commit_sha}"
     )"
     compare_status="$(printf '%s' "$compare_json" | jq -r '.status')"
 
