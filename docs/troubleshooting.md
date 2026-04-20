@@ -112,6 +112,7 @@ If `update-foundation` detects a newer version but fails during pull request cre
 
 Both conditions are required for the automated update PR flow to work.
 If the change request includes `.github/workflows/*` updates, also configure `WP_PLUGIN_BASE_PR_TOKEN` so the workflow can push those changes with a token that has workflow-write permission.
+The managed `update-foundation` workflow now bootstraps release security tools (`cosign`, `syft`, companion binaries) before provenance verification. If you run `scripts/update/verify_foundation_release.sh` directly, install those tools first (for example via `scripts/release/install_release_security_tools.sh`).
 
 ## External Dependency Updater Workflow Fails
 

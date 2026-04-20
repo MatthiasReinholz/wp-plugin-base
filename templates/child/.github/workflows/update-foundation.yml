@@ -62,6 +62,12 @@ jobs:
             "${{ steps.config.outputs.release_source_provider }}" \
             "${{ steps.config.outputs.release_source_api_base }}"
 
+      - name: Install release security tools
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: |
+          bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
       - name: Verify foundation release provenance
         id: verify
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
