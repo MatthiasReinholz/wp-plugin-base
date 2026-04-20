@@ -16,9 +16,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
-  contents: write
-  attestations: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: finalize-release-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
@@ -34,6 +32,10 @@ jobs:
       (startsWith(github.event.pull_request.head.ref, 'release/') || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
+      attestations: write
+      id-token: write
     environment: ${{ inputs.production_environment }}
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
@@ -54,11 +56,23 @@ jobs:
           echo "Unsupported release branch: $HEAD_REF" >&2
           exit 1
 
-      - name: Checkout merge commit
+      - name: Checkout protected default branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: main
           fetch-depth: 0
+
+      - name: Verify merged commit is reachable from main
+        env:
+          EXPECTED_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=0
+          if ! git merge-base --is-ancestor "$EXPECTED_COMMIT" origin/main; then
+            echo "Merged commit $EXPECTED_COMMIT is not reachable from origin/main." >&2
+            exit 1
+          fi
+          git checkout --detach "$EXPECTED_COMMIT"
 
       - name: Read config
         id: config

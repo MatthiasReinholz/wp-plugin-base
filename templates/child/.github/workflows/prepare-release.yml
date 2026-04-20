@@ -27,8 +27,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: prepare-release-${{ inputs.base_ref }}-${{ inputs.release_type }}-${{ inputs.version || 'auto' }}
@@ -39,6 +39,9 @@ jobs:
     name: Prepare release branch
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout base ref
