@@ -112,14 +112,14 @@ expected_permissions = {
   "scorecard.yml" => { "contents" => "read" },
   "ci.yml" => { "contents" => "read" },
   "woocommerce-qit.yml" => { "contents" => "read" },
-  "prepare-foundation-release.yml" => { "contents" => "write", "pull-requests" => "write" },
-  "prepare-release.yml" => { "contents" => "write", "pull-requests" => "write" },
-  "update-foundation.yml" => { "contents" => "write", "pull-requests" => "write" },
-  "update-plugin-check.yml" => { "contents" => "write", "pull-requests" => "write" },
-  "finalize-foundation-release.yml" => { "contents" => "write", "attestations" => "write", "id-token" => "write" },
-  "release-foundation.yml" => { "contents" => "write", "pull-requests" => "read", "attestations" => "write", "id-token" => "write" },
-  "finalize-release.yml" => { "contents" => "write", "attestations" => "write", "id-token" => "write" },
-  "release.yml" => { "contents" => "write", "pull-requests" => "read", "attestations" => "write", "id-token" => "write" }
+  "prepare-foundation-release.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "prepare-release.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "update-foundation.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "update-plugin-check.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "finalize-foundation-release.yml" => { "contents" => "read" },
+  "release-foundation.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "finalize-release.yml" => { "contents" => "read" },
+  "release.yml" => { "contents" => "read", "pull-requests" => "read" }
 }
 
 expected_job_permissions = {
@@ -143,6 +143,60 @@ expected_job_permissions = {
   "foundation-ci.yml" => {
     "release-security-smoke" => {
       "contents" => "read",
+      "id-token" => "write"
+    }
+  },
+  "prepare-foundation-release.yml" => {
+    "prepare" => {
+      "contents" => "write",
+      "pull-requests" => "write"
+    }
+  },
+  "prepare-release.yml" => {
+    "prepare" => {
+      "contents" => "write",
+      "pull-requests" => "write"
+    }
+  },
+  "update-foundation.yml" => {
+    "update" => {
+      "contents" => "write",
+      "pull-requests" => "write"
+    }
+  },
+  "update-plugin-check.yml" => {
+    "update" => {
+      "contents" => "write",
+      "pull-requests" => "write"
+    }
+  },
+  "finalize-foundation-release.yml" => {
+    "release" => {
+      "contents" => "write",
+      "attestations" => "write",
+      "id-token" => "write"
+    }
+  },
+  "release-foundation.yml" => {
+    "release" => {
+      "contents" => "write",
+      "pull-requests" => "read",
+      "attestations" => "write",
+      "id-token" => "write"
+    }
+  },
+  "finalize-release.yml" => {
+    "release" => {
+      "contents" => "write",
+      "attestations" => "write",
+      "id-token" => "write"
+    }
+  },
+  "release.yml" => {
+    "release" => {
+      "contents" => "write",
+      "pull-requests" => "read",
+      "attestations" => "write",
       "id-token" => "write"
     }
   }

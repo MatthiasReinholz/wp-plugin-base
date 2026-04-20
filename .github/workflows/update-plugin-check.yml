@@ -9,8 +9,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: update-external-dependencies-${{ github.repository }}-${{ github.ref }}
@@ -21,6 +21,9 @@ jobs:
     name: Update external dependency (${{ matrix.dependency_id }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
