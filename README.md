@@ -203,7 +203,7 @@ That command enforces the generated managed-file surface, not just `.github/work
 
 You can bootstrap `.wp-plugin-base/` with `git subtree` if you want that history locally, but the shared update workflow only requires a normal vendored copy.
 
-If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, and `DISTIGNORE_FILE` as explicit repo-relative paths. Absolute paths are rejected. The default package excludes repo-root `packages/` and `routes/`, which keeps build-only workspaces out of the install ZIP and translation scan; include those directories explicitly if they are part of the shipped plugin.
+If your plugin ships files from nested directories, keep `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, and `DISTIGNORE_FILE` as explicit repo-relative paths. Absolute paths are rejected. The default package excludes common development-only paths (`/docs`, `/scripts`, `/tests`, `/packages`, and `/routes`) so those workspaces stay out of the install ZIP and translation scan; include those directories explicitly only when they are part of the shipped plugin.
 
 GitHub-managed repos receive `.github/dependabot.yml` and should keep Dependabot enabled so pinned action SHAs keep moving forward through normal review PRs. GitLab repos do not get a managed Dependabot equivalent in this release.
 

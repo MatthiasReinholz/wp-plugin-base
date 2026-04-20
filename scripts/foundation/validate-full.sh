@@ -62,13 +62,14 @@ runtime_pack_abilities_fixture=""
 pot_fixture=""
 yaml_workflow_fixture=""
 custom_readme_fixture=""
+docs_runtime_guard_fixture=""
 release_features_fixture=""
 phpdoc_fixture=""
 simulate_fixture=""
 glotpress_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$runtime_pack_fixture" "$runtime_pack_abilities_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$runtime_pack_fixture" "$runtime_pack_abilities_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$docs_runtime_guard_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
 }
 
 trap cleanup EXIT
@@ -656,6 +657,22 @@ custom_readme_zip="$(find "$custom_readme_fixture/dist" -maxdepth 1 -name '*.zip
 test -n "$custom_readme_zip"
 custom_readme_listing="$(unzip -Z1 "$custom_readme_zip")"
 grep -Fq 'standard-plugin/README.md' <<<"$custom_readme_listing"
+
+docs_runtime_guard_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$docs_runtime_guard_fixture/"
+mkdir -p "$docs_runtime_guard_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$docs_runtime_guard_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$docs_runtime_guard_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+mkdir -p "$docs_runtime_guard_fixture/docs"
+cat > "$docs_runtime_guard_fixture/docs/dev-notes.md" <<'EOF_DOCS'
+# Development Notes
+EOF_DOCS
+perl -0pi -e 's#^/docs\\n##m' "$docs_runtime_guard_fixture/.distignore"
+
+if WP_PLUGIN_BASE_ROOT="$docs_runtime_guard_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" "" >/dev/null 2>&1; then
+  echo "Package build unexpectedly accepted /docs runtime content after removing docs exclusion." >&2
+  exit 1
+fi
 
 pot_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/nonstandard-plugin/." "$pot_fixture/"
