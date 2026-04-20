@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7.5
+
+* Fix finalize workflows merge-commit fetch in shallow clones (#95)
+* Foundation release v1.7.4 (#94)
+* Harden workflow permissions and patch markdownlint transitive advisory (#93)
+
 ## v1.7.4
 
 * Harden workflow permissions and patch markdownlint transitive advisory (#93)
