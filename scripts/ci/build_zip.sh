@@ -144,6 +144,13 @@ else
   rsync -a --exclude-from="$EXCLUDES_FILE" "$ROOT_DIR/" "$STAGE_DIR/"
 fi
 
+# The configured readme is a required package artifact. If exclusion rules dropped it
+# (for example README_FILE under /docs), restore that single file explicitly.
+if [ ! -f "$STAGE_DIR/$README_FILE" ] && [ -f "$README_PATH" ]; then
+  mkdir -p "$(dirname "$STAGE_DIR/$README_FILE")"
+  cp "$README_PATH" "$STAGE_DIR/$README_FILE"
+fi
+
 if [ ! -f "$STAGE_DIR/$MAIN_PLUGIN_FILE" ]; then
   echo "Package is missing the main plugin file: $MAIN_PLUGIN_FILE" >&2
   exit 1
