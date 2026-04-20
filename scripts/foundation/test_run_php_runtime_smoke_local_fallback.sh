@@ -7,9 +7,10 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FIXTURE_DIR="$(mktemp -d)"
 FAKE_BIN_DIR="$(mktemp -d)"
 LOG_FILE="$(mktemp)"
+OUTPUT_FILE="$(mktemp)"
 
 cleanup() {
-  rm -rf "$FIXTURE_DIR" "$FAKE_BIN_DIR" "$LOG_FILE"
+  rm -rf "$FIXTURE_DIR" "$FAKE_BIN_DIR" "$LOG_FILE" "$OUTPUT_FILE"
 }
 
 trap cleanup EXIT
@@ -43,11 +44,17 @@ chmod +x "$FAKE_BIN_DIR/docker"
 PATH="$FAKE_BIN_DIR:$PATH" \
 WP_PLUGIN_BASE_ROOT="$FIXTURE_DIR" \
 WP_PLUGIN_BASE_TEST_LOG="$LOG_FILE" \
-bash "$ROOT_DIR/scripts/ci/run_php_runtime_smoke.sh" "" "feature/phpunit-bridge" >/dev/null
+bash "$ROOT_DIR/scripts/ci/run_php_runtime_smoke.sh" "" "feature/phpunit-bridge" >"$OUTPUT_FILE"
 
 grep -Fxq 'phpunit' "$LOG_FILE" || {
   echo "Strict runtime smoke should use the installed local PHPUnit bridge when Docker is unavailable." >&2
   cat "$LOG_FILE" >&2
+  exit 1
+}
+
+grep -Fq 'strict runtime-matrix bridge mode, full quality pack optional' "$OUTPUT_FILE" || {
+  echo "Strict runtime smoke should explain bridge-only fallback messaging when quality pack is disabled." >&2
+  cat "$OUTPUT_FILE" >&2
   exit 1
 }
 

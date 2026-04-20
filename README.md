@@ -364,7 +364,7 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 
 `FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER` is only needed for self-managed GitLab foundation sources. `gitlab.com` uses its standard issuer automatically; self-managed GitLab must set the issuer explicitly.
 
-`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`.
+`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. Full quality-pack mode manages PHPCS/PHPStan/PHPUnit support files.
 
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
@@ -384,6 +384,17 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 - `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+
+PHP quality-pack and runtime-matrix behavior matrix:
+
+| `WORDPRESS_QUALITY_PACK_ENABLED` | `PHP_RUNTIME_MATRIX` | `PHP_RUNTIME_MATRIX_MODE` | Managed PHPUnit bridge files (`phpunit.xml.dist`, `tests/bootstrap.php`, `.wp-plugin-base-quality-pack/**`) | Full pack-only files (`.phpcs.xml.dist`, `phpstan.neon.dist`, `phpstan.neon`) |
+| --- | --- | --- | --- | --- |
+| `false` | unset | `smoke` (default) | no | no |
+| `false` | set | `smoke` | no | no |
+| `false` | set | `strict` | yes | no |
+| `true` | unset or set | `smoke` or `strict` | yes | yes |
+
+Strict runtime matrix mode can therefore manage and execute the PHPUnit bridge even when the full quality pack is disabled. This is expected behavior, not a framework gap.
 
 `WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 

@@ -69,10 +69,10 @@ if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist
     composer_work_dir=""
     composer_cache_dir=""
   elif wp_plugin_base_quality_pack_has_local_phpunit_bundle "$ROOT_DIR/.wp-plugin-base-quality-pack"; then
-    echo "Docker is unavailable; using the installed local PHPUnit bridge bundle."
+    echo "Docker is unavailable; using the installed local PHPUnit bridge bundle (strict runtime-matrix bridge mode, full quality pack optional)."
     php "$ROOT_DIR/.wp-plugin-base-quality-pack/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
   else
-    echo "PHP_RUNTIME_MATRIX_MODE=strict requires Docker or an installed local PHPUnit bridge bundle." >&2
+    echo "PHP_RUNTIME_MATRIX_MODE=strict requires Docker or an installed local PHPUnit bridge bundle (bridge mode can run without the full quality pack)." >&2
     echo "Run composer install in .wp-plugin-base-quality-pack or start Docker." >&2
     exit 1
   fi
