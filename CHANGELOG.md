@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.7.7
+
+* Fix docs guard regression test distignore rewrite (#104)
+* Preserve configured README_FILE when docs path is excluded (#103)
+* Enforce runtime-clean packaging by excluding docs content (#102)
+* Clarify PHPUnit bridge contract and sync strict matrix managed files (#101)
+
 ## v1.7.6
 
 * Remediate admin-ui template dependency vulnerabilities
