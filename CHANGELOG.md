@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7.6
+
+* Remediate admin-ui template dependency vulnerabilities
+* Fix foundation provenance compare direction on GitHub
+* Bootstrap release security tools before foundation provenance verify (#97)
+
 ## v1.7.5
 
 * Fix finalize workflows merge-commit fetch in shallow clones (#95)
