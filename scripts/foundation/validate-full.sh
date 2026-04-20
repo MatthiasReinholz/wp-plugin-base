@@ -667,7 +667,7 @@ mkdir -p "$docs_runtime_guard_fixture/docs"
 cat > "$docs_runtime_guard_fixture/docs/dev-notes.md" <<'EOF_DOCS'
 # Development Notes
 EOF_DOCS
-perl -0pi -e 's#^/docs\\n##m' "$docs_runtime_guard_fixture/.distignore"
+perl -0pi -e 's#^/docs\n##m' "$docs_runtime_guard_fixture/.distignore"
 
 if WP_PLUGIN_BASE_ROOT="$docs_runtime_guard_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" "" >/dev/null 2>&1; then
   echo "Package build unexpectedly accepted /docs runtime content after removing docs exclusion." >&2
