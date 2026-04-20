@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/managed_files.sh
 . "$SCRIPT_DIR/../lib/managed_files.sh"
+# shellcheck source=../lib/quality_pack.sh
+. "$SCRIPT_DIR/../lib/quality_pack.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
@@ -143,8 +145,9 @@ if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
     [ -n "$template_file" ] || continue
     relative_path="${template_file#"$QUALITY_PACK_TEMPLATE_DIR"/}"
     destination_path="$ROOT_DIR/$relative_path"
+    mode="$(wp_plugin_base_quality_pack_template_mode "$relative_path" || true)"
 
-    if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED"; then
+    if [ -n "$mode" ]; then
       render_template "$template_file" "$destination_path"
       continue
     fi
@@ -152,11 +155,27 @@ if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
     rm -f "$destination_path"
   done < <(find "$QUALITY_PACK_TEMPLATE_DIR" -type f | sort)
 
-  if ! wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED"; then
+  if ! wp_plugin_base_quality_pack_is_full_enabled && ! wp_plugin_base_quality_pack_phpunit_bridge_enabled; then
     find "$ROOT_DIR/.wp-plugin-base-quality-pack" -type d -empty -delete 2>/dev/null || true
     find "$ROOT_DIR/bin" -type d -empty -delete 2>/dev/null || true
     find "$ROOT_DIR/tests" -type d -empty -delete 2>/dev/null || true
   fi
+fi
+
+if [ -d "$TEMPLATE_DIR/quality-pack-seed" ]; then
+  while IFS= read -r template_file; do
+    [ -n "$template_file" ] || continue
+    relative_path="${template_file#"$TEMPLATE_DIR/quality-pack-seed/"}"
+    destination_path="$ROOT_DIR/$relative_path"
+    mode="$(wp_plugin_base_quality_pack_seed_mode "$relative_path" || true)"
+
+    if [ -n "$mode" ]; then
+      seed_template_once "$template_file" "$destination_path"
+      continue
+    fi
+
+    rm -f "$destination_path"
+  done < <(find "$TEMPLATE_DIR/quality-pack-seed" -type f | sort)
 fi
 
 if [ -d "$SECURITY_PACK_TEMPLATE_DIR" ]; then

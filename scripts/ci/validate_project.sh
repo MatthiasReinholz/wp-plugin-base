@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/managed_files.sh
 . "$SCRIPT_DIR/../lib/managed_files.sh"
+# shellcheck source=../lib/quality_pack.sh
+. "$SCRIPT_DIR/../lib/quality_pack.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
@@ -17,10 +19,33 @@ wp_plugin_base_require_commands "project validation" git php node ruby perl rsyn
 bash "$SCRIPT_DIR/validate_config.sh" --scope project "$CONFIG_OVERRIDE"
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+
+wp_plugin_base_quality_pack_validation_hint() {
+  local required_path="$1"
+  local required_type="$2"
+  local mode=""
+
+  if [ "$required_type" = "seed" ]; then
+    mode="$(wp_plugin_base_quality_pack_seed_mode "$required_path" || true)"
+  else
+    mode="$(wp_plugin_base_quality_pack_template_mode "$required_path" || true)"
+  fi
+
+  case "$mode" in
+    full)
+      printf '%s\n' "Hint: $required_path is a full quality-pack managed file. Set WORDPRESS_QUALITY_PACK_ENABLED=true (with WORDPRESS_READINESS_ENABLED=true), then rerun .wp-plugin-base/scripts/update/sync_child_repo.sh."
+      ;;
+    phpunit-bridge)
+      printf '%s\n' "Hint: $required_path is managed by the PHPUnit bridge when WORDPRESS_QUALITY_PACK_ENABLED=true or when PHP_RUNTIME_MATRIX is set and PHP_RUNTIME_MATRIX_MODE=strict. If you intentionally run without that bridge, keep those settings off; otherwise rerun .wp-plugin-base/scripts/update/sync_child_repo.sh."
+      ;;
+  esac
+}
+
 while IFS= read -r required_path; do
   [ -n "$required_path" ] || continue
   resolved_required_path="$(wp_plugin_base_resolve_path "$required_path")"
   if [ ! -f "$resolved_required_path" ]; then
+    wp_plugin_base_quality_pack_validation_hint "$required_path" "managed" >&2 || true
     echo "Managed file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
     exit 1
   fi
@@ -30,6 +55,7 @@ while IFS= read -r required_path; do
   [ -n "$required_path" ] || continue
   resolved_required_path="$(wp_plugin_base_resolve_path "$required_path")"
   if [ ! -f "$resolved_required_path" ]; then
+    wp_plugin_base_quality_pack_validation_hint "$required_path" "seed" >&2 || true
     echo "Required seeded pack file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
     exit 1
   fi

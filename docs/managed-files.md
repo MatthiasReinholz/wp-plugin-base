@@ -11,7 +11,8 @@ These files are intended to be generated from foundation templates in your proje
 - `uninstall.php.example`
 - `.github/dependabot.yml`, `.github/CODEOWNERS`, and `.github/workflows/*.yml` when `AUTOMATION_PROVIDER=github`
 - `.gitlab-ci.yml` and `.gitlab/CODEOWNERS` when `AUTOMATION_PROVIDER=gitlab`
-- `.phpcs.xml.dist`, `phpstan.neon.dist`, `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, and `.wp-plugin-base-quality-pack/**` when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- `.phpcs.xml.dist`, `phpstan.neon.dist`, and `phpstan.neon` when `WORDPRESS_QUALITY_PACK_ENABLED=true` (full quality pack)
+- `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/wp-plugin-base/PluginLoadsTest.php`, `.wp-plugin-base-quality-pack/composer.json`, `.wp-plugin-base-quality-pack/composer.lock`, and `tests/wp-plugin-base/bootstrap-child.php` when either `WORDPRESS_QUALITY_PACK_ENABLED=true` or `PHP_RUNTIME_MATRIX` is set with `PHP_RUNTIME_MATRIX_MODE=strict` (PHPUnit bridge path)
 - `.phpcs-security.xml.dist` and `.wp-plugin-base-security-pack/**` when `WORDPRESS_SECURITY_PACK_ENABLED=true`
 - `.github/workflows/woocommerce-qit.yml` when `WOOCOMMERCE_QIT_ENABLED=true`
 - `.github/workflows/woocommerce-status.yml` when `WOOCOMMERCE_COM_PRODUCT_ID` is configured (status diagnostics file; the workflow self-skips unless `WOOCOMMERCE_COM_DEPLOY_ENABLED=true`)
