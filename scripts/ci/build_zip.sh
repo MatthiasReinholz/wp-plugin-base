@@ -164,6 +164,26 @@ if [ -e "$STAGE_DIR/$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ]; then
   exit 1
 fi
 
+normalized_readme_path="$(normalize_repo_relative_path "$README_FILE")"
+allowed_docs_runtime_file=""
+if [[ "$normalized_readme_path" == docs/* ]]; then
+  allowed_docs_runtime_file="$normalized_readme_path"
+fi
+
+if [ -d "$STAGE_DIR/docs" ]; then
+  while IFS= read -r docs_file; do
+    [ -n "$docs_file" ] || continue
+    relative_docs_file="${docs_file#"$STAGE_DIR/"}"
+    if [ -n "$allowed_docs_runtime_file" ] && [ "$relative_docs_file" = "$allowed_docs_runtime_file" ]; then
+      continue
+    fi
+
+    echo "Package contains development-only docs content: $relative_docs_file" >&2
+    echo "Keep /docs out of distributable ZIPs (or move runtime-required content outside /docs)." >&2
+    exit 1
+  done < <(find "$STAGE_DIR/docs" -type f)
+fi
+
 runtime_update_enabled=false
 if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] || wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then
   runtime_update_enabled=true
