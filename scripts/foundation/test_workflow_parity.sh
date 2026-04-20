@@ -59,6 +59,7 @@ assert_contains_literal 'concurrency:' "$child_finalize" 'Managed child finalize
 
 for literal in \
   'resolve_latest_foundation_version.sh' \
+  'install_release_security_tools.sh' \
   'verify_foundation_release.sh' \
   'sync_child_repo.sh' \
   'validate_project.sh' \
