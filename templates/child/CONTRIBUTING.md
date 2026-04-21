@@ -69,6 +69,8 @@ When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a fo
 
 If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation and WordPress metadata checks with each interpreter version so syntax- and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present, including bridge-only mode when `WORDPRESS_QUALITY_PACK_ENABLED=false`.
 
+When that PHPUnit bridge path is enabled, `tests/bootstrap.php` is managed by foundation sync. Keep child-specific PHPUnit preloads and support-class requires in `tests/wp-plugin-base/bootstrap-child.php`, which is seeded as child-owned.
+
 If `WOOCOMMERCE_QIT_ENABLED=true`, sync also manages a manual `woocommerce-qit` workflow. That workflow is intentionally opt-in, expects WooCommerce QIT access plus `QIT_USER` and `QIT_APP_PASSWORD` secrets, and uses the pinned `woocommerce/qit-cli` version managed by the foundation script.
 
 If this repository does not already have a `CHANGELOG.md`, the first sync also seeds one from the foundation template. After that initial creation, the project owns its changelog content.

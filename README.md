@@ -406,6 +406,8 @@ PHP quality-pack and runtime-matrix behavior matrix:
 
 Strict runtime matrix mode can therefore manage and execute the PHPUnit bridge even when the full quality pack is disabled. This is expected behavior, not a framework gap.
 
+When the PHPUnit bridge is active, treat `tests/bootstrap.php` as managed and keep child-specific preload/support-class wiring in `tests/wp-plugin-base/bootstrap-child.php`. During migration, move custom preloads there before or immediately after sync to avoid post-sync CI regressions.
+
 `WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 
 `WOOCOMMERCE_COM_PRODUCT_ID` enables WooCommerce.com Marketplace release deploy preflight and upload when the CI variable `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` is set. Keep `WOO_COM_USERNAME` and `WOO_COM_APP_PASSWORD` in protected CI secrets. Leave the product ID empty during Woo onboarding approval and the release flow soft-skips Woo deploy.

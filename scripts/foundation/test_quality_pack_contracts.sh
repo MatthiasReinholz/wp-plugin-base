@@ -132,6 +132,29 @@ assert_not_present "$bridge_fixture/.phpcs.xml.dist" "Strict runtime matrix shou
 assert_not_present "$bridge_fixture/phpstan.neon.dist" "Strict runtime matrix should not force PHPStan config without the full quality pack."
 assert_not_present "$bridge_fixture/phpstan.neon" "Strict runtime matrix should not seed phpstan.neon without the full quality pack."
 
+cat > "$bridge_fixture/tests/bootstrap.php" <<'EOF_CUSTOM_BOOTSTRAP'
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/legacy-custom-preload.php';
+EOF_CUSTOM_BOOTSTRAP
+
+: > "$bridge_fixture/tests/wp-plugin-base/bootstrap-child.php"
+
+sync_warning_output="$(
+  WP_PLUGIN_BASE_ROOT="$bridge_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" 2>&1
+)"
+
+printf '%s' "$sync_warning_output" | grep -Fq "tests/bootstrap.php is managed by wp-plugin-base and was customized in this repository." || {
+  echo "Sync should warn when managed bootstrap customizations are detected without a child bootstrap overlay." >&2
+  exit 1
+}
+
+printf '%s' "$sync_warning_output" | grep -Fq "tests/wp-plugin-base/bootstrap-child.php" || {
+  echo "Sync warning should point to the child-owned bootstrap overlay path." >&2
+  exit 1
+}
+
 cat >> "$mode_only_fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
 PHP_RUNTIME_MATRIX_MODE=strict
 EOF_CONFIG

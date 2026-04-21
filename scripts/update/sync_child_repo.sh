@@ -63,6 +63,35 @@ seed_template_once() {
   render_template "$source_file" "$destination_file"
 }
 
+warn_quality_pack_bootstrap_migration_risk() {
+  local managed_bootstrap_template="$TEMPLATE_DIR/quality-pack/tests/bootstrap.php"
+  local managed_bootstrap_path="$ROOT_DIR/tests/bootstrap.php"
+  local child_bootstrap_path="$ROOT_DIR/tests/wp-plugin-base/bootstrap-child.php"
+  local rendered_template
+
+  if ! wp_plugin_base_quality_pack_phpunit_bridge_enabled && ! wp_plugin_base_quality_pack_is_full_enabled; then
+    return 0
+  fi
+
+  if [ ! -f "$managed_bootstrap_template" ] || [ ! -f "$managed_bootstrap_path" ]; then
+    return 0
+  fi
+
+  rendered_template="$(mktemp)"
+  render_template "$managed_bootstrap_template" "$rendered_template"
+
+  if ! cmp -s "$managed_bootstrap_path" "$rendered_template" && [ ! -s "$child_bootstrap_path" ]; then
+    {
+      echo "Warning: tests/bootstrap.php is managed by wp-plugin-base and was customized in this repository."
+      echo "Warning: Child-specific PHPUnit preloads and support-class requires should live in tests/wp-plugin-base/bootstrap-child.php."
+      echo "Warning: Sync may overwrite tests/bootstrap.php and break post-sync CI until those preloads are moved."
+      echo "Warning: See docs/existing-project-migration.md#phpunit-bootstrap-migration and docs/troubleshooting.md#post-sync-phpunit-bootstrap-regressions."
+    } >&2
+  fi
+
+  rm -f "$rendered_template"
+}
+
 remove_stale_managed_aliases() {
   if [ "$DISTIGNORE_FILE" != ".distignore" ]; then
     rm -f "$ROOT_DIR/.distignore"
@@ -136,6 +165,8 @@ ADMIN_UI_PACK_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack"
 ADMIN_UI_SEED_COMMON_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-common"
 ADMIN_UI_SEED_BASIC_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-basic"
 ADMIN_UI_SEED_DATAVIEWS_TEMPLATE_DIR="$TEMPLATE_DIR/admin-ui-pack-seed-dataviews"
+
+warn_quality_pack_bootstrap_migration_risk
 
 if [ -d "$QUALITY_PACK_TEMPLATE_DIR" ]; then
   rm -f "$ROOT_DIR/tests/test-plugin-loads.php"

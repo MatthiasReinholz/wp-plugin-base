@@ -32,6 +32,7 @@ Each downstream project should choose one automation host profile. The only norm
 
 ## Common Migration Adjustments
 
+- Treat `tests/bootstrap.php` as managed infrastructure when the PHPUnit bridge is enabled (`WORDPRESS_QUALITY_PACK_ENABLED=true` or `PHP_RUNTIME_MATRIX` + `PHP_RUNTIME_MATRIX_MODE=strict`). Move child-specific PHPUnit preloads/support-class `require` statements into `tests/wp-plugin-base/bootstrap-child.php`, which is child-owned and preserved across syncs.
 - Set `VERSION_CONSTANT_NAME` when the plugin stores its version in a named constant.
 - Set `POT_FILE` and `POT_PROJECT_NAME` when the translation template exists and should be updated during release prep. Translation support also requires a `Domain Path` plugin header, typically `/languages/`, when `POT_FILE` is configured or the repo contains a `languages/` directory.
 - Keep project-local `.gitignore` aligned with the managed ignore template so transient files such as `.DS_Store`, editor metadata, and debug logs never enter the repository.
@@ -79,3 +80,14 @@ Downstream channels can fail after host-release publication. On GitHub, pair rel
 Current release flow is host-release-first: the selected Git host publishes first, then downstream channel deploy steps run after that.
 
 If your previous internal process expected WordPress.org deploy to gate tag publication, treat this as an operational behavior change and update your release runbooks accordingly.
+
+## PHPUnit Bootstrap Migration
+
+If an older child repository keeps custom PHPUnit preloads inside `tests/bootstrap.php`, move that child logic before your first sync.
+
+Use this ownership model:
+
+- `tests/bootstrap.php`: managed by `wp-plugin-base`; sync can replace it
+- `tests/wp-plugin-base/bootstrap-child.php`: child-owned overlay for project-specific preloads, hooks, and support-class bootstrapping
+
+If sync warns that managed bootstrap customizations were detected, move those custom `require` statements into `tests/wp-plugin-base/bootstrap-child.php` and rerun sync plus project validation.
