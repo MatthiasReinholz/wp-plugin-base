@@ -114,6 +114,18 @@ Both conditions are required for the automated update PR flow to work.
 If the change request includes `.github/workflows/*` updates, also configure `WP_PLUGIN_BASE_PR_TOKEN` so the workflow can push those changes with a token that has workflow-write permission.
 The managed `update-foundation` workflow now bootstraps release security tools (`cosign`, `syft`, companion binaries) before provenance verification. If you run `scripts/update/verify_foundation_release.sh` directly, install those tools first (for example via `scripts/release/install_release_security_tools.sh`).
 
+## Post-Sync PHPUnit Bootstrap Regressions
+
+If CI starts failing after `sync_child_repo.sh` with errors such as `Class not found` or missing test bootstrap support classes, check whether child-specific PHPUnit preload logic was stored in `tests/bootstrap.php`.
+
+`tests/bootstrap.php` is managed by `wp-plugin-base` and can be overwritten on sync. Child-specific PHPUnit preloads belong in `tests/wp-plugin-base/bootstrap-child.php`, which is child-owned.
+
+Recovery:
+
+1. Move project-specific `require` statements and preload hooks from `tests/bootstrap.php` into `tests/wp-plugin-base/bootstrap-child.php`.
+2. Rerun `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
+3. Rerun `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
+
 ## External Dependency Updater Workflow Fails
 
 The foundation's external dependency updater lives at `.github/workflows/update-plugin-check.yml` (display name: `update-external-dependencies`).
