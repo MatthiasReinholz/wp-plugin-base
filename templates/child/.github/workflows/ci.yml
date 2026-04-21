@@ -63,7 +63,7 @@ jobs:
           php-version: ${{ steps.config.outputs.php_version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ steps.config.outputs.node_version }}
 
@@ -119,7 +119,7 @@ jobs:
           php-version: ${{ needs.validate.outputs.php_version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ needs.validate.outputs.node_version }}
 
@@ -181,7 +181,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ needs.validate.outputs.node_version }}
 

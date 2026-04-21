@@ -485,7 +485,7 @@ fi
 
 declare -a allowed_actions=(
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-  "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f"
+  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
   "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
   "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
   "github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225"

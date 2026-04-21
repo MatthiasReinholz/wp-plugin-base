@@ -72,12 +72,15 @@ Default behavior is intentionally conservative. Optional channels and packs are 
 For the foundation repo itself, run:
 
 ```bash
+bash scripts/dev/install_git_hooks.sh
 bash scripts/foundation/validate.sh
 bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools"
 export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 bash scripts/foundation/validate-full.sh
 ```
+
+`scripts/dev/install_git_hooks.sh` configures `core.hooksPath=.githooks` so every `git push` executes both local workflow-equivalent validation paths before upload.
 
 `validate.sh` defaults to `fast-local` mode, which tolerates missing foundation-only lint/security tools and reports reduced assurance explicitly. Use `bash scripts/foundation/validate.sh --mode strict-local` when you want the local run to fail if any required foundation lint/security tool is missing. `validate-full.sh` requires Docker and adds the WordPress readiness and Plugin Check fixtures on top. In CI the full suite skips rerunning the fast suite so the matrix does not pay for the same checks twice.
 
@@ -110,6 +113,13 @@ Full local validation and optional flows need additional tools:
 The shared scripts now fail fast with explicit missing-tool errors instead of failing deeper into release or update flows.
 
 Foundation-only linting uses `shellcheck`, `actionlint`, `yamllint`, `markdownlint-cli2`, `codespell`, `editorconfig-checker`, and `gitleaks` when they are installed locally. Foundation CI installs and runs them strictly even if they are absent on a contributor machine.
+
+The repository pre-push hook runs:
+
+- `bash scripts/foundation/validate.sh --mode fast-local`
+- `bash scripts/foundation/validate-full.sh --mode fast-local`
+
+Set `WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE=1` only when you intentionally need to bypass the local gate.
 
 On macOS, install the binary tools locally with:
 
