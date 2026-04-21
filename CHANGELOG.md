@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.7.8
+
+* chore(ci): enforce local pre-push validation and bump setup-node pin (#108)
+* chore(deps): bump semgrep in /tools/python-semgrep (#107)
+
 ## v1.7.7
 
 * Fix docs guard regression test distignore rewrite (#104)
