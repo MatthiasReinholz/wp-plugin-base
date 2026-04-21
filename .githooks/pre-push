@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if [ "${WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE:-}" = "1" ]; then
+  echo "Skipping local push gate because WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE=1"
+  exit 0
+fi
+
+echo "Running local push gate: validate.sh --mode fast-local"
+bash scripts/foundation/validate.sh --mode fast-local
+
+echo "Running local push gate: validate-full.sh --mode fast-local"
+bash scripts/foundation/validate-full.sh --mode fast-local
+
+echo "Local push gate passed."
