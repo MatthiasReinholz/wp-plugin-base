@@ -135,6 +135,45 @@ normalize_title() {
   printf '%s' "$title"
 }
 
+extract_changelog_body_entries() {
+  local raw_body="$1"
+  local in_section=false
+  local line heading item lower_item
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*#{1,6}[[:space:]]+(.+)$ ]]; then
+      heading="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+$//; s/^[[:space:]]+//')"
+      if [[ "$heading" =~ ^(changelog|changes|release[[:space:]]+notes)([[:space:]]*[:.-].*)?$ ]]; then
+        in_section=true
+      elif [ "$in_section" = true ]; then
+        in_section=false
+      fi
+      continue
+    fi
+
+    [ "$in_section" = true ] || continue
+
+    item=""
+    if [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+\[[xX]\][[:space:]]+(.+)$ ]]; then
+      item="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+\[[[:space:]]\][[:space:]]+(.+)$ ]]; then
+      continue
+    elif [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+(.+)$ ]]; then
+      item="${BASH_REMATCH[1]}"
+    else
+      continue
+    fi
+
+    item="$(printf '%s' "$item" | sed -E 's/[[:space:]]+$//; s/^[[:space:]]+//')"
+    lower_item="$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')"
+    if [ -z "$item" ] || [ "$lower_item" = "none" ] || [ "$lower_item" = "_none_" ] || [ "$lower_item" = "n/a" ] || [ "$lower_item" = "na" ]; then
+      continue
+    fi
+
+    printf '%s\n' "$item"
+  done <<< "$raw_body"
+}
+
 entry_with_period() {
   local text="$1"
   if [[ "$text" =~ [.!?]$ ]]; then
@@ -219,6 +258,18 @@ while IFS= read -r pr_json; do
     labels_csv="$(printf '%s' "$pr_json" | jq -r '[.labels[]? | ascii_downcase] | join(",")')"
   fi
   if grep -Eqi '(^|,)(dependencies|automation|skip-changelog)(,|$)' <<<"$labels_csv"; then
+    continue
+  fi
+
+  raw_body="$(printf '%s' "$pr_json" | jq -r '.body // .description // empty')"
+  body_entries="$(extract_changelog_body_entries "$raw_body")"
+  if [ -n "$body_entries" ]; then
+    while IFS= read -r body_entry; do
+      [ -n "$body_entry" ] || continue
+      category="$(detect_category "$body_entry" "$labels_csv")"
+      append_entry "$category" "$body_entry"
+      entries=$((entries + 1))
+    done <<< "$body_entries"
     continue
   fi
 
