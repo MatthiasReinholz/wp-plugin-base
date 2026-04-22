@@ -154,8 +154,10 @@ extract_changelog_body_entries() {
     [ "$in_section" = true ] || continue
 
     item=""
-    if [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+\[[xX[:space:]]\][[:space:]]+(.+)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+\[[xX]\][[:space:]]+(.+)$ ]]; then
       item="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+\[[[:space:]]\][[:space:]]+(.+)$ ]]; then
+      continue
     elif [[ "$line" =~ ^[[:space:]]*[-*+][[:space:]]+(.+)$ ]]; then
       item="${BASH_REMATCH[1]}"
     else

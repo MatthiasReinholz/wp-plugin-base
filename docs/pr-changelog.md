@@ -12,7 +12,7 @@ Behavior:
 - for body-derived notes:
   - reads only markdown bullets in `## Changelog`, `## Changes`, or `## Release Notes`
   - stops at the next markdown heading
-  - supports plain bullets and task-list bullets (`- [x] ...`)
+  - supports plain bullets and checked task-list bullets (`- [x] ...`), while ignoring unchecked task-list bullets (`- [ ] ...`)
   - ignores placeholder bullets like `none`, `_none_`, `n/a`
 - excludes change requests with labels `dependencies`, `automation`, or `skip-changelog`
 - applies category prefixes in this order:

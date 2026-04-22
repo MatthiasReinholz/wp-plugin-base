@@ -19,7 +19,7 @@ cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$fixture/"
 mkdir -p "$fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$fixture/.wp-plugin-base/"
 
-cat > "$fixture/.wp-plugin-base.env" <<'EOF'
+cat > "$fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
 PLUGIN_NAME="Standard Plugin"
 PLUGIN_SLUG=standard-plugin
 MAIN_PLUGIN_FILE=standard-plugin.php
@@ -28,7 +28,7 @@ ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
 NODE_VERSION=20
 CHANGELOG_SOURCE=change_request_titles
-EOF
+EOF_CONFIG
 
 (
   cd "$fixture"
@@ -42,37 +42,52 @@ EOF
   printf '%s\n' "body extraction fixture" >> "$fixture/README.md"
   git add README.md
   git commit -m "Update fixture for changelog extraction" >/dev/null
+  printf '%s\n' "empty section fallback fixture" >> "$fixture/README.md"
+  git add README.md
+  git commit -m "Add fallback coverage fixture commit" >/dev/null
 )
 
-head_sha="$(git -C "$fixture" rev-parse HEAD)"
+fallback_sha="$(git -C "$fixture" rev-parse HEAD)"
+head_sha="$(git -C "$fixture" rev-parse HEAD~1)"
 
-cat > "$fake_bin/gh" <<EOF
+cat > "$fake_bin/gh" <<EOF_GH
 #!/usr/bin/env bash
 cat <<'JSON'
-[{
-  "merged_at": "2026-04-22T00:00:00Z",
-  "merge_commit_sha": "$head_sha",
-  "title": "Update internal build metadata",
-  "body": "## Changelog\n- Fix nonce verification edge case\n- Add opt-out toggle in admin settings\n\n## Notes\nNo follow-up required.",
-  "labels": [{"name": "enhancement"}]
-}]
+[
+  {
+    "merged_at": "2026-04-22T00:00:00Z",
+    "merge_commit_sha": "$head_sha",
+    "title": "Update internal build metadata",
+    "body": "## Changelog\n- Fix nonce verification edge case\n- Add opt-out toggle in admin settings\n- [ ] deferred checklist item\n\n## Notes\nNo follow-up required.",
+    "labels": [{"name": "enhancement"}]
+  },
+  {
+    "merged_at": "2026-04-22T00:05:00Z",
+    "merge_commit_sha": "$fallback_sha",
+    "title": "Tweak fallback title path",
+    "body": "## Release Notes\n- none\n- n/a\n- [ ] deferred checklist item",
+    "labels": [{"name": "performance"}]
+  }
+]
 JSON
-EOF
+EOF_GH
 chmod +x "$fake_bin/gh"
 
 http_client_name='cu'"rl"
-cat > "$fake_bin/$http_client_name" <<EOF
+cat > "$fake_bin/$http_client_name" <<EOF_CURL
 #!/usr/bin/env sh
 cat <<'JSON'
-[{
-  "merged_at": "2026-04-22T00:00:00Z",
-  "merge_commit_sha": "$head_sha",
-  "title": "Update automation defaults",
-  "description": "## Release Notes\n- Tweak runtime guard defaults\n- [x] Dev docs cleanup for runtime guidance\n\n## Out of scope\nn/a",
-  "labels": ["performance"]
-}]
+[
+  {
+    "merged_at": "2026-04-22T00:00:00Z",
+    "merge_commit_sha": "$head_sha",
+    "title": "Update automation defaults",
+    "description": "## Changes\n- Tweak runtime guard defaults\n- [x] Dev docs cleanup for runtime guidance\n- _none_\n- [ ] deferred checklist item\n\n## Out of scope\nn/a",
+    "labels": ["performance"]
+  }
+]
 JSON
-EOF
+EOF_CURL
 chmod +x "$fake_bin/$http_client_name"
 
 PATH="$fake_bin:$PATH" \
@@ -83,32 +98,15 @@ PATH="$fake_bin:$PATH" \
 
 grep -Fq '* Add - Add opt-out toggle in admin settings.' "$github_output"
 grep -Fq '* Fix - Fix nonce verification edge case.' "$github_output"
+grep -Fq '* Tweak - Tweak fallback title path.' "$github_output"
 if grep -Fq 'Update internal build metadata' "$github_output"; then
   echo "Generator unexpectedly fell back to title despite a changelog body section." >&2
   exit 1
 fi
-
-cat > "$fake_bin/gh" <<EOF
-#!/usr/bin/env bash
-cat <<'JSON'
-[{
-  "merged_at": "2026-04-22T00:00:00Z",
-  "merge_commit_sha": "$head_sha",
-  "title": "Fix release note fallback behavior",
-  "body": "No changelog section in this body.",
-  "labels": []
-}]
-JSON
-EOF
-chmod +x "$fake_bin/gh"
-
-PATH="$fake_bin:$PATH" \
-  AUTOMATION_PROVIDER=github \
-  GITHUB_REPOSITORY=example/standard-plugin \
-  WP_PLUGIN_BASE_ROOT="$fixture" \
-  bash "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$github_output"
-
-grep -Fq '* Fix - Fix release note fallback behavior.' "$github_output"
+if grep -Fq 'deferred checklist item' "$github_output"; then
+  echo "Generator unexpectedly included unchecked task-list entries for GitHub release notes." >&2
+  exit 1
+fi
 
 PATH="$fake_bin:$PATH" \
   AUTOMATION_PROVIDER=gitlab \
@@ -122,6 +120,14 @@ grep -Fq '* Tweak - Tweak runtime guard defaults.' "$gitlab_output"
 grep -Fq '* Dev - Dev docs cleanup for runtime guidance.' "$gitlab_output"
 if grep -Fq 'Update automation defaults' "$gitlab_output"; then
   echo "GitLab generator unexpectedly fell back to title despite a release notes section." >&2
+  exit 1
+fi
+if grep -Fq 'deferred checklist item' "$gitlab_output"; then
+  echo "Generator unexpectedly included unchecked task-list entries for GitLab release notes." >&2
+  exit 1
+fi
+if grep -Fq '_none_' "$gitlab_output" || grep -Fq 'n/a' "$gitlab_output"; then
+  echo "Generator unexpectedly included placeholder release-note entries." >&2
   exit 1
 fi
 
