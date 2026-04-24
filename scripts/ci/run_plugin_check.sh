@@ -172,6 +172,26 @@ plugin_check_command=(
   "${plugin_check_args[@]}"
 )
 
+run_plugin_check_with_php_timeout() {
+  local status
+
+  set +e
+  raw_output="$(
+    WP_ENV_HOME="$wp_env_home" \
+      BUILDX_CONFIG="$buildx_config_dir" \
+      NPM_CONFIG_CACHE="$npm_cache_dir" \
+      php "$SCRIPT_DIR/run_with_php_timeout.php" "$plugin_check_timeout_seconds" "${plugin_check_command[@]}"
+  )"
+  status="$?"
+  set -e
+  if [ "$status" -ne 0 ]; then
+    if [ "$status" -eq 124 ]; then
+      echo "Plugin Check timed out after ${plugin_check_timeout_seconds}s." >&2
+    fi
+    exit "$status"
+  fi
+}
+
 if [ -n "$timeout_bin" ]; then
   set +e
   raw_output="$(
@@ -189,13 +209,7 @@ if [ -n "$timeout_bin" ]; then
     exit "$status"
   fi
 else
-  echo "timeout command is unavailable; running Plugin Check without an explicit per-command timeout." >&2
-  raw_output="$(
-    WP_ENV_HOME="$wp_env_home" \
-      BUILDX_CONFIG="$buildx_config_dir" \
-      NPM_CONFIG_CACHE="$npm_cache_dir" \
-      "${plugin_check_command[@]}"
-  )"
+  run_plugin_check_with_php_timeout
 fi
 
 json_payload="$(printf '%s\n' "$raw_output" | bash "$SCRIPT_DIR/normalize_plugin_check_output.sh")"

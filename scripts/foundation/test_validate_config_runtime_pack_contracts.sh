@@ -59,7 +59,13 @@ admin_fixture="$(make_fixture)"
 dataviews_fixture="$(make_fixture)"
 starter_fixture="$(make_fixture)"
 conflict_fixture="$(make_fixture)"
-trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture"' EXIT
+readiness_missing_fixture="$(make_fixture)"
+readiness_strict_fixture="$(make_fixture)"
+readiness_filtered_fixture="$(make_fixture)"
+readiness_reduced_audit_fixture="$(make_fixture)"
+readiness_invalid_audit_fixture="$(make_fixture)"
+readiness_pass_fixture="$(make_fixture)"
+trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture" "$readiness_missing_fixture" "$readiness_strict_fixture" "$readiness_filtered_fixture" "$readiness_reduced_audit_fixture" "$readiness_invalid_audit_fixture" "$readiness_pass_fixture"' EXIT
 
 write_base_config "$defaults_fixture/.defaults.env"
 cat >> "$defaults_fixture/.defaults.env" <<'EOF_CONFIG'
@@ -118,5 +124,73 @@ expect_validation_failure \
   "$conflict_fixture" \
   .conflict.env \
   'ADMIN_UI_STARTER=basic conflicts with ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true. Use ADMIN_UI_STARTER=dataviews or unset the legacy flag.'
+
+write_base_config "$readiness_missing_fixture/.readiness-missing.env"
+cat >> "$readiness_missing_fixture/.readiness-missing.env" <<'EOF_CONFIG'
+RELEASE_READINESS_MODE=security-sensitive
+EOF_CONFIG
+expect_validation_failure \
+  "$readiness_missing_fixture" \
+  .readiness-missing.env \
+  'RELEASE_READINESS_MODE=security-sensitive requires WORDPRESS_READINESS_ENABLED=true, WORDPRESS_QUALITY_PACK_ENABLED=true, and WORDPRESS_SECURITY_PACK_ENABLED=true.'
+
+write_base_config "$readiness_strict_fixture/.readiness-strict.env"
+cat >> "$readiness_strict_fixture/.readiness-strict.env" <<'EOF_CONFIG'
+WORDPRESS_READINESS_ENABLED=true
+WORDPRESS_QUALITY_PACK_ENABLED=true
+WORDPRESS_SECURITY_PACK_ENABLED=true
+RELEASE_READINESS_MODE=security-sensitive
+EOF_CONFIG
+expect_validation_failure \
+  "$readiness_strict_fixture" \
+  .readiness-strict.env \
+  'RELEASE_READINESS_MODE=security-sensitive requires WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true.'
+
+write_base_config "$readiness_filtered_fixture/.readiness-filtered.env"
+cat >> "$readiness_filtered_fixture/.readiness-filtered.env" <<'EOF_CONFIG'
+WORDPRESS_READINESS_ENABLED=true
+WORDPRESS_QUALITY_PACK_ENABLED=true
+WORDPRESS_SECURITY_PACK_ENABLED=true
+RELEASE_READINESS_MODE=security-sensitive
+WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
+WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES=plugin_repo
+EOF_CONFIG
+expect_validation_failure \
+  "$readiness_filtered_fixture" \
+  .readiness-filtered.env \
+  'RELEASE_READINESS_MODE=security-sensitive requires full Plugin Check coverage.'
+
+write_base_config "$readiness_reduced_audit_fixture/.readiness-reduced-audit.env"
+cat >> "$readiness_reduced_audit_fixture/.readiness-reduced-audit.env" <<'EOF_CONFIG'
+WORDPRESS_READINESS_ENABLED=true
+WORDPRESS_QUALITY_PACK_ENABLED=true
+WORDPRESS_SECURITY_PACK_ENABLED=true
+RELEASE_READINESS_MODE=security-sensitive
+WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
+ADMIN_UI_NPM_AUDIT_LEVEL=critical
+EOF_CONFIG
+expect_validation_failure \
+  "$readiness_reduced_audit_fixture" \
+  .readiness-reduced-audit.env \
+  'RELEASE_READINESS_MODE=security-sensitive requires ADMIN_UI_NPM_AUDIT_LEVEL=high.'
+
+write_base_config "$readiness_invalid_audit_fixture/.readiness-invalid-audit.env"
+cat >> "$readiness_invalid_audit_fixture/.readiness-invalid-audit.env" <<'EOF_CONFIG'
+ADMIN_UI_NPM_AUDIT_LEVEL=moderate
+EOF_CONFIG
+expect_validation_failure \
+  "$readiness_invalid_audit_fixture" \
+  .readiness-invalid-audit.env \
+  'Invalid ADMIN_UI_NPM_AUDIT_LEVEL: moderate'
+
+write_base_config "$readiness_pass_fixture/.readiness-pass.env"
+cat >> "$readiness_pass_fixture/.readiness-pass.env" <<'EOF_CONFIG'
+WORDPRESS_READINESS_ENABLED=true
+WORDPRESS_QUALITY_PACK_ENABLED=true
+WORDPRESS_SECURITY_PACK_ENABLED=true
+RELEASE_READINESS_MODE=security-sensitive
+WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
+EOF_CONFIG
+WP_PLUGIN_BASE_ROOT="$readiness_pass_fixture" bash "$VALIDATE_CONFIG" --scope project .readiness-pass.env >/dev/null
 
 echo "Config runtime-pack contract tests passed."

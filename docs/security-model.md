@@ -77,6 +77,7 @@ The hardened baseline audits literal workflow and repo-local-script references t
 
 - `api.github.com`
 - `github.com`
+- `gitlab.com`
 - `uploads.github.com`
 - `downloads.wordpress.org`
 - `plugins.svn.wordpress.org`

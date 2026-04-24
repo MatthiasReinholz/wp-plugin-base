@@ -43,6 +43,12 @@ The initial pack targets WordPress-native admin apps:
 
 The shared API client intentionally separates registry-backed operations from direct REST paths: use `fetchOperation()` for registered operation ids and `fetchPath()` only for explicit raw-path calls.
 
+## Audit And Update Strategy
+
+When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation audits `.wp-plugin-base-admin-ui/package-lock.json` with `npm audit --package-lock-only --audit-level=high` by default. Security-sensitive plugins should also set `RELEASE_READINESS_MODE=security-sensitive` so releases fail if the quality pack, security pack, strict Plugin Check, or admin UI audit coverage is weakened.
+
+Resolve admin UI audit findings by updating the pinned `@wordpress/*` packages through the generated Dependabot path or by adding the narrowest possible npm `overrides` entry in the child-owned `.wp-plugin-base-admin-ui/package.json`. If a finding is limited to the build-only WordPress toolchain and no patched upstream version exists yet, `ADMIN_UI_NPM_AUDIT_LEVEL=critical` is a temporary compatibility override only outside `RELEASE_READINESS_MODE=security-sensitive`; document why it is safe and remove it after the upstream package is updated.
+
 Admin starter files are child-owned and seeded once. Changing `ADMIN_UI_STARTER` after the first sync does not rewrite those files; project validation will fail until the starter files are reconciled manually or re-seeded intentionally.
 
 Disabling `ADMIN_UI_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but it does not rewrite child-owned plugin entrypoints or seeded sources. Remove the `require_once __DIR__ . '/lib/wp-plugin-base/admin-ui/bootstrap.php';` line from the main plugin file, clear `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`, and delete stale `assets/admin-ui/` build outputs before packaging. Deleting the seeded `.wp-plugin-base-admin-ui/` sources is optional but recommended once the pack is intentionally removed.

@@ -59,6 +59,8 @@ GitHub repos use `finalize-release.yml` as the normal automated publish path and
 Managed CI also runs a separate `gitleaks` secret-scan job by default.
 When `WORDPRESS_QUALITY_PACK_ENABLED=true` or `WORDPRESS_SECURITY_PACK_ENABLED=true`, treat those settings as readiness submodes. Both require `WORDPRESS_READINESS_ENABLED=true`.
 
+Set `RELEASE_READINESS_MODE=security-sensitive` for plugins that should fail closed before release unless readiness, quality, security, strict Plugin Check, and dependency-audit coverage are all enabled without narrowed Plugin Check filters.
+
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a focused WordPress security pack:
 
 - explicit `WordPress.Security` sniffs for escaping, nonce verification, and sanitized input

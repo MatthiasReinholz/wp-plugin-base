@@ -47,6 +47,7 @@ strict_plugin_check_fixture=""
 security_pack_skip_fixture=""
 custom_suppressions_fixture=""
 custom_distignore_fixture=""
+custom_config_fixture=""
 missing_workflow_fixture=""
 missing_managed_file_fixture=""
 managed_directory_fixture=""
@@ -69,7 +70,7 @@ simulate_fixture=""
 glotpress_fixture=""
 
 cleanup() {
-  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$runtime_pack_fixture" "$runtime_pack_abilities_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$docs_runtime_guard_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
+  rm -rf "$quality_fixture" "$strict_plugin_check_fixture" "$security_pack_skip_fixture" "$custom_suppressions_fixture" "$custom_distignore_fixture" "$custom_config_fixture" "$missing_workflow_fixture" "$missing_managed_file_fixture" "$managed_directory_fixture" "$missing_pack_fixture" "$metadata_fixture" "$deploy_fixture" "$default_environment_fixture" "$absolute_include_fixture" "$invalid_distignore_fixture" "$wp_build_fixture" "$runtime_pack_fixture" "$runtime_pack_abilities_fixture" "$pot_fixture" "$yaml_workflow_fixture" "$custom_readme_fixture" "$docs_runtime_guard_fixture" "$release_features_fixture" "$phpdoc_fixture" "$simulate_fixture" "$glotpress_fixture"
 }
 
 trap cleanup EXIT
@@ -137,7 +138,7 @@ WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/bu
 custom_suppressions_zip="$(find "$custom_suppressions_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
 test -n "$custom_suppressions_zip"
 custom_suppressions_listing="$(unzip -Z1 "$custom_suppressions_zip")"
-if grep -Fq 'quality-ready-plugin/.security/custom-security-suppressions.json' <<<"$custom_suppressions_listing"; then
+if grep -Fq 'ready-blocks/.security/custom-security-suppressions.json' <<<"$custom_suppressions_listing"; then
   echo "Package unexpectedly included the configured custom suppressions file." >&2
   exit 1
 fi
@@ -159,12 +160,38 @@ WP_PLUGIN_BASE_ROOT="$custom_distignore_fixture" bash "$ROOT_DIR/scripts/ci/buil
 custom_distignore_zip="$(find "$custom_distignore_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
 test -n "$custom_distignore_zip"
 custom_distignore_listing="$(unzip -Z1 "$custom_distignore_zip")"
-if grep -Fq 'quality-ready-plugin/.config/custom.distignore' <<<"$custom_distignore_listing"; then
+if grep -Fq 'ready-blocks/.config/custom.distignore' <<<"$custom_distignore_listing"; then
   echo "Package unexpectedly included the configured custom distignore file." >&2
   exit 1
 fi
-if grep -Fq 'quality-ready-plugin/.distignore' <<<"$custom_distignore_listing"; then
+if grep -Fq 'ready-blocks/.distignore' <<<"$custom_distignore_listing"; then
   echo "Package unexpectedly included a stale default .distignore after switching DISTIGNORE_FILE." >&2
+  exit 1
+fi
+
+custom_config_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$custom_config_fixture/"
+mkdir -p "$custom_config_fixture/.wp-plugin-base" "$custom_config_fixture/.config"
+mv "$custom_config_fixture/.wp-plugin-base.env" "$custom_config_fixture/.config/release.env"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$custom_config_fixture/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$custom_config_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" ".config/release.env"
+WP_PLUGIN_BASE_ROOT="$custom_config_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ".config/release.env"
+custom_config_zip="$(find "$custom_config_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$custom_config_zip"
+custom_config_listing="$(unzip -Z1 "$custom_config_zip")"
+if grep -Fq 'ready-blocks/.config/release.env' <<<"$custom_config_listing"; then
+  echo "Package unexpectedly included the active custom wp-plugin-base config file." >&2
+  exit 1
+fi
+cat >> "$custom_config_fixture/.config/release.env" <<'EOF'
+PACKAGE_INCLUDE=ready-blocks.php,readme.txt,.config/release.env
+EOF
+WP_PLUGIN_BASE_ROOT="$custom_config_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ".config/release.env"
+custom_config_zip="$(find "$custom_config_fixture/dist" -maxdepth 1 -name '*.zip' | head -n 1)"
+test -n "$custom_config_zip"
+custom_config_listing="$(unzip -Z1 "$custom_config_zip")"
+if grep -Fq 'ready-blocks/.config/release.env' <<<"$custom_config_listing"; then
+  echo "Package include mode unexpectedly included the active custom wp-plugin-base config file." >&2
   exit 1
 fi
 
@@ -449,6 +476,50 @@ if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts
   echo "Runtime pack validation unexpectedly passed with a public operation missing suppression." >&2
   exit 1
 fi
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "rest_public_operation",
+      "identifier": "settings.read",
+      "path": "includes/rest-operations/settings-operations.php"
+    }
+  ]
+}
+EOF
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" "" >/dev/null 2>&1; then
+  echo "REST operation contract unexpectedly passed with a malformed public-operation suppression." >&2
+  exit 1
+fi
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "rest_public_operation",
+      "identifier": "settings.read",
+      "path": "includes/rest-operations/settings-operations.php",
+      "justification": "   "
+    }
+  ]
+}
+EOF
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" "" >/dev/null 2>&1; then
+  echo "REST operation contract unexpectedly passed with a blank public-operation suppression justification." >&2
+  exit 1
+fi
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "rest_public_operation",
+      "identifier": "settings.read",
+      "path": "includes/rest-operations/settings-operations.php",
+      "justification": "Settings reads are intentionally public for this fixture and return non-sensitive demo data only."
+    }
+  ]
+}
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" ""
 
 rm -rf "$runtime_pack_abilities_fixture"
 runtime_pack_abilities_fixture="$(mktemp -d)"

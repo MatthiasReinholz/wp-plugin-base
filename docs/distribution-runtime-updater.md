@@ -43,7 +43,7 @@ Add this line to the plugin main file:
 
 ### `gitlab-release`
 
-- `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` must use the GitLab project web URL, for example `https://gitlab.com/group/project`
+- `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` must use the GitLab project web URL, for example `https://gitlab.com/group/project` or `https://<trusted-gitlab-host>/<group>/<project>` for configured self-managed GitLab hosts
 - Release publication must attach an installable ZIP asset or release link that resolves to that ZIP
 - The updater enables release-asset ZIP filtering so SBOM/signature artifacts are ignored
 - Do not use this provider unless the downstream repo itself is GitLab-hosted

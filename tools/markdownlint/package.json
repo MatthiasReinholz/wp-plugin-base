@@ -4,7 +4,7 @@
   "description": "Lockfile-backed markdown lint tooling for wp-plugin-base.",
   "license": "UNLICENSED",
   "dependencies": {
-    "markdownlint-cli2": "0.22.0"
+    "markdownlint-cli2": "0.22.1"
   },
   "overrides": {
     "smol-toml": "1.6.1"

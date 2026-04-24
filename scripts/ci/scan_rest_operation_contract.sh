@@ -91,6 +91,32 @@ if [ -z "$operations_json" ]; then
   exit 1
 fi
 
+validate_suppression_file() {
+  if [ ! -f "$SUPPRESSIONS_PATH" ]; then
+    return 0
+  fi
+
+  wp_plugin_base_assert_path_within_root "$SUPPRESSIONS_PATH" "Security suppressions file"
+
+  if ! jq -e '
+    type == "object" and
+    ((.suppressions // []) | type == "array") and
+    all((.suppressions // [])[];
+      (.kind | type == "string") and
+      (.kind == "wp_ajax_nopriv" or .kind == "admin_post_nopriv" or .kind == "rest_permission_callback_true" or .kind == "rest_public_operation" or .kind == "rest_route_bypass") and
+      (.identifier | type == "string") and
+      (.path | type == "string") and
+      (.justification | type == "string") and
+      ((.justification | gsub("^[[:space:]]+|[[:space:]]+$"; "") | length) > 0)
+    )
+  ' "$SUPPRESSIONS_PATH" >/dev/null; then
+    echo "Invalid suppression file format in $WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE. Each suppression requires kind in {wp_ajax_nopriv, admin_post_nopriv, rest_permission_callback_true, rest_public_operation, rest_route_bypass}, identifier, path, and non-empty justification." >&2
+    exit 1
+  fi
+}
+
+validate_suppression_file
+
 find_suppression_justification() {
   local kind="$1"
   local identifier="$2"

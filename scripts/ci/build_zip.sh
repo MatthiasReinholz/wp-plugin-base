@@ -16,6 +16,7 @@ wp_plugin_base_require_vars PLUGIN_SLUG MAIN_PLUGIN_FILE ZIP_FILE
 MAIN_PLUGIN_PATH="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
 README_PATH="$(wp_plugin_base_resolve_path "$README_FILE")"
 DISTIGNORE_PATH="$(wp_plugin_base_resolve_path "$DISTIGNORE_FILE")"
+ACTIVE_CONFIG_RELATIVE_PATH="${CONFIG_PATH#"$ROOT_DIR"/}"
 DIST_DIR="$ROOT_DIR/dist"
 STAGE_ROOT="$DIST_DIR/package"
 STAGE_DIR="$STAGE_ROOT/$PLUGIN_SLUG"
@@ -107,6 +108,11 @@ normalize_repo_relative_path() {
 managed_exclude_path="/$(normalize_repo_relative_path "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE")"
 printf '%s\n' "$managed_exclude_path" >> "$EXCLUDES_FILE"
 
+if [ "$ACTIVE_CONFIG_RELATIVE_PATH" != "$CONFIG_PATH" ]; then
+  active_config_exclude_path="/$(normalize_repo_relative_path "$ACTIVE_CONFIG_RELATIVE_PATH")"
+  printf '%s\n' "$active_config_exclude_path" >> "$EXCLUDES_FILE"
+fi
+
 if [ -n "${PACKAGE_EXCLUDE:-}" ]; then
   while IFS= read -r exclude_path; do
     [ -n "$exclude_path" ] || continue
@@ -163,6 +169,11 @@ fi
 
 if [ -e "$STAGE_DIR/.wp-plugin-base" ] || [ -e "$STAGE_DIR/.github" ] || [ -e "$STAGE_DIR/.gitlab" ] || [ -e "$STAGE_DIR/.gitea" ] || [ -e "$STAGE_DIR/.forgejo" ] || [ -e "$STAGE_DIR/.gitlab-ci.yml" ] || [ -e "$STAGE_DIR/bitbucket-pipelines.yml" ] || [ -e "$STAGE_DIR/.wp-plugin-base.env" ]; then
   echo "Package contains foundation or CI-only files." >&2
+  exit 1
+fi
+
+if [ "$ACTIVE_CONFIG_RELATIVE_PATH" != "$CONFIG_PATH" ] && [ -e "$STAGE_DIR/$ACTIVE_CONFIG_RELATIVE_PATH" ]; then
+  echo "Package contains the active wp-plugin-base config file: $ACTIVE_CONFIG_RELATIVE_PATH" >&2
   exit 1
 fi
 
