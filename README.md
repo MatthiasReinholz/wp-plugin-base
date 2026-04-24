@@ -143,6 +143,12 @@ export PATH="$PWD/.wp-plugin-base-tools:$PATH"
 bash scripts/foundation/validate.sh --mode strict-local
 ```
 
+For A+ release-readiness acceptance on a maintainer machine, install the strict-local tools and run the full strict suite in one step:
+
+```bash
+bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools" --validate-full
+```
+
 ## Security Model
 
 `wp-plugin-base` assumes a locked-down automation posture:
@@ -305,6 +311,7 @@ Optional keys:
 - `WORDPRESS_READINESS_ENABLED`
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
+- `RELEASE_READINESS_MODE`
 - `WOOCOMMERCE_QIT_ENABLED`
 - `WOOCOMMERCE_COM_PRODUCT_ID`
 - `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`
@@ -316,6 +323,7 @@ Optional keys:
 - `ADMIN_UI_PACK_ENABLED`
 - `ADMIN_UI_STARTER`
 - `ADMIN_UI_EXPERIMENTAL_DATAVIEWS`
+- `ADMIN_UI_NPM_AUDIT_LEVEL`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS`
 - `WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES`
@@ -378,6 +386,8 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
+`RELEASE_READINESS_MODE=security-sensitive` is an opt-in fail-closed release profile for plugins with elevated security requirements. It requires `WORDPRESS_READINESS_ENABLED=true`, `WORDPRESS_QUALITY_PACK_ENABLED=true`, `WORDPRESS_SECURITY_PACK_ENABLED=true`, strict Plugin Check warnings, full Plugin Check coverage without check/category/ignore/severity filters, and the default high admin UI npm audit threshold.
+
 Use `.wp-plugin-base-security-suppressions.json` (or set `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`) to declare intentional public endpoint exceptions with mandatory justification.
 
 If `POT_FILE` is configured, release preparation generates it when it is missing. The path still needs to stay inside the repository and point at a writable location. Translation support also requires a `Domain Path` plugin header, typically `/languages/`, when `POT_FILE` is configured or a `languages/` directory is present.
@@ -392,6 +402,8 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 - `..._IGNORE_CODES` ignores specific Plugin Check result codes.
 - `..._STRICT_WARNINGS=true` fails readiness validation on warnings in addition to errors.
 - `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
+
+`ADMIN_UI_NPM_AUDIT_LEVEL` controls the managed admin UI npm audit threshold when the security pack is enabled. Keep the default `high` for release readiness. `critical` is only allowed outside `RELEASE_READINESS_MODE=security-sensitive` as a temporary compatibility override for non-runtime, upstream-owned admin UI toolchain advisories while you update `@wordpress/*` packages or add narrow npm `overrides`.
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 

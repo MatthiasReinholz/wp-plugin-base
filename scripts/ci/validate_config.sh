@@ -325,6 +325,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
   validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
+  validate_regex "$RELEASE_READINESS_MODE" '^(standard|security-sensitive)$' 'RELEASE_READINESS_MODE'
   validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
   validate_regex "${WOOCOMMERCE_COM_PRODUCT_ID:-}" '^$|^[0-9]+$' 'WOOCOMMERCE_COM_PRODUCT_ID'
   validate_regex "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" '^[1-9][0-9]*$' 'WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS'
@@ -336,6 +337,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${ADMIN_UI_PACK_ENABLED:-false}" '^(true|false)$' 'ADMIN_UI_PACK_ENABLED'
   validate_regex "${ADMIN_UI_STARTER:-}" '^$|^(basic|dataviews)$' 'ADMIN_UI_STARTER'
   validate_regex "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS:-false}" '^(true|false)$' 'ADMIN_UI_EXPERIMENTAL_DATAVIEWS'
+  validate_regex "${ADMIN_UI_NPM_AUDIT_LEVEL:-high}" '^(high|critical)$' 'ADMIN_UI_NPM_AUDIT_LEVEL'
   if [ -n "${PLUGIN_RUNTIME_UPDATE_SOURCE_URL:-}" ]; then
     validate_https_url "$PLUGIN_RUNTIME_UPDATE_SOURCE_URL" 'PLUGIN_RUNTIME_UPDATE_SOURCE_URL'
   fi
@@ -453,6 +455,28 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   if wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
     echo "WORDPRESS_SECURITY_PACK_ENABLED=true requires WORDPRESS_READINESS_ENABLED=true." >&2
     exit 1
+  fi
+
+  if [ "${RELEASE_READINESS_MODE:-standard}" = "security-sensitive" ]; then
+    if ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED" || ! wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" || ! wp_plugin_base_is_true "$WORDPRESS_SECURITY_PACK_ENABLED"; then
+      echo "RELEASE_READINESS_MODE=security-sensitive requires WORDPRESS_READINESS_ENABLED=true, WORDPRESS_QUALITY_PACK_ENABLED=true, and WORDPRESS_SECURITY_PACK_ENABLED=true." >&2
+      exit 1
+    fi
+
+    if ! wp_plugin_base_is_true "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}"; then
+      echo "RELEASE_READINESS_MODE=security-sensitive requires WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true." >&2
+      exit 1
+    fi
+
+    if [ "${ADMIN_UI_NPM_AUDIT_LEVEL:-high}" != "high" ]; then
+      echo "RELEASE_READINESS_MODE=security-sensitive requires ADMIN_UI_NPM_AUDIT_LEVEL=high." >&2
+      exit 1
+    fi
+
+    if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_SEVERITY:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_ERROR_SEVERITY:-}" ] || [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_WARNING_SEVERITY:-}" ]; then
+      echo "RELEASE_READINESS_MODE=security-sensitive requires full Plugin Check coverage. Clear WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS, WP_PLUGIN_BASE_PLUGIN_CHECK_EXCLUDE_CHECKS, WP_PLUGIN_BASE_PLUGIN_CHECK_CATEGORIES, WP_PLUGIN_BASE_PLUGIN_CHECK_IGNORE_CODES, and severity overrides." >&2
+      exit 1
+    fi
   fi
 
   if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] && [ -z "${PLUGIN_RUNTIME_UPDATE_SOURCE_URL:-}" ]; then

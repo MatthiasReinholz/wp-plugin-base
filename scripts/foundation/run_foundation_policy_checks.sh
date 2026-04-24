@@ -28,6 +28,7 @@ bash "$ROOT_DIR/scripts/foundation/test_foundation_release_metadata_backcompat.s
 bash "$ROOT_DIR/scripts/foundation/test_dependency_inventory.sh"
 bash "$ROOT_DIR/scripts/foundation/test_gitlab_release_flow_contracts.sh"
 bash "$ROOT_DIR/scripts/foundation/test_plugin_check_output_normalization.sh"
+bash "$ROOT_DIR/scripts/foundation/test_php_timeout_fallback.sh"
 bash "$ROOT_DIR/scripts/foundation/test_workflow_parity.sh"
 bash "$ROOT_DIR/scripts/foundation/test_create_or_update_pr_branch_safety.sh"
 bash "$ROOT_DIR/scripts/foundation/test_create_or_update_pr_github_push_auth.sh"

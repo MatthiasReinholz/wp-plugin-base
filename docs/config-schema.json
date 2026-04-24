@@ -123,6 +123,11 @@
       "default": "false",
       "pattern": "^(true|false)$"
     },
+    "RELEASE_READINESS_MODE": {
+      "description": "Optional fail-closed readiness profile. Use security-sensitive for plugins that must not release with reduced WordPress readiness, quality, security, Plugin Check, or audit coverage.",
+      "default": "standard",
+      "pattern": "^(standard|security-sensitive)$"
+    },
     "WOOCOMMERCE_QIT_ENABLED": {
       "default": "false",
       "pattern": "^(true|false)$"
@@ -166,6 +171,11 @@
     "ADMIN_UI_EXPERIMENTAL_DATAVIEWS": {
       "default": "false",
       "pattern": "^(true|false)$"
+    },
+    "ADMIN_UI_NPM_AUDIT_LEVEL": {
+      "description": "Audit threshold used for the managed admin UI npm toolchain when the security pack is enabled. Keep high by default; critical is a temporary compatibility override for upstream-only toolchain advisories and is rejected by RELEASE_READINESS_MODE=security-sensitive.",
+      "default": "high",
+      "pattern": "^(high|critical)$"
     },
     "WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS": {
       "default": "",
