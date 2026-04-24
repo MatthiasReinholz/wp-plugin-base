@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.7.9
+
+* Harden release readiness validation (#113)
+* chore(deps-dev): bump fast-xml-parser in /tools/wordpress-env (#112)
+* Tighten PR-body changelog extraction semantics and coverage
+* Add PR/MR body section extraction for changelog notes
+* docs(sync): harden PHPUnit bootstrap-child migration guidance (#110)
+
 ## v1.7.8
 
 * chore(ci): enforce local pre-push validation and bump setup-node pin (#108)
