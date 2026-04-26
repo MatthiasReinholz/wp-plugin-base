@@ -77,7 +77,7 @@ assert_asset_size_within_budget "$INDEX_SCRIPT_PATH" "Admin UI index.js" "$MAX_S
 assert_asset_size_within_budget "$INDEX_STYLE_PATH" "Admin UI style-index.css" "$MAX_STYLE_BYTES"
 
 total_asset_bytes="$(
-  find "$ADMIN_UI_ASSETS_DIR" -maxdepth 1 -type f -print0 \
+  find "$ADMIN_UI_ASSETS_DIR" -type f -print0 \
     | xargs -0 wc -c \
     | awk 'END { print $1 + 0 }'
 )"
@@ -120,6 +120,6 @@ while IFS= read -r asset_file; do
     echo "Admin UI package zip is missing built asset $asset_relative_path." >&2
     exit 1
   fi
-done < <(find "$ADMIN_UI_ASSETS_DIR" -maxdepth 1 -type f | sort)
+done < <(find "$ADMIN_UI_ASSETS_DIR" -type f | sort)
 
 echo "Admin UI pack validation passed."

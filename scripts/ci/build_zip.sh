@@ -224,6 +224,13 @@ if wp_plugin_base_is_true "$runtime_update_enabled"; then
   fi
 fi
 
+staged_symlinks="$(find "$STAGE_DIR" -type l -print)"
+if [ -n "$staged_symlinks" ]; then
+  echo "Package staging contains symlinks, which are not allowed in distributable ZIPs:" >&2
+  printf '%s\n' "$staged_symlinks" | sed "s#^$STAGE_DIR/##" >&2
+  exit 1
+fi
+
 find "$STAGE_DIR" -exec touch -h -t 200001010000.00 {} +
 (cd "$STAGE_ROOT" && find "$PLUGIN_SLUG" -print | LC_ALL=C sort | zip -X -q "$ZIP_PATH" -@)
 

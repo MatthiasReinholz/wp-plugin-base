@@ -681,6 +681,12 @@ while IFS=: read -r file line url; do
   fi
 done < <(perl -ne 'while (m#(https?://[^\s"'\''()\$\{\}]+)#g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
 
+while IFS=: read -r file line url; do
+  [ -n "$url" ] || continue
+  echo "${file}:${line}: URL authority must be static and allowlisted before expressions are appended: ${url}" >&2
+  exit 1
+done < <(perl -ne 'while (m#(https?://(?:\$\{\{|\$\{|\$[A-Za-z_][A-Za-z0-9_]*))#g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
+
 while IFS=: read -r file line content; do
   [ -n "$content" ] || continue
   trimmed="$(printf '%s' "$content" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
