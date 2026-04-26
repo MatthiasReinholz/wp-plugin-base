@@ -36,6 +36,7 @@ wp_plugin_base_print_base_managed_template_pairs() {
         ".github/workflows/ci.yml" \
         ".github/workflows/finalize-release.yml" \
         ".github/workflows/prepare-release.yml" \
+        ".github/workflows/publish-tag-release.yml" \
         ".github/workflows/release.yml" \
         ".github/workflows/update-foundation.yml"
       do

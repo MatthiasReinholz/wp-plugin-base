@@ -119,6 +119,7 @@ expected_permissions = {
   "finalize-foundation-release.yml" => { "contents" => "read" },
   "release-foundation.yml" => { "contents" => "read", "pull-requests" => "read" },
   "finalize-release.yml" => { "contents" => "read" },
+  "publish-tag-release.yml" => { "contents" => "read" },
   "release.yml" => { "contents" => "read", "pull-requests" => "read" }
 }
 
@@ -196,6 +197,13 @@ expected_job_permissions = {
     "release" => {
       "contents" => "write",
       "pull-requests" => "read",
+      "attestations" => "write",
+      "id-token" => "write"
+    }
+  },
+  "publish-tag-release.yml" => {
+    "release" => {
+      "contents" => "write",
       "attestations" => "write",
       "id-token" => "write"
     }

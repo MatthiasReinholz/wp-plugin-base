@@ -181,6 +181,7 @@ WP_PLUGIN_BASE_ROOT="$managed_child" bash "$managed_child/.wp-plugin-base/script
 test -f "$managed_child/.github/workflows/ci.yml"
 test -f "$managed_child/.github/workflows/prepare-release.yml"
 test -f "$managed_child/.github/workflows/finalize-release.yml"
+test -f "$managed_child/.github/workflows/publish-tag-release.yml"
 test -f "$managed_child/.github/workflows/release.yml"
 test -f "$managed_child/.github/workflows/update-foundation.yml"
 test -f "$managed_child/.github/dependabot.yml"

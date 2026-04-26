@@ -1,0 +1,230 @@
+name: publish-tag-release
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-tag-release-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish GitHub release for version tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Validate version tag
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Tag $tag is not a release version tag; skipping."
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "${BASH_REMATCH[2]:-}" ]; then
+            echo "Stable tag $tag is handled by the release PR/finalize flow; skipping tag-push publication."
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "supported=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "base=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: refs/tags/${{ steps.version.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Verify tag comes from trusted history
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        env:
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/release/*:refs/remotes/origin/release/*' \
+            '+refs/heads/hotfix/*:refs/remotes/origin/hotfix/*'
+          tag_commit="$(git rev-list -n 1 "$TAG_NAME")"
+          trusted=false
+          while IFS= read -r ref; do
+            if git merge-base --is-ancestor "$tag_commit" "$ref"; then
+              trusted=true
+              break
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main refs/remotes/origin/release refs/remotes/origin/hotfix)
+          if [ "$trusted" != "true" ]; then
+            echo "Tag $TAG_NAME points to $tag_commit, which is not reachable from main, release/*, or hotfix/*." >&2
+            exit 1
+          fi
+
+      - name: Read config
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        id: config
+        shell: bash
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project ".wp-plugin-base.env" "$GITHUB_OUTPUT"
+
+      - name: Set up PHP
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: ${{ steps.config.outputs.php_version }}
+
+      - name: Set up Node.js
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: ${{ steps.config.outputs.node_version }}
+
+      - name: Validate tag metadata version
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        run: bash .wp-plugin-base/scripts/ci/check_versions.sh "${{ steps.version.outputs.base }}" ".wp-plugin-base.env"
+
+      - name: Validate WordPress readiness
+        if: ${{ steps.version.outputs.supported == 'true' && steps.config.outputs.wordpress_readiness_enabled == 'true' }}
+        env:
+          BRANCH_NAME: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION: 'true'
+          WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
+        run: bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh ".wp-plugin-base.env" "$BRANCH_NAME"
+
+      - name: Validate and build package
+        if: ${{ steps.version.outputs.supported == 'true' && steps.config.outputs.wordpress_readiness_enabled != 'true' }}
+        run: |
+          bash .wp-plugin-base/scripts/ci/lint_php.sh ".wp-plugin-base.env"
+          bash .wp-plugin-base/scripts/ci/lint_js.sh ".wp-plugin-base.env"
+          bash .wp-plugin-base/scripts/ci/build_zip.sh ".wp-plugin-base.env"
+
+      - name: Ensure package exists
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "dist/${{ steps.config.outputs.zip_file }}" ]; then
+            bash .wp-plugin-base/scripts/ci/build_zip.sh ".wp-plugin-base.env"
+          fi
+
+      - name: Generate GitHub release body
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        env:
+          BASE_VERSION: ${{ steps.version.outputs.base }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          PLUGIN_NAME: ${{ steps.config.outputs.plugin_name }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          if ! bash .wp-plugin-base/scripts/release/generate_github_release_body.sh "$BASE_VERSION" > dist/release-body.md; then
+            {
+              printf '# %s %s\n\n' "$PLUGIN_NAME" "$BASE_VERSION"
+              printf '## Install\n\n'
+              printf 'Use `%s` below to install or update the plugin in WordPress.\n' "$ZIP_FILE"
+            } > dist/release-body.md
+          fi
+          if [ "$TAG_NAME" != "$BASE_VERSION" ]; then
+            {
+              printf '\n## Tag\n\n'
+              printf 'This release was published from `%s` and packages plugin metadata version `%s`.\n' "$TAG_NAME" "$BASE_VERSION"
+            } >> dist/release-body.md
+          fi
+
+      - name: Install SBOM and signing tools
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        run: |
+          bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
+
+      - name: Generate package SBOM
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        run: |
+          bash .wp-plugin-base/scripts/release/generate_sbom.sh \
+            "dist/package/${{ steps.config.outputs.plugin_slug }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json"
+
+      - name: Sign release package
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        run: |
+          bash .wp-plugin-base/scripts/release/sign_release.sh \
+            "dist/${{ steps.config.outputs.zip_file }}" \
+            "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Upload package artifact
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.config.outputs.plugin_slug }}-${{ steps.version.outputs.tag }}
+          path: dist/${{ steps.config.outputs.zip_file }}
+          if-no-files-found: error
+
+      - name: Attest package provenance
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+        with:
+          subject-path: dist/${{ steps.config.outputs.zip_file }}
+
+      - name: Create or repair GitHub release
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          assets=(
+            "dist/${ZIP_FILE}"
+            "dist/${ZIP_FILE}.sbom.cdx.json"
+            "dist/${ZIP_FILE}.sigstore.json"
+          )
+          edit_flags=(--repo "$GITHUB_REPOSITORY" --title "$TAG_NAME" --notes-file dist/release-body.md)
+          create_flags=(--repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG_NAME" --notes-file dist/release-body.md)
+          edit_flags+=(--prerelease --latest=false)
+          create_flags+=(--prerelease --latest=false)
+
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG_NAME" "${edit_flags[@]}"
+            exit 0
+          fi
+
+          if ! gh release create "$TAG_NAME" "${assets[@]}" "${create_flags[@]}"; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG_NAME" "${edit_flags[@]}"
+          fi
+
+      - name: Verify GitHub release
+        if: ${{ steps.version.outputs.supported == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,assets \
+            --jq '
+              if .isDraft then error("release is still a draft") else . end
+              | if .isPrerelease != (env.PRERELEASE == "true") then error("unexpected prerelease flag") else . end
+              | if ([.assets[] | select(.name == env.ZIP_FILE and .size > 0)] | length) != 1 then error("missing installable ZIP asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sbom.cdx.json") and .size > 0)] | length) != 1 then error("missing SBOM asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sigstore.json") and .size > 0)] | length) != 1 then error("missing Sigstore asset") else "verified" end
+            '

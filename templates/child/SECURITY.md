@@ -1,5 +1,9 @@
 # Security Policy
 
+## Supported Versions
+
+Security fixes target the latest unreleased `main` branch until the first stable release. Beta prerelease tags receive best-effort fixes through follow-up prereleases; after the first stable release, only the latest minor release line is supported.
+
 Report security issues privately before opening a public issue.
 
 Recommended disclosure path:

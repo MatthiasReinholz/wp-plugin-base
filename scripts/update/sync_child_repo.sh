@@ -111,6 +111,7 @@ remove_stale_automation_managed_files() {
         "$ROOT_DIR/.github/workflows/ci.yml" \
         "$ROOT_DIR/.github/workflows/finalize-release.yml" \
         "$ROOT_DIR/.github/workflows/prepare-release.yml" \
+        "$ROOT_DIR/.github/workflows/publish-tag-release.yml" \
         "$ROOT_DIR/.github/workflows/release.yml" \
         "$ROOT_DIR/.github/workflows/update-foundation.yml" \
         "$ROOT_DIR/.github/workflows/simulate-release.yml" \

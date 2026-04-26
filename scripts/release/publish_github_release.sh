@@ -54,7 +54,9 @@ if gh release view "$TAG_NAME" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; th
   gh release edit "$TAG_NAME" \
     --repo "${GITHUB_REPOSITORY}" \
     --title "$RELEASE_TITLE" \
-    --notes-file "$NOTES_FILE"
+    --notes-file "$NOTES_FILE" \
+    --prerelease=false \
+    --latest
 
   if [ "$#" -gt 0 ]; then
     gh release upload "$TAG_NAME" "$@" --repo "${GITHUB_REPOSITORY}" --clobber
@@ -67,4 +69,5 @@ gh release create "$TAG_NAME" "$@" \
   --repo "${GITHUB_REPOSITORY}" \
   --verify-tag \
   --title "$RELEASE_TITLE" \
+  --latest \
   --notes-file "$NOTES_FILE"

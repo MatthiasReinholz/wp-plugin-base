@@ -148,6 +148,22 @@ jobs:
             dist-foundation-release.sbom.cdx.json \
             dist-foundation-release.json.sigstore.json
 
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,assets \
+            --jq '
+              if .isDraft then error("release is still a draft") else . end
+              | if .isPrerelease then error("foundation release was marked prerelease") else . end
+              | if ([.assets[] | select(.name == "dist-foundation-release.json" and .size > 0)] | length) != 1 then error("missing foundation metadata asset") else . end
+              | if ([.assets[] | select(.name == "dist-foundation-release.sbom.cdx.json" and .size > 0)] | length) != 1 then error("missing foundation SBOM asset") else . end
+              | if ([.assets[] | select(.name == "dist-foundation-release.json.sigstore.json" and .size > 0)] | length) != 1 then error("missing foundation Sigstore asset") else "verified" end
+            '
+
       - name: Attest foundation release metadata
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
         with:

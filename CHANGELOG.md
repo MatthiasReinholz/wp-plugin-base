@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* Add prerelease tag publication for GitHub child plugins.
+* Verify stable GitHub releases after publication and reject lightweight release tags in repair flows.
+* Build deterministic ZIP archives for managed child packages.
+
 ## v1.7.9
 
 * Harden release readiness validation (#113)
@@ -144,10 +150,6 @@
 * ci(audit): allow updated github/codeql-action upload-sarif pin
 * chore(deps-dev): bump @wordpress/env in /tools/wordpress-env
 * chore(deps): bump github/codeql-action from 4.34.1 to 4.35.1
-
-## Unreleased
-
-* No unreleased changes yet.
 
 ## v1.3.0
 

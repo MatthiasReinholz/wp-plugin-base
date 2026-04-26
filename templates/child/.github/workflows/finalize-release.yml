@@ -206,6 +206,23 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
 
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,assets \
+            --jq '
+              if .isDraft then error("release is still a draft") else . end
+              | if .isPrerelease then error("stable release was marked prerelease") else . end
+              | if ([.assets[] | select(.name == env.ZIP_FILE and .size > 0)] | length) != 1 then error("missing installable ZIP asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sbom.cdx.json") and .size > 0)] | length) != 1 then error("missing SBOM asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sigstore.json") and .size > 0)] | length) != 1 then error("missing Sigstore asset") else "verified" end
+            '
+
       - name: Install Subversion (post-publish)
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
         continue-on-error: true

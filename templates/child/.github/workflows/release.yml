@@ -63,6 +63,17 @@ jobs:
           ref: refs/tags/${{ steps.version.outputs.value }}
           fetch-depth: 0
 
+      - name: Verify release tag is annotated
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          if [ "$(git cat-file -t "refs/tags/$VERSION")" != "tag" ]; then
+            echo "Tag $VERSION exists but is not an annotated tag." >&2
+            exit 1
+          fi
+
       - name: Read config
         id: config
         shell: bash
@@ -182,6 +193,23 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}" \
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,assets \
+            --jq '
+              if .isDraft then error("release is still a draft") else . end
+              | if .isPrerelease then error("stable release was marked prerelease") else . end
+              | if ([.assets[] | select(.name == env.ZIP_FILE and .size > 0)] | length) != 1 then error("missing installable ZIP asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sbom.cdx.json") and .size > 0)] | length) != 1 then error("missing SBOM asset") else . end
+              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sigstore.json") and .size > 0)] | length) != 1 then error("missing Sigstore asset") else "verified" end
+            '
 
       - name: Deploy to WooCommerce.com Marketplace
         if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' && steps.config.outputs.woocommerce_com_product_id != '' }}
