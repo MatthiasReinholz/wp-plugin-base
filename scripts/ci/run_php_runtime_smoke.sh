@@ -50,12 +50,12 @@ declare(strict_types=1);
 
 $plugin_file = getenv('WP_PLUGIN_BASE_RUNTIME_SMOKE_PLUGIN_FILE');
 if (! is_string($plugin_file) || '' === $plugin_file || ! is_file($plugin_file)) {
-	fwrite(STDERR, "Runtime smoke could not resolve the main plugin file.\n");
-	exit(1);
+    fwrite(STDERR, "Runtime smoke could not resolve the main plugin file.\n");
+    exit(1);
 }
 
 if (! defined('ABSPATH')) {
-	define('ABSPATH', dirname($plugin_file) . '/');
+    define('ABSPATH', dirname($plugin_file) . '/');
 }
 
 require $plugin_file;
