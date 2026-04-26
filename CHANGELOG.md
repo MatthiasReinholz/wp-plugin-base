@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.10
+
+* Harden release verification and agent contracts
+
 ## Unreleased
 
 * Add prerelease tag publication for GitHub child plugins.
