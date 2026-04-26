@@ -24,6 +24,7 @@ jobs:
       contents: write
       attestations: write
       id-token: write
+    environment: __PRODUCTION_ENVIRONMENT__
 
     steps:
       - name: Validate version tag
@@ -66,6 +67,10 @@ jobs:
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/heads/release/*:refs/remotes/origin/release/*' \
             '+refs/heads/hotfix/*:refs/remotes/origin/hotfix/*'
+          if [ "$(git cat-file -t "refs/tags/$TAG_NAME")" != "tag" ]; then
+            echo "Tag $TAG_NAME exists but is not an annotated tag." >&2
+            exit 1
+          fi
           tag_commit="$(git rev-list -n 1 "$TAG_NAME")"
           trusted=false
           while IFS= read -r ref; do

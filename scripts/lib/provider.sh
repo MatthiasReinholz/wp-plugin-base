@@ -58,8 +58,12 @@ wp_plugin_base_host_is_local_or_private() {
       ;;
   esac
 
+  if [[ "$lower_host" != *.* && "$lower_host" != *:* ]]; then
+    return 0
+  fi
+
   case "$lower_host" in
-    ::|::1|0:0:0:0:0:0:0:1|fe80:*|fc*:*|fd*:*)
+    ::|::1|0:0:0:0:0:0:0:1|fe[89ab]:*|fc*:*|fd*:*)
       return 0
       ;;
   esac
@@ -80,6 +84,16 @@ wp_plugin_base_host_is_local_or_private() {
     if [ "${BASH_REMATCH[1]}" -ge 16 ] && [ "${BASH_REMATCH[1]}" -le 31 ]; then
       return 0
     fi
+  fi
+
+  if [[ "$lower_host" =~ ^::ffff:100\.([0-9]{1,3})\. ]]; then
+    if [ "${BASH_REMATCH[1]}" -ge 64 ] && [ "${BASH_REMATCH[1]}" -le 127 ]; then
+      return 0
+    fi
+  fi
+
+  if [[ "$lower_host" =~ ^::ffff:198\.(18|19)\. ]]; then
+    return 0
   fi
 
   if [[ "$lower_host" =~ ^([0-9]+|0x[0-9a-f]+)(\.([0-9]+|0x[0-9a-f]+))*$ ]] && [[ ! "$lower_host" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then

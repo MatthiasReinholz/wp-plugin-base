@@ -66,7 +66,7 @@ When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a fo
 - explicit `WordPress.Security` sniffs for escaping, nonce verification, and sanitized input
 - explicit `WordPress.DB` sniffs for direct queries and prepared SQL
 - explicit `WordPress.WP.Capabilities` checks
-- a narrow REST authorization pattern scan that fails on `permission_callback => __return_true`
+- a REST authorization pattern scan that fails on missing or always-public REST permission callbacks unless explicitly justified
 - dependency audits for root `composer.lock` and runtime `package-lock.json` files when present
 
 If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation and WordPress metadata checks with each interpreter version so syntax- and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present, including bridge-only mode when `WORDPRESS_QUALITY_PACK_ENABLED=false`.

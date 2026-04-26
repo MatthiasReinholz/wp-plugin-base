@@ -257,6 +257,7 @@ validate_trusted_git_url() {
   local host=""
 
   validate_https_url "$value" "$label"
+  validate_url_without_secrets "$value" "$label"
   host="$(wp_plugin_base_url_host "$value")"
   if [ -z "$host" ]; then
     echo "Invalid ${label}: ${value}" >&2
@@ -485,9 +486,14 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
       echo "GLOTPRESS_TRIGGER_ENABLED=true requires GLOTPRESS_URL and GLOTPRESS_PROJECT_SLUG." >&2
       exit 1
     fi
-    validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+    validate_public_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+    validate_regex "$GLOTPRESS_PROJECT_SLUG" '^[A-Za-z0-9][A-Za-z0-9._/-]*$' 'GLOTPRESS_PROJECT_SLUG'
+    if [[ "$GLOTPRESS_PROJECT_SLUG" = *..* || "$GLOTPRESS_PROJECT_SLUG" = *//* || "$GLOTPRESS_PROJECT_SLUG" = */ ]]; then
+      echo "Invalid GLOTPRESS_PROJECT_SLUG: ${GLOTPRESS_PROJECT_SLUG}" >&2
+      exit 1
+    fi
   elif [ -n "${GLOTPRESS_URL:-}" ]; then
-    validate_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
+    validate_public_https_url "$GLOTPRESS_URL" "GLOTPRESS_URL"
   fi
 
   if wp_plugin_base_is_true "$WORDPRESS_QUALITY_PACK_ENABLED" && ! wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then

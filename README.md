@@ -466,7 +466,7 @@ WordPress.org can therefore fail after the selected Git host release is already 
 
 Repair runbook after publication:
 
-- GitHub: run the manual `release.yml` workflow for the existing tag, then run `woocommerce-status.yml` when WooCommerce.com is enabled
+- GitHub stable release: run the manual `release.yml` workflow for the existing tag, then run `woocommerce-status.yml` when WooCommerce.com is enabled
 - GitHub prerelease: push or rerun the trusted prerelease tag so `publish-tag-release.yml` creates or repairs the prerelease GitHub Release
 - GitLab: rerun the tagged `release` job from the managed `.gitlab-ci.yml`; there is no separate `woocommerce-status.yml` workflow on GitLab, so inspect Woo vendor/QIT status directly when that channel is enabled
 

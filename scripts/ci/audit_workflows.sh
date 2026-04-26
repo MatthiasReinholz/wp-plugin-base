@@ -290,6 +290,7 @@ normalize_condition = lambda do |value|
 end
 
 script_interpreter_pattern = "(bash|sh|source|\\.|python(?:[0-9]+(?:\\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)"
+line_start_interpreter_pattern = "(?:(?:bash|sh|source|python(?:[0-9]+(?:\\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\\b|\\.\\s+)"
 local_helper_pattern = %r{
   \b(?:bash|sh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b
   [^\n]*
@@ -310,7 +311,7 @@ run_body_executes_remote_code = lambda do |label, body|
   end
 
   has_download = normalized.match?(/\b(curl|wget)\b/i)
-  has_interpreter_exec = normalized.match?(/(^|\n)\s*#{script_interpreter_pattern}\b/i)
+  has_interpreter_exec = normalized.match?(/(^|\n)\s*#{line_start_interpreter_pattern}/i)
   if has_download && has_interpreter_exec
     errors << "#{label}: run body combines remote download commands with interpreter execution"
     return
@@ -592,7 +593,7 @@ if perl -0ne '
   BEGIN { $failed = 0; }
   my $normalized = $_;
   $normalized =~ s/(?:'\'''\''|"")//g;
-  if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|zsh|dash|ksh|pwsh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+  if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:(?:bash|sh|zsh|dash|ksh|pwsh|source|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b|\.[ \t]+)}is) {
     print "$ARGV\n";
     $failed = 1;
   }
@@ -602,7 +603,7 @@ if perl -0ne '
   perl -0ne '
     my $normalized = $_;
     $normalized =~ s/(?:'\'''\''|"")//g;
-    if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:bash|sh|zsh|dash|ksh|pwsh|source|\.|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b}is) {
+    if ($normalized =~ m{\b(?:curl|wget)\b[^\n]*(?:\n[^\n]*){0,5}\n[ \t]*(?:(?:bash|sh|zsh|dash|ksh|pwsh|source|python(?:[0-9]+(?:\.[0-9]+){0,2})?|node(?:js)?|perl|ruby|php)\b|\.[ \t]+)}is) {
       print "$ARGV\n";
     }
   ' "${scan_files[@]}" >&2

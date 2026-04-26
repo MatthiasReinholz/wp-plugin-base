@@ -198,6 +198,7 @@ jobs:
             repair_args+=(--repair)
           fi
           bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+            --mark-latest \
             "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \

@@ -7,10 +7,6 @@ on:
         required: false
         type: string
         default: .wp-plugin-base.env
-      production_environment:
-        required: false
-        type: string
-        default: production
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -36,7 +32,7 @@ jobs:
       contents: write
       attestations: write
       id-token: write
-    environment: ${{ inputs.production_environment }}
+    environment: production
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
       WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ vars.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
@@ -205,6 +201,7 @@ jobs:
             repair_args+=(--repair)
           fi
           bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+            --mark-latest \
             "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \

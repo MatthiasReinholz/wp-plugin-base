@@ -770,6 +770,27 @@ fi
 rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
+
+cat > "$audit_fixture/.github/workflows/custom.yml" <<'EOF'
+name: custom
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git clone "https://${HOST}/example/repo.git"
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for a dynamic URL authority." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/.github/workflows"
 mkdir -p "$audit_fixture/.github/actions/test-action"
 composite_remote_script_scheme='https'
 composite_remote_script_separator='://'
@@ -1173,6 +1194,22 @@ register_rest_route(
     'callback' => '__return_null',
   )
 );
+
+register_rest_route(
+  'fixture/v1',
+  '/multi-endpoint-missing-permission',
+  array(
+    array(
+      'methods'             => 'GET',
+      'callback'            => '__return_null',
+      'permission_callback' => '__return_false',
+    ),
+    array(
+      'methods'  => 'POST',
+      'callback' => '__return_null',
+    ),
+  )
+);
 EOF
 
 if WP_PLUGIN_BASE_ROOT="$authorization_fixture" bash "$ROOT_DIR/scripts/ci/scan_wordpress_authorization_patterns.sh" >/dev/null 2>&1; then
@@ -1212,6 +1249,12 @@ cat > "$authorization_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF
       "identifier": "fixture/v1:/missing-permission",
       "path": "includes/rest-public.php",
       "justification": "Intentional missing-permission fixture to prove suppression wiring only."
+    },
+    {
+      "kind": "rest_permission_callback_missing",
+      "identifier": "fixture/v1:/multi-endpoint-missing-permission",
+      "path": "includes/rest-public.php",
+      "justification": "Intentional multi-endpoint missing-permission fixture to prove per-endpoint scanner coverage."
     }
   ]
 }
@@ -1277,6 +1320,15 @@ fi
 
 rm -rf "$zip_fixture"
 
+zip_symlink_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$zip_symlink_fixture/"
+ln -s /etc/hosts "$zip_symlink_fixture/external-link"
+if WP_PLUGIN_BASE_ROOT="$zip_symlink_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh" >/dev/null 2>&1; then
+  echo "ZIP build unexpectedly packaged a symlink." >&2
+  exit 1
+fi
+rm -rf "$zip_symlink_fixture"
+
 admin_ui_budget_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$admin_ui_budget_fixture/"
 cat >> "$admin_ui_budget_fixture/.wp-plugin-base.env" <<'EOF'
@@ -1284,7 +1336,7 @@ REST_OPERATIONS_PACK_ENABLED=true
 ADMIN_UI_PACK_ENABLED=true
 BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh
 EOF
-mkdir -p "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui" "$admin_ui_budget_fixture/assets/admin-ui" "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui"
+mkdir -p "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui" "$admin_ui_budget_fixture/assets/admin-ui/media" "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/media"
 cat > "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui/build.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -1292,6 +1344,7 @@ EOF
 chmod +x "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui/build.sh"
 printf 'console.log("fixture");\n' > "$admin_ui_budget_fixture/assets/admin-ui/index.js"
 printf '.fixture{display:block;}\n' > "$admin_ui_budget_fixture/assets/admin-ui/style-index.css"
+printf 'nested asset fixture\n' > "$admin_ui_budget_fixture/assets/admin-ui/media/large.bin"
 cat > "$admin_ui_budget_fixture/assets/admin-ui/index.asset.php" <<'EOF'
 <?php
 return array(
@@ -1299,11 +1352,16 @@ return array(
   'version'      => 'fixture',
 );
 EOF
-cp "$admin_ui_budget_fixture/assets/admin-ui/"* "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/"
-( cd "$admin_ui_budget_fixture/dist/package" && zip -q "../standard-plugin.zip" standard-plugin/assets/admin-ui/index.js standard-plugin/assets/admin-ui/index.asset.php standard-plugin/assets/admin-ui/style-index.css )
+cp "$admin_ui_budget_fixture/assets/admin-ui/"index.js "$admin_ui_budget_fixture/assets/admin-ui/"index.asset.php "$admin_ui_budget_fixture/assets/admin-ui/"style-index.css "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/"
+cp "$admin_ui_budget_fixture/assets/admin-ui/media/large.bin" "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/media/"
+( cd "$admin_ui_budget_fixture/dist/package" && zip -q "../standard-plugin.zip" standard-plugin/assets/admin-ui/index.js standard-plugin/assets/admin-ui/index.asset.php standard-plugin/assets/admin-ui/style-index.css standard-plugin/assets/admin-ui/media/large.bin )
 WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null
 if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_BYTES=4 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
   echo "Admin UI pack validation unexpectedly passed with an undersized script budget." >&2
+  exit 1
+fi
+if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_BYTES=40 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
+  echo "Admin UI pack validation unexpectedly passed with an undersized total budget for nested assets." >&2
   exit 1
 fi
 
@@ -1516,9 +1574,11 @@ real_git_path="$(command -v git)"
 cat > "$pr_auth_helper_dir/bin/git" <<EOF
 #!/usr/bin/env bash
 log_file="\${PR_AUTH_GIT_LOG:?}"
+auth_log="\${PR_AUTH_GIT_AUTH_LOG:?}"
 printf '%s\n' "\$*" >> "\$log_file"
 for arg in "\$@"; do
   if [ "\$arg" = "fetch" ] || [ "\$arg" = "push" ]; then
+    printf '%s\t%s\t%s\n' "\$arg" "\${GIT_CONFIG_KEY_0:-}" "\${GIT_CONFIG_VALUE_0:-}" >> "\$auth_log"
     exit 0
   fi
 done
@@ -1543,7 +1603,9 @@ exit 1
 EOF
 chmod +x "$pr_auth_helper_dir/bin/gh"
 PR_AUTH_GIT_LOG="$pr_auth_helper_dir/git.log"
+PR_AUTH_GIT_AUTH_LOG="$pr_auth_helper_dir/git-auth-env.log"
 export PR_AUTH_GIT_LOG
+export PR_AUTH_GIT_AUTH_LOG
 pr_auth_output="$(mktemp)"
 cat > "$pr_auth_helper_dir/body.md" <<'EOF'
 fixture body
@@ -1563,16 +1625,20 @@ EOF
       "$pr_auth_helper_dir/body.md"
 )
 expected_auth_header="$(printf 'x-access-token:%s' 'fixture-pr-token' | base64 | tr -d '\n')"
-if ! git -C "$pr_auth_fixture" config --local --get-all http.https://github.com/.extraheader | grep -Fxq "AUTHORIZATION: basic $expected_auth_header"; then
-  echo "PR automation did not configure GitHub HTTPS authentication from the explicit GH_TOKEN." >&2
+if ! grep -Fxq "push	http.https://github.com/.extraheader	AUTHORIZATION: basic $expected_auth_header" "$PR_AUTH_GIT_AUTH_LOG"; then
+  echo "PR automation did not pass GitHub HTTPS authentication to git push from the explicit GH_TOKEN." >&2
   exit 1
 fi
 if grep -Fq 'fixture-pr-token' "$PR_AUTH_GIT_LOG"; then
   echo "PR automation leaked the explicit GH_TOKEN through git process arguments." >&2
   exit 1
 fi
-if git -C "$pr_auth_fixture" config --local --get-regexp '^url\\..*\\.insteadOf$' | grep -Fq 'fixture-pr-token'; then
-  echo "PR automation persisted a token-bearing URL rewrite." >&2
+if grep -Fq "AUTHORIZATION: basic $expected_auth_header" "$PR_AUTH_GIT_LOG"; then
+  echo "PR automation leaked the GitHub auth header through git process arguments." >&2
+  exit 1
+fi
+if git -C "$pr_auth_fixture" config --local --get-regexp '^url\\..*\\.insteadOf$|^http\\..*\\.extraheader$' | grep -Eq 'fixture-pr-token|AUTHORIZATION: basic'; then
+  echo "PR automation persisted GitHub token authentication in local git config." >&2
   exit 1
 fi
 
@@ -1688,6 +1754,7 @@ release_publish_output="$release_publish_fixture/gh.log"
 )
 grep -Fq 'release create v1.2.3' "$release_publish_output"
 grep -Fq -- '--verify-tag' "$release_publish_output"
+grep -Fq -- '--latest=false' "$release_publish_output"
 : > "$release_publish_output"
 if (
   cd "$release_publish_fixture"
@@ -1721,6 +1788,7 @@ fi
 grep -Fq 'release edit v1.2.3' "$release_publish_output"
 grep -Fq 'release upload v1.2.3' "$release_publish_output"
 grep -Fq -- '--draft=false' "$release_publish_output"
+grep -Fq -- '--latest=false' "$release_publish_output"
 upload_line="$(grep -nF 'release upload v1.2.3' "$release_publish_output" | head -n 1 | cut -d: -f1)"
 edit_line="$(grep -nF 'release edit v1.2.3' "$release_publish_output" | head -n 1 | cut -d: -f1)"
 if [ "$upload_line" -ge "$edit_line" ]; then
@@ -1729,6 +1797,26 @@ if [ "$upload_line" -ge "$edit_line" ]; then
 fi
 if grep -Fq 'release create' "$release_publish_output"; then
   echo "Release repair unexpectedly recreated the release instead of editing it." >&2
+  exit 1
+fi
+: > "$release_publish_output"
+(
+  cd "$release_publish_fixture"
+  PATH="$release_publish_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_PUBLISH_LOG="$release_publish_output" \
+    RELEASE_ALREADY_EXISTS=false \
+    bash "$ROOT_DIR/scripts/release/publish_github_release.sh" \
+      --mark-latest \
+      "v1.2.4" \
+      "Release v1.2.4" \
+      "$release_publish_fixture/notes.md" \
+      "$release_publish_fixture/asset.txt"
+)
+grep -Fq 'release create v1.2.4' "$release_publish_output"
+grep -Fq -- '--latest' "$release_publish_output"
+if grep -Fq -- '--latest=false' "$release_publish_output"; then
+  echo "Release publication with --mark-latest unexpectedly used --latest=false." >&2
   exit 1
 fi
 : > "$release_publish_output"
