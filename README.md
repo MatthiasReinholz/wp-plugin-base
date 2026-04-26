@@ -405,7 +405,7 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `ADMIN_UI_NPM_AUDIT_LEVEL` controls the managed admin UI npm audit threshold when the security pack is enabled. Keep the default `high` for release readiness. `critical` is only allowed outside `RELEASE_READINESS_MODE=security-sensitive` as a temporary compatibility override for non-runtime, upstream-owned admin UI toolchain advisories while you update `@wordpress/*` packages or add narrow npm `overrides`.
 
-`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 
 PHP quality-pack and runtime-matrix behavior matrix:
 
@@ -477,14 +477,6 @@ For stronger review on production publishing, protect the deployment environment
 Repair flows skip WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. On GitHub that behavior lives in the manual `release.yml` workflow for stable tags and the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags. On GitLab it lives in the tagged `release` job from the managed `.gitlab-ci.yml`. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Guides
-
-Start here by intent:
-
-- new plugin repository: [New project setup](docs/new-project.md)
-- existing plugin migration: [Existing project migration](docs/existing-project-migration.md)
-- release and distribution behavior: [Release model](docs/release-model.md)
-- security and workflow policy: [Security model](docs/security-model.md)
-- maintainer/coding-agent change map: [Maintainer and agent map](docs/maintainer-agent-map.md)
 
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)

@@ -25,6 +25,7 @@ fi
   markdownlint-cli2 \
     --config ".markdownlint.jsonc" \
     "README.md" \
+    "AGENTS.md" \
     "CHANGELOG.md" \
     "SECURITY.md" \
     "docs/**/*.md" \

@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXTENSION_SLUG="${1:-}"
 TEST_SUITES="${2:-activation,security,validation,phpcompatibility,phpstan}"
 QIT_CLI_VERSION='1.1.8'
+qit_user="${QIT_USER:-}"
+qit_app_password="${QIT_APP_PASSWORD:-}"
 
 if [ -z "$EXTENSION_SLUG" ]; then
   echo "Usage: $0 <extension-slug> [test-suites]" >&2
@@ -22,10 +24,11 @@ if ! command -v composer >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ -z "${QIT_USER:-}" ] || [ -z "${QIT_APP_PASSWORD:-}" ]; then
+if [ -z "$qit_user" ] || [ -z "$qit_app_password" ]; then
   echo "QIT_USER and QIT_APP_PASSWORD must be set to run WooCommerce QIT." >&2
   exit 1
 fi
+unset QIT_USER QIT_APP_PASSWORD
 
 COMPOSER_HOME_DIR="$(mktemp -d)"
 cleanup() {
@@ -36,9 +39,9 @@ trap cleanup EXIT
 export COMPOSER_HOME="$COMPOSER_HOME_DIR"
 export PATH="$COMPOSER_HOME_DIR/vendor/bin:$PATH"
 
-composer global require --no-interaction --no-progress "woocommerce/qit-cli:${QIT_CLI_VERSION}" >/dev/null
+composer global require --no-interaction --no-progress --no-scripts --no-plugins "woocommerce/qit-cli:${QIT_CLI_VERSION}" >/dev/null
 
 while IFS= read -r suite; do
   [ -n "$suite" ] || continue
-  qit "run:${suite}" "$EXTENSION_SLUG"
+  QIT_USER="$qit_user" QIT_APP_PASSWORD="$qit_app_password" qit "run:${suite}" "$EXTENSION_SLUG"
 done < <(printf '%s\n' "$TEST_SUITES" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')

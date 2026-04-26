@@ -35,9 +35,11 @@ External automation/downstream consumers such as `wp-core-base` should consume t
 
 ## Repair Entry Points
 
-- GitHub stable release: run the manual `release.yml` workflow for the existing stable tag; run `woocommerce-status.yml` as a separate diagnostics step when WooCommerce.com is enabled
-- GitHub prerelease: push or rerun the trusted prerelease tag so `publish-tag-release.yml` creates or repairs the prerelease GitHub Release with ZIP, SBOM, and Sigstore assets
-- GitLab: rerun the tagged `release` job in the managed `.gitlab-ci.yml` for the existing tag; there is no separate WooCommerce status workflow on GitLab
+| Host path | Trigger | Required input | Expected behavior | Post-repair checks |
+| --- | --- | --- | --- | --- |
+| GitHub stable release | Manual `release.yml` workflow | existing stable tag such as `1.2.3` | verifies the tag comes from the merged release/hotfix PR, replaces missing release assets, clears draft state after assets exist, and skips WordPress.org redeploy unless `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` | verify the GitHub Release assets; run `woocommerce-status.yml` when WooCommerce.com is enabled |
+| GitHub prerelease | trusted prerelease tag push or rerun | prerelease tag such as `1.2.3-beta.1` | publishes or repairs only prerelease GitHub Releases with ZIP, SBOM, and Sigstore assets; never marks prereleases latest | verify the release is not draft, is marked prerelease, and has non-empty ZIP/SBOM/Sigstore assets |
+| GitLab | tagged `release` job in the managed `.gitlab-ci.yml` | existing tag | repairs the selected GitLab release path and skips WordPress.org redeploy unless explicitly allowed | inspect GitLab release assets and Woo vendor/QIT status directly; GitLab has no separate WooCommerce status workflow |
 
 ## Migration Note
 

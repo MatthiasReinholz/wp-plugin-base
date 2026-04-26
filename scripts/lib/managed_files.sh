@@ -19,6 +19,7 @@ wp_plugin_base_print_base_managed_template_pairs() {
     ".editorconfig" \
     ".gitattributes" \
     ".gitignore" \
+    "AGENTS.md" \
     "CONTRIBUTING.md" \
     "SECURITY.md" \
     "uninstall.php.example"

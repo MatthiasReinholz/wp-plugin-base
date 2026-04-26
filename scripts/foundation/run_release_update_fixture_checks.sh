@@ -34,6 +34,7 @@ pr_stage_output=""
 pr_stage_helper_dir=""
 release_publish_fixture=""
 release_publish_output=""
+release_verify_fixture=""
 wordpress_org_deploy_fixture=""
 woocommerce_deploy_fixture=""
 woocommerce_status_fixture=""
@@ -42,7 +43,7 @@ updater_missing_require_fixture=""
 updater_missing_runtime_fixture=""
 updater_disabled_fixture=""
 
-trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$admin_ui_budget_fixture" "$authorization_fixture" "$strict_tools_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture" "$woocommerce_deploy_fixture" "$woocommerce_status_fixture" "$updater_fixture" "$updater_missing_require_fixture" "$updater_missing_runtime_fixture" "$updater_disabled_fixture"' EXIT
+trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$admin_ui_budget_fixture" "$authorization_fixture" "$strict_tools_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$release_verify_fixture" "$wordpress_org_deploy_fixture" "$woocommerce_deploy_fixture" "$woocommerce_status_fixture" "$updater_fixture" "$updater_missing_require_fixture" "$updater_missing_runtime_fixture" "$updater_disabled_fixture"' EXIT
 
 plugin_check_release_fixture="$(mktemp)"
 cat > "$plugin_check_release_fixture" <<'EOF'
@@ -1364,8 +1365,16 @@ if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_SC
   echo "Admin UI pack validation unexpectedly passed with an undersized script budget." >&2
   exit 1
 fi
+if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_GZIP_BYTES=4 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
+  echo "Admin UI pack validation unexpectedly passed with an undersized script gzip budget." >&2
+  exit 1
+fi
 if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_BYTES=40 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
   echo "Admin UI pack validation unexpectedly passed with an undersized total budget for nested assets." >&2
+  exit 1
+fi
+if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_GZIP_BYTES=40 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
+  echo "Admin UI pack validation unexpectedly passed with an undersized total gzip budget for nested assets." >&2
   exit 1
 fi
 
@@ -1582,7 +1591,14 @@ auth_log="\${PR_AUTH_GIT_AUTH_LOG:?}"
 printf '%s\n' "\$*" >> "\$log_file"
 for arg in "\$@"; do
   if [ "\$arg" = "fetch" ] || [ "\$arg" = "push" ]; then
-    printf '%s\t%s\t%s\n' "\$arg" "\${GIT_CONFIG_KEY_0:-}" "\${GIT_CONFIG_VALUE_0:-}" >> "\$auth_log"
+    count="\${GIT_CONFIG_COUNT:-0}"
+    i=0
+    while [ "\$i" -lt "\$count" ]; do
+      key_var="GIT_CONFIG_KEY_\$i"
+      value_var="GIT_CONFIG_VALUE_\$i"
+      printf '%s\t%s\t%s\n' "\$arg" "\${!key_var:-}" "\${!value_var:-}" >> "\$auth_log"
+      i=\$((i + 1))
+    done
     exit 0
   fi
 done
@@ -1629,6 +1645,10 @@ EOF
       "$pr_auth_helper_dir/body.md"
 )
 expected_auth_header="$(printf 'x-access-token:%s' 'fixture-pr-token' | base64 | tr -d '\n')"
+if ! grep -Fxq "push	http.https://github.com/.extraheader	" "$PR_AUTH_GIT_AUTH_LOG"; then
+  echo "PR automation did not reset inherited GitHub HTTPS authentication headers before push." >&2
+  exit 1
+fi
 if ! grep -Fxq "push	http.https://github.com/.extraheader	AUTHORIZATION: basic $expected_auth_header" "$PR_AUTH_GIT_AUTH_LOG"; then
   echo "PR automation did not pass GitHub HTTPS authentication to git push from the explicit GH_TOKEN." >&2
   exit 1
@@ -1843,6 +1863,98 @@ if (
 fi
 if grep -Fq 'release edit v1.2.3' "$release_publish_output"; then
   echo "Release repair edited release metadata after asset replacement failed." >&2
+  exit 1
+fi
+
+release_verify_fixture="$(mktemp -d)"
+mkdir -p "$release_verify_fixture/bin" "$release_verify_fixture/local" "$release_verify_fixture/remote"
+cat > "$release_verify_fixture/local/plugin.zip" <<'EOF'
+zip asset
+EOF
+cat > "$release_verify_fixture/local/plugin.zip.sbom.cdx.json" <<'EOF'
+{"bomFormat":"CycloneDX"}
+EOF
+cat > "$release_verify_fixture/local/plugin.zip.sigstore.json" <<'EOF'
+{"mediaType":"application/vnd.dev.sigstore.bundle+json"}
+EOF
+cp "$release_verify_fixture/local/"* "$release_verify_fixture/remote/"
+cat > "$release_verify_fixture/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "release" ] && [ "$2" = "view" ]; then
+  cat <<'JSON'
+{
+  "isDraft": false,
+  "isPrerelease": false,
+  "assets": [
+    {"name": "plugin.zip", "size": 10},
+    {"name": "plugin.zip.sbom.cdx.json", "size": 24},
+    {"name": "plugin.zip.sigstore.json", "size": 57}
+  ]
+}
+JSON
+  exit 0
+fi
+
+if [ "$1" = "release" ] && [ "$2" = "download" ]; then
+  shift 3
+  download_dir=""
+  pattern=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --dir)
+        download_dir="$2"
+        shift 2
+        ;;
+      --pattern)
+        pattern="$2"
+        shift 2
+        ;;
+      --repo|--clobber)
+        if [ "$1" = "--repo" ]; then
+          shift 2
+        else
+          shift
+        fi
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+  cp "${RELEASE_VERIFY_REMOTE_DIR:?}/$pattern" "$download_dir/$pattern"
+  exit 0
+fi
+
+echo "Unexpected gh invocation: $*" >&2
+exit 1
+EOF
+chmod +x "$release_verify_fixture/bin/gh"
+(
+  cd "$release_verify_fixture"
+  PATH="$release_verify_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_VERIFY_REMOTE_DIR="$release_verify_fixture/remote" \
+    bash "$ROOT_DIR/scripts/release/verify_github_release_assets.sh" \
+      "v1.2.3" \
+      false \
+      "$release_verify_fixture/local/plugin.zip" \
+      "$release_verify_fixture/local/plugin.zip.sbom.cdx.json" \
+      "$release_verify_fixture/local/plugin.zip.sigstore.json"
+)
+printf 'tampered\n' > "$release_verify_fixture/remote/plugin.zip"
+if (
+  cd "$release_verify_fixture"
+  PATH="$release_verify_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_VERIFY_REMOTE_DIR="$release_verify_fixture/remote" \
+    bash "$ROOT_DIR/scripts/release/verify_github_release_assets.sh" \
+      "v1.2.3" \
+      false \
+      "$release_verify_fixture/local/plugin.zip" \
+      "$release_verify_fixture/local/plugin.zip.sbom.cdx.json" \
+      "$release_verify_fixture/local/plugin.zip.sigstore.json"
+); then
+  echo "Release asset verification unexpectedly passed with mismatched published bytes." >&2
   exit 1
 fi
 

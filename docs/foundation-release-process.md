@@ -6,7 +6,7 @@ Projects using the foundation update against published foundation releases, not 
 
 - Foundation versions use `vX.Y.Z`.
 - Each project pins one exact version in `FOUNDATION_VERSION`.
-- Automated update PRs only consider published GitHub Releases in the same major series.
+- Automated update PRs only consider published releases from the configured authoritative source (`github-release` or `gitlab-release`) in the same major series.
 - Major upgrades are manual because they may include contract changes.
 
 ## Releasing The Foundation
@@ -24,7 +24,7 @@ The foundation now uses the same staged release model as the plugin repos.
 
 For plugin repositories that set `POT_FILE`, release preparation also regenerates the translation template before the release PR is opened.
 
-Only after the GitHub Release exists should projects auto-update to that version.
+Only after the authoritative host release exists should projects auto-update to that version.
 
 ## Recommended Governance
 

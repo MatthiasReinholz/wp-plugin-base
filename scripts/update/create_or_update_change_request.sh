@@ -90,9 +90,11 @@ git_with_optional_github_auth() {
 
   if [ -n "$token" ]; then
     basic_auth="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
-    GIT_CONFIG_COUNT=1 \
+    GIT_CONFIG_COUNT=2 \
       GIT_CONFIG_KEY_0='http.https://github.com/.extraheader' \
-      GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic_auth}" \
+      GIT_CONFIG_VALUE_0='' \
+      GIT_CONFIG_KEY_1='http.https://github.com/.extraheader' \
+      GIT_CONFIG_VALUE_1="AUTHORIZATION: basic ${basic_auth}" \
       git -C "$ROOT_DIR" "$subcommand" "$@"
     return
   fi

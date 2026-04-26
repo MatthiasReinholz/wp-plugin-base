@@ -271,23 +271,48 @@ wp_plugin_base_provider_sigstore_oidc_issuer() {
   esac
 }
 
+wp_plugin_base_escape_extended_regex_literal() {
+  local value="${1:-}"
+  local escaped=""
+  local char=""
+  local index=0
+
+  for ((index = 0; index < ${#value}; index++)); do
+    char="${value:index:1}"
+    case "$char" in
+      "\\"|"."|"["|"]"|"("|")"|"{"|"}"|"^"|"$"|"*"|"+"|"?"|"|")
+        escaped+="\\$char"
+        ;;
+      *)
+        escaped+="$char"
+        ;;
+    esac
+  done
+
+  printf '%s\n' "$escaped"
+}
+
 wp_plugin_base_provider_sigstore_identity_regex() {
   local provider="${1:-}"
   local api_base="${2:-}"
   local reference="${3:-}"
   local scope="${4:-plugin}"
   local web_base=""
+  local escaped_web_base=""
+  local escaped_reference=""
 
   web_base="$(wp_plugin_base_provider_web_base "$provider" "$api_base")"
+  escaped_web_base="$(wp_plugin_base_escape_extended_regex_literal "$web_base")"
+  escaped_reference="$(wp_plugin_base_escape_extended_regex_literal "$reference")"
 
   case "$provider" in
     github|github-release)
       case "$scope" in
         plugin)
-          printf '^%s/%s/.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+          printf '^%s/%s/\\.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
           ;;
         foundation)
-          printf '^%s/%s/.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+          printf '^%s/%s/\\.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
           ;;
         *)
           return 1
@@ -295,7 +320,7 @@ wp_plugin_base_provider_sigstore_identity_regex() {
       esac
       ;;
     gitlab|gitlab-release)
-      printf '^%s/%s/\\.gitlab-ci\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+      printf '^%s/%s/\\.gitlab-ci\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
       ;;
     *)
       return 1

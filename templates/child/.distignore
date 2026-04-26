@@ -12,6 +12,7 @@
 /.gitattributes
 /.editorconfig
 /CONTRIBUTING.md
+/AGENTS.md
 /README.md
 /bin
 /phpstan.neon.dist

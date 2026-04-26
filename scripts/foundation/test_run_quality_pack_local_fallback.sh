@@ -99,7 +99,7 @@ grep -Fq 'composer:--working-dir=' "$LOG_FILE" || {
   exit 1
 }
 
-grep -Fq '.wp-plugin-base-quality-pack audit --locked --no-interaction --no-dev' "$LOG_FILE" || {
+grep -Fq '.wp-plugin-base-quality-pack audit --locked --no-interaction' "$LOG_FILE" || {
   echo "Local quality-pack fallback should run composer audit from the installed bundle." >&2
   cat "$LOG_FILE" >&2
   exit 1

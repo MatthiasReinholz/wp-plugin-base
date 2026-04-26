@@ -226,13 +226,9 @@ jobs:
           ZIP_FILE: ${{ steps.config.outputs.zip_file }}
         run: |
           set -euo pipefail
-          # shellcheck disable=SC2016
-          gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" \
-            --json isDraft,isPrerelease,assets \
-            --jq '
-              if .isDraft then error("release is still a draft") else . end
-              | if .isPrerelease != (env.PRERELEASE == "true") then error("unexpected prerelease flag") else . end
-              | if ([.assets[] | select(.name == env.ZIP_FILE and .size > 0)] | length) != 1 then error("missing installable ZIP asset") else . end
-              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sbom.cdx.json") and .size > 0)] | length) != 1 then error("missing SBOM asset") else . end
-              | if ([.assets[] | select(.name == (env.ZIP_FILE + ".sigstore.json") and .size > 0)] | length) != 1 then error("missing Sigstore asset") else "verified" end
-            '
+          bash .wp-plugin-base/scripts/release/verify_github_release_assets.sh \
+            "$TAG_NAME" \
+            "$PRERELEASE" \
+            "dist/${ZIP_FILE}" \
+            "dist/${ZIP_FILE}.sbom.cdx.json" \
+            "dist/${ZIP_FILE}.sigstore.json"
