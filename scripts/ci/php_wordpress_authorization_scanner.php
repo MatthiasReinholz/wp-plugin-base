@@ -281,49 +281,135 @@ function wp_plugin_base_collect_true_callbacks( array $tokens ) {
 }
 
 /**
- * Extracts a permission_callback value from a register_rest_route call.
+ * Returns the inner entries of a PHP array literal.
  *
- * @param array<int,mixed> $call_tokens Call tokens.
+ * @param array<int,mixed> $array_tokens Array expression tokens.
+ * @return array<int,array<int,mixed>>
+ */
+function wp_plugin_base_array_entries( array $array_tokens ) {
+	$first = wp_plugin_base_next_meaningful_index( $array_tokens, 0 );
+	if ( null === $first ) {
+		return array();
+	}
+
+	$open_index = null;
+	$open       = wp_plugin_base_token_text( $array_tokens[ $first ] );
+	if ( '[' === $open ) {
+		$open_index = $first;
+		$close      = ']';
+	} elseif ( is_array( $array_tokens[ $first ] ) && T_ARRAY === $array_tokens[ $first ][0] ) {
+		$open_index = wp_plugin_base_next_meaningful_index( $array_tokens, $first + 1 );
+		if ( null === $open_index || '(' !== wp_plugin_base_token_text( $array_tokens[ $open_index ] ) ) {
+			return array();
+		}
+		$close = ')';
+	} else {
+		return array();
+	}
+
+	$close_index = wp_plugin_base_find_matching_delimiter( $array_tokens, $open_index, wp_plugin_base_token_text( $array_tokens[ $open_index ] ), $close );
+	if ( null === $close_index ) {
+		return array();
+	}
+
+	$inner = array_slice( $array_tokens, $open_index + 1, $close_index - $open_index - 1 );
+	return wp_plugin_base_split_top_level_arguments( $inner );
+}
+
+/**
+ * Extracts a top-level key/value pair from an array entry.
+ *
+ * @param array<int,mixed> $entry_tokens Array entry tokens.
+ * @return array{key:string,value:array<int,mixed>}|null
+ */
+function wp_plugin_base_array_entry_key_value( array $entry_tokens ) {
+	$key_index = wp_plugin_base_next_meaningful_index( $entry_tokens, 0 );
+	if ( null === $key_index || ! is_array( $entry_tokens[ $key_index ] ) ) {
+		return null;
+	}
+
+	$arrow = wp_plugin_base_next_meaningful_index( $entry_tokens, $key_index + 1 );
+	if ( null === $arrow || ! is_array( $entry_tokens[ $arrow ] ) || T_DOUBLE_ARROW !== $entry_tokens[ $arrow ][0] ) {
+		return null;
+	}
+
+	if ( T_CONSTANT_ENCAPSED_STRING === $entry_tokens[ $key_index ][0] ) {
+		$key = wp_plugin_base_unquote_php_string( $entry_tokens[ $key_index ][1] );
+	} elseif ( T_LNUMBER === $entry_tokens[ $key_index ][0] ) {
+		$key = $entry_tokens[ $key_index ][1];
+	} else {
+		return null;
+	}
+
+	return array(
+		'key'   => $key,
+		'value' => array_slice( $entry_tokens, $arrow + 1 ),
+	);
+}
+
+/**
+ * Returns a top-level array value for a key.
+ *
+ * @param array<int,mixed> $array_tokens Array expression tokens.
+ * @param string           $key Key.
  * @return array<int,mixed>|null
  */
-function wp_plugin_base_extract_permission_callback_tokens( array $call_tokens ) {
-	$count = count( $call_tokens );
-	for ( $i = 0; $i < $count; $i++ ) {
-		$token = $call_tokens[ $i ];
-		if ( ! is_array( $token ) || T_CONSTANT_ENCAPSED_STRING !== $token[0] ) {
-			continue;
+function wp_plugin_base_array_top_level_value( array $array_tokens, $key ) {
+	foreach ( wp_plugin_base_array_entries( $array_tokens ) as $entry ) {
+		$key_value = wp_plugin_base_array_entry_key_value( $entry );
+		if ( null !== $key_value && $key === $key_value['key'] ) {
+			return $key_value['value'];
 		}
-
-		if ( 'permission_callback' !== wp_plugin_base_unquote_php_string( $token[1] ) ) {
-			continue;
-		}
-
-		$arrow = wp_plugin_base_next_meaningful_index( $call_tokens, $i + 1 );
-		if ( null === $arrow || ! is_array( $call_tokens[ $arrow ] ) || T_DOUBLE_ARROW !== $call_tokens[ $arrow ][0] ) {
-			continue;
-		}
-
-		$value = array();
-		$depth = 0;
-		for ( $j = $arrow + 1; $j < $count; $j++ ) {
-			$text = wp_plugin_base_token_text( $call_tokens[ $j ] );
-			if ( 0 === $depth && ( ',' === $text || ']' === $text || ')' === $text ) ) {
-				break;
-			}
-
-			$value[] = $call_tokens[ $j ];
-
-			if ( in_array( $text, array( '(', '[', '{' ), true ) ) {
-				$depth++;
-			} elseif ( in_array( $text, array( ')', ']', '}' ), true ) && $depth > 0 ) {
-				$depth--;
-			}
-		}
-
-		return $value;
 	}
 
 	return null;
+}
+
+/**
+ * Whether an array expression has any top-level key from a list.
+ *
+ * @param array<int,mixed>  $array_tokens Array expression tokens.
+ * @param array<int,string> $keys Keys.
+ * @return bool
+ */
+function wp_plugin_base_array_has_top_level_key( array $array_tokens, array $keys ) {
+	foreach ( wp_plugin_base_array_entries( $array_tokens ) as $entry ) {
+		$key_value = wp_plugin_base_array_entry_key_value( $entry );
+		if ( null !== $key_value && in_array( $key_value['key'], $keys, true ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Returns REST endpoint option arrays from a register_rest_route third argument.
+ *
+ * @param array<int,mixed> $route_options_tokens Third argument tokens.
+ * @return array<int,array<int,mixed>>
+ */
+function wp_plugin_base_route_option_slices( array $route_options_tokens ) {
+	$endpoint_slices = array();
+	$route_keys      = array( 'methods', 'callback', 'permission_callback' );
+
+	foreach ( wp_plugin_base_array_entries( $route_options_tokens ) as $entry ) {
+		$key_value        = wp_plugin_base_array_entry_key_value( $entry );
+		$candidate_tokens = null === $key_value ? $entry : $key_value['value'];
+		if ( null !== $key_value && ! ctype_digit( $key_value['key'] ) ) {
+			continue;
+		}
+
+		if ( wp_plugin_base_array_has_top_level_key( $candidate_tokens, $route_keys ) ) {
+			$endpoint_slices[] = $candidate_tokens;
+		}
+	}
+
+	if ( ! empty( $endpoint_slices ) ) {
+		return $endpoint_slices;
+	}
+
+	return array( $route_options_tokens );
 }
 
 /**
@@ -450,16 +536,14 @@ for ( $i = 0; $i < $count; $i++ ) {
 		continue;
 	}
 
-	$call_tokens     = array_slice( $tokens, $i, $close_paren - $i + 1 );
 	$argument_tokens = array_slice( $tokens, $open_paren + 1, $close_paren - $open_paren - 1 );
 	$arguments       = wp_plugin_base_split_top_level_arguments( $argument_tokens );
 	$namespace       = isset( $arguments[0] ) ? wp_plugin_base_argument_string_literal( $arguments[0] ) : '';
 	$route           = isset( $arguments[1] ) ? wp_plugin_base_argument_string_literal( $arguments[1] ) : '';
 	$identifier      = ( '' !== $namespace && '' !== $route ) ? "{$namespace}:{$route}" : 'register_rest_route';
 	$line            = wp_plugin_base_token_line( $tokens[ $i ] );
-	$callback_tokens = wp_plugin_base_extract_permission_callback_tokens( $call_tokens );
 
-	if ( null === $callback_tokens ) {
+	if ( ! isset( $arguments[2] ) ) {
 		wp_plugin_base_print_finding(
 			'rest_permission_callback_missing',
 			$line,
@@ -469,12 +553,26 @@ for ( $i = 0; $i < $count; $i++ ) {
 		continue;
 	}
 
-	if ( wp_plugin_base_callback_is_public_true( $callback_tokens, $true_callbacks ) ) {
-		wp_plugin_base_print_finding(
-			'rest_permission_callback_true',
-			$line,
-			$identifier,
-			'Registering a REST route with an always-public permission_callback requires explicit security review.'
-		);
+	foreach ( wp_plugin_base_route_option_slices( $arguments[2] ) as $route_options ) {
+		$callback_tokens = wp_plugin_base_array_top_level_value( $route_options, 'permission_callback' );
+
+		if ( null === $callback_tokens ) {
+			wp_plugin_base_print_finding(
+				'rest_permission_callback_missing',
+				$line,
+				$identifier,
+				'Registering a REST route without permission_callback requires explicit security review.'
+			);
+			continue;
+		}
+
+		if ( wp_plugin_base_callback_is_public_true( $callback_tokens, $true_callbacks ) ) {
+			wp_plugin_base_print_finding(
+				'rest_permission_callback_true',
+				$line,
+				$identifier,
+				'Registering a REST route with an always-public permission_callback requires explicit security review.'
+			);
+		}
 	}
 }
