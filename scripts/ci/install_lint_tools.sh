@@ -132,33 +132,71 @@ sha256_check() {
   exit 1
 }
 
+download_file_with_retry() {
+  local output_path="$1"
+  local url="$2"
+  local label="$3"
+  local attempts="${WP_PLUGIN_BASE_TOOL_DOWNLOAD_RETRIES:-5}"
+  local delay="${WP_PLUGIN_BASE_TOOL_DOWNLOAD_RETRY_DELAY_SECONDS:-2}"
+  local attempt=1
+
+  if ! [[ "$attempts" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Tool download retry count must be a positive integer: $attempts" >&2
+    exit 1
+  fi
+  if ! [[ "$delay" =~ ^[0-9]+$ ]]; then
+    echo "Tool download retry delay must be a non-negative integer: $delay" >&2
+    exit 1
+  fi
+
+  while [ "$attempt" -le "$attempts" ]; do
+    if curl -fsSLo "$output_path" "$url"; then
+      return 0
+    fi
+
+    rm -f "$output_path"
+    if [ "$attempt" -eq "$attempts" ]; then
+      echo "Failed to download $label after $attempts attempt(s): $url" >&2
+      return 1
+    fi
+
+    echo "Download failed for $label on attempt ${attempt}/${attempts}; retrying in ${delay}s." >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+  done
+}
+
 if tool_requested shellcheck; then
-  curl -fsSLo "$TMP_DIR/$shellcheck_archive" \
-    "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${shellcheck_archive}"
+  download_file_with_retry "$TMP_DIR/$shellcheck_archive" \
+    "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${shellcheck_archive}" \
+    "shellcheck"
   sha256_check "$shellcheck_sha256" "$TMP_DIR/$shellcheck_archive"
   tar -xJf "$TMP_DIR/$shellcheck_archive" -C "$TMP_DIR"
   install "$TMP_DIR/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$DEST_DIR/shellcheck"
 fi
 
 if tool_requested actionlint; then
-  curl -fsSLo "$TMP_DIR/$actionlint_archive" \
-    "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_archive}"
+  download_file_with_retry "$TMP_DIR/$actionlint_archive" \
+    "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_archive}" \
+    "actionlint"
   sha256_check "$actionlint_sha256" "$TMP_DIR/$actionlint_archive"
   tar -xzf "$TMP_DIR/$actionlint_archive" -C "$TMP_DIR"
   install "$TMP_DIR/actionlint" "$DEST_DIR/actionlint"
 fi
 
 if tool_requested editorconfig-checker; then
-  curl -fsSLo "$TMP_DIR/$editorconfig_checker_archive" \
-    "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v${EDITORCONFIG_CHECKER_VERSION}/${editorconfig_checker_archive}"
+  download_file_with_retry "$TMP_DIR/$editorconfig_checker_archive" \
+    "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v${EDITORCONFIG_CHECKER_VERSION}/${editorconfig_checker_archive}" \
+    "editorconfig-checker"
   sha256_check "$editorconfig_checker_sha256" "$TMP_DIR/$editorconfig_checker_archive"
   tar -xzf "$TMP_DIR/$editorconfig_checker_archive" -C "$TMP_DIR"
   install "$TMP_DIR/editorconfig-checker" "$DEST_DIR/editorconfig-checker"
 fi
 
 if tool_requested gitleaks; then
-  curl -fsSLo "$TMP_DIR/$gitleaks_archive" \
-    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gitleaks_archive}"
+  download_file_with_retry "$TMP_DIR/$gitleaks_archive" \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gitleaks_archive}" \
+    "gitleaks"
   sha256_check "$gitleaks_sha256" "$TMP_DIR/$gitleaks_archive"
   tar -xzf "$TMP_DIR/$gitleaks_archive" -C "$TMP_DIR"
   install "$TMP_DIR/gitleaks" "$DEST_DIR/gitleaks"
