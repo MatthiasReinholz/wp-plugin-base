@@ -1,4 +1,31 @@
 rules:
+  - id: wp-rest-permission-callback-true-string
+    languages:
+      - php
+    message: REST routes should not use __return_true as an always-public permission callback without review.
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              register_rest_route(
+                ...,
+                [
+                  ...,
+                  'permission_callback' => '__return_true',
+                  ...,
+                ],
+                ...
+              )
+          - pattern: |
+              register_rest_route(
+                ...,
+                [
+                  ...,
+                  "permission_callback" => "__return_true",
+                  ...,
+                ],
+                ...
+              )
   - id: wp-rest-permission-callback-true-callback
     languages:
       - php
@@ -18,3 +45,28 @@ rules:
             ],
             ...
           )
+  - id: wp-rest-permission-callback-true-static-callback
+    languages:
+      - php
+    message: REST routes should not use a permission callback that unconditionally returns true.
+    severity: ERROR
+    patterns:
+      - pattern: |
+          register_rest_route(
+            ...,
+            [
+              ...,
+              'permission_callback' => static function (...) {
+                ...
+                return true;
+              },
+              ...,
+            ],
+            ...
+          )
+  - id: wp-rest-permission-callback-true-arrow
+    languages:
+      - php
+    message: REST routes should not use a permission callback that unconditionally returns true.
+    severity: ERROR
+    pattern-regex: "['\"]permission_callback['\"]\\s*=>\\s*fn\\s*\\([^)]*\\)\\s*=>\\s*true"

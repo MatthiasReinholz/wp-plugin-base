@@ -90,7 +90,7 @@ run_quality_pack_with_docker() {
     -v "$COMPOSER_WORK_DIR":/workspace \
     -w /workspace \
     "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-    audit --locked --no-interaction --no-dev
+    audit --locked --no-interaction
 
   write_phpstan_config "$COMPOSER_WORK_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
@@ -103,7 +103,7 @@ run_quality_pack_with_local_bundle() {
   wp_plugin_base_require_commands "WordPress quality pack local fallback" composer
   write_phpstan_config "$TOOLS_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
-  composer --working-dir="$TOOLS_DIR" audit --locked --no-interaction --no-dev
+  composer --working-dir="$TOOLS_DIR" audit --locked --no-interaction
 
   php "$TOOLS_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs.xml.dist"
   php "$TOOLS_DIR/vendor/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --no-progress

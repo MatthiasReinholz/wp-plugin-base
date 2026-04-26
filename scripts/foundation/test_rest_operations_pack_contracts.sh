@@ -61,6 +61,7 @@ $GLOBALS['wp_plugin_base_test_state'] = array(
   'options'           => array(
     'example_plugin_rest_operation_scopes' => array( 'allow' => array( 'catalog.read' ) ),
   ),
+  'scope_filter_mode' => 'append',
 );
 
 function is_user_logged_in() {
@@ -86,6 +87,12 @@ function get_option( $key, $default = array() ) {
 
 function apply_filters( $hook_name, $value ) {
   if ( 'example-plugin_rest_granted_scopes' === $hook_name ) {
+    if ( 'invalid' === $GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] ) {
+      return null;
+    }
+    if ( 'throw' === $GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] ) {
+      throw new RuntimeException( 'Scope filter exploded.' );
+    }
     $value[] = 'items.write';
   }
 
@@ -118,6 +125,40 @@ if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_scope_forbidden' !== $resu
   fwrite( STDERR, "Expected missing required scope to fail.\n" );
   exit( 1 );
 }
+
+$operation = array(
+  'visibility'      => 'admin',
+  'capability'      => 'edit_posts',
+  'required_scopes' => 'settings.read',
+);
+
+$result = WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', $operation, $request );
+if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_invalid_scope_configuration' !== $result->code || 500 !== ( $result->data['status'] ?? null ) ) {
+  fwrite( STDERR, "Expected malformed required_scopes to fail closed.\n" );
+  exit( 1 );
+}
+
+$GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] = 'invalid';
+$operation = array(
+  'visibility'      => 'admin',
+  'capability'      => 'edit_posts',
+  'required_scopes' => array( 'catalog.read' ),
+);
+
+$result = WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', $operation, $request );
+if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_scope_check_failed' !== $result->code || 500 !== ( $result->data['status'] ?? null ) ) {
+  fwrite( STDERR, "Expected invalid scope filters to fail closed.\n" );
+  exit( 1 );
+}
+
+$GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] = 'throw';
+$result = WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', $operation, $request );
+if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_scope_check_failed' !== $result->code || 500 !== ( $result->data['status'] ?? null ) ) {
+  fwrite( STDERR, "Expected thrown scope filters to fail closed.\n" );
+  exit( 1 );
+}
+
+$GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] = 'append';
 
 $operation = array(
   'visibility'      => 'admin',

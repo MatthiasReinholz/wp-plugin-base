@@ -6,6 +6,7 @@ These files are intended to be generated from foundation templates in your proje
 - `.gitattributes`
 - `.gitignore`
 - `.distignore`, or the path configured by `DISTIGNORE_FILE`
+- `AGENTS.md`
 - `SECURITY.md`
 - `CONTRIBUTING.md`
 - `uninstall.php.example`

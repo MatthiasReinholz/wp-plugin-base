@@ -75,6 +75,20 @@ if ! printf '%s\n' 'https://github.com/MatthiasReinholz/wp-plugin-base/.github/w
   echo "GitHub Sigstore identity regex did not match a canonical GitHub identity." >&2
   exit 1
 fi
+if printf '%s\n' 'https://github.com/MatthiasReinholz/wp-pluginXbase/.github/workflows/release-foundation.yml@refs/heads/main' | grep -Eq "$github_identity_regex"; then
+  echo "GitHub Sigstore identity regex matched a similarly named repository." >&2
+  exit 1
+fi
+
+github_dotted_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex github-release https://api.github.com example/plugin.base plugin)"
+if ! printf '%s\n' 'https://github.com/example/plugin.base/.github/workflows/release.yml@refs/heads/main' | grep -Eq "$github_dotted_identity_regex"; then
+  echo "GitHub Sigstore identity regex did not match a dotted repository name." >&2
+  exit 1
+fi
+if printf '%s\n' 'https://github.com/example/pluginXbase/.github/workflows/release.yml@refs/heads/main' | grep -Eq "$github_dotted_identity_regex"; then
+  echo "GitHub Sigstore identity regex treated a dotted repository name as a pattern." >&2
+  exit 1
+fi
 
 if [ "$(wp_plugin_base_provider_sigstore_oidc_issuer github-release https://api.github.com)" != 'https://token.actions.githubusercontent.com' ]; then
   echo "GitHub Sigstore issuer did not resolve to the expected GitHub OIDC issuer." >&2

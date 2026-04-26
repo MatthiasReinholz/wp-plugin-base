@@ -47,6 +47,8 @@ The shared API client intentionally separates registry-backed operations from di
 
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation audits `.wp-plugin-base-admin-ui/package-lock.json` with `npm audit --package-lock-only --audit-level=high` by default. Security-sensitive plugins should also set `RELEASE_READINESS_MODE=security-sensitive` so releases fail if the quality pack, security pack, strict Plugin Check, or admin UI audit coverage is weakened.
 
+Readiness validation also reports and enforces raw and gzip admin UI asset budgets for the built `assets/admin-ui/` tree. Override `WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_BYTES`, `WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_GZIP_BYTES`, `WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_BYTES`, `WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_GZIP_BYTES`, `WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_BYTES`, or `WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_GZIP_BYTES` only when the larger runtime payload is intentional and reviewed.
+
 Resolve admin UI audit findings by updating the pinned `@wordpress/*` packages through the generated Dependabot path or by adding the narrowest possible npm `overrides` entry in the child-owned `.wp-plugin-base-admin-ui/package.json`. If a finding is limited to the build-only WordPress toolchain and no patched upstream version exists yet, `ADMIN_UI_NPM_AUDIT_LEVEL=critical` is a temporary compatibility override only outside `RELEASE_READINESS_MODE=security-sensitive`; document why it is safe and remove it after the upstream package is updated.
 
 Admin starter files are child-owned and seeded once. Changing `ADMIN_UI_STARTER` after the first sync does not rewrite those files; project validation will fail until the starter files are reconciled manually or re-seeded intentionally.

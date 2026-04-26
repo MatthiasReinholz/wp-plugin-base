@@ -20,13 +20,19 @@ wp_env_home="$(mktemp -d)"
 wp_env_tools_dir="$(mktemp -d)"
 npm_cache_dir="$(mktemp -d)"
 buildx_config_dir="$(mktemp -d)"
+declare -a wp_env_configs=()
 
 cleanup() {
   if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
-    WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop >/dev/null 2>&1 || true
+    for wp_env_config_path in "${wp_env_configs[@]}"; do
+      if [ -f "$wp_env_config_path" ]; then
+        WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
+          wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config_path" >/dev/null 2>&1 || true
+      fi
+    done
   fi
 
-  rm -rf "$wp_env_home" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir" 2>/dev/null || true
+  rm -rf "$wp_env_home" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir" "${wp_env_configs[@]}" 2>/dev/null || true
 }
 
 trap cleanup EXIT
@@ -44,10 +50,17 @@ run_variant() {
   local wp_env_tests_port=""
   local mounted_plugin_dir=""
   local plugin_entry=""
+  local max_attempts="${WP_PLUGIN_BASE_WP_ENV_START_ATTEMPTS:-3}"
+  local attempt=1
+  local start_success=false
+  local retry_delay="${WP_PLUGIN_BASE_WP_ENV_RETRY_DELAY_SECONDS:-5}"
+  local start_log=""
 
   fixture_dir="$(mktemp -d)"
   wp_env_config="$(mktemp)"
+  wp_env_configs+=("$wp_env_config")
   wp_eval_file="$(mktemp)"
+  start_log="$(mktemp)"
 
   cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$fixture_dir/"
   mkdir -p "$fixture_dir/.wp-plugin-base"
@@ -61,24 +74,50 @@ run_variant() {
   WP_PLUGIN_BASE_ROOT="$fixture_dir" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
   WP_PLUGIN_BASE_ROOT="$fixture_dir" bash "$ROOT_DIR/scripts/ci/validate_project.sh"
 
-  wp_env_port="$((20000 + (RANDOM % 10000)))"
-  wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
+  while [ "$attempt" -le "$max_attempts" ]; do
+    wp_env_port="$((20000 + (RANDOM % 10000)))"
+    wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
 
-  WP_PLUGIN_BASE_TARGET_ROOT="$fixture_dir" \
-  WP_PLUGIN_BASE_WP_ENV_PORT="$wp_env_port" \
-  WP_PLUGIN_BASE_WP_ENV_TESTS_PORT="$wp_env_tests_port" \
-  php -r '
-    $config = array(
-      "plugins"          => array( getenv( "WP_PLUGIN_BASE_TARGET_ROOT" ) ),
-      "port"             => (int) getenv( "WP_PLUGIN_BASE_WP_ENV_PORT" ),
-      "testsPort"        => (int) getenv( "WP_PLUGIN_BASE_WP_ENV_TESTS_PORT" ),
-      "testsEnvironment" => false,
-    );
-    file_put_contents( $argv[1], json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . PHP_EOL );
-  ' "$wp_env_config"
+    WP_PLUGIN_BASE_TARGET_ROOT="$fixture_dir" \
+    WP_PLUGIN_BASE_WP_ENV_PORT="$wp_env_port" \
+    WP_PLUGIN_BASE_WP_ENV_TESTS_PORT="$wp_env_tests_port" \
+    php -r '
+      $config = array(
+        "plugins"          => array( getenv( "WP_PLUGIN_BASE_TARGET_ROOT" ) ),
+        "port"             => (int) getenv( "WP_PLUGIN_BASE_WP_ENV_PORT" ),
+        "testsPort"        => (int) getenv( "WP_PLUGIN_BASE_WP_ENV_TESTS_PORT" ),
+        "testsEnvironment" => false,
+      );
+      file_put_contents( $argv[1], json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . PHP_EOL );
+    ' "$wp_env_config"
 
-  WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
-    wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null
+    : > "$start_log"
+    if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
+      wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null 2>"$start_log"; then
+      start_success=true
+      break
+    fi
+
+    echo "wp-env start attempt ${attempt}/${max_attempts} failed for ${variant_name} runtime pack smoke (ports ${wp_env_port}/${wp_env_tests_port}); retrying." >&2
+    if [ -s "$start_log" ]; then
+      echo "wp-env start stderr (attempt ${attempt}/${max_attempts}):" >&2
+      cat "$start_log" >&2
+    fi
+
+    WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
+      wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
+
+    attempt=$((attempt + 1))
+    if [ "$attempt" -le "$max_attempts" ]; then
+      sleep "$retry_delay"
+    fi
+  done
+
+  rm -f "$start_log"
+  if [ "$start_success" != true ]; then
+    echo "Failed to start wp-env for ${variant_name} runtime pack smoke after ${max_attempts} attempts." >&2
+    exit 1
+  fi
 
   mounted_plugin_dir="$(basename "$fixture_dir")"
   plugin_entry="${mounted_plugin_dir}/runtime-pack-ready.php"
@@ -218,7 +257,7 @@ EOF
   WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
     wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null
 
-  rm -rf "$fixture_dir" "$wp_env_config" 2>/dev/null || true
+  rm -rf "$fixture_dir" 2>/dev/null || true
 }
 
 run_variant "basic" "false"

@@ -20,12 +20,7 @@ require_once __DIR__ . '/class-wp-plugin-base-rest-operations-abilities-adapter.
 
 $wp_plugin_base_rest_operations_bootstrap = dirname( __DIR__, 3 ) . '/includes/rest-operations/bootstrap.php';
 
-if ( file_exists( $wp_plugin_base_rest_operations_bootstrap ) ) {
-	$operations = require $wp_plugin_base_rest_operations_bootstrap;
-	if ( is_array( $operations ) ) {
-		WP_Plugin_Base_REST_Operations_Registry::register_many( $operations );
-	}
-}
+WP_Plugin_Base_REST_Operations_Registry::set_bootstrap_path( $wp_plugin_base_rest_operations_bootstrap );
 
 add_action(
 	'rest_api_init',

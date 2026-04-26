@@ -28,6 +28,8 @@ Set in `.wp-plugin-base.env`:
 - `PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json`
 - `PLUGIN_RUNTIME_UPDATE_SOURCE_URL=<provider URL>`
 
+Runtime update source URLs must be public HTTPS URLs without credentials, query strings, fragments, localhost/private-network hosts, or token-bearing material. The URL is rendered into the shipped plugin.
+
 Add this line to the plugin main file:
 
 - `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';`
@@ -60,7 +62,7 @@ Add this line to the plugin main file:
 
 Public repositories are the intended default.
 
-If you enable runtime updates from a private source, do not embed long-lived secrets in `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`. That URL is rendered into the shipped plugin pack, so any token placed there is distributed to end users.
+If you enable runtime updates from a private source, do not embed long-lived secrets in `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`. Validation rejects credentials, query strings, fragments, and local/private hosts because any token placed there would be distributed to end users.
 
 Treat private-repository runtime updates as a constrained-distribution pattern that needs an explicit credential design outside the default foundation contract.
 

@@ -7,6 +7,7 @@ The shared release model is:
 - `prepare-release` creates or updates `release/x.y.z`
 - merging `release/*` or `hotfix/*` into `main` publishes from the selected downstream host
 - GitHub uses the managed finalize workflow to create the annotated tag and publish release artifacts automatically
+- GitHub stable tags are owned by the release PR/finalize flow; the managed `publish-tag-release.yml` workflow only publishes trusted prerelease tags such as `v1.2.3-beta.1`
 - GitLab uses a managed release MR plus a manual tag push after merge to trigger the tag pipeline and publish release artifacts
 - the repair flow verifies that the tag exists remotely, checks out that exact tag, and repairs the host release when it already exists
 - publish only succeeds for versions that match the merge commit of the correct merged release or hotfix PR
@@ -34,8 +35,11 @@ External automation/downstream consumers such as `wp-core-base` should consume t
 
 ## Repair Entry Points
 
-- GitHub: run the manual `release.yml` workflow for the existing tag; run `woocommerce-status.yml` as a separate diagnostics step when WooCommerce.com is enabled
-- GitLab: rerun the tagged `release` job in the managed `.gitlab-ci.yml` for the existing tag; there is no separate WooCommerce status workflow on GitLab
+| Host path | Trigger | Required input | Expected behavior | Post-repair checks |
+| --- | --- | --- | --- | --- |
+| GitHub stable release | Manual `release.yml` workflow | existing stable tag such as `1.2.3` | verifies the tag comes from the merged release/hotfix PR, replaces missing release assets, clears draft state after assets exist, and skips WordPress.org redeploy unless `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` | verify the GitHub Release assets; run `woocommerce-status.yml` when WooCommerce.com is enabled |
+| GitHub prerelease | trusted prerelease tag push or rerun | prerelease tag such as `1.2.3-beta.1` | publishes or repairs only prerelease GitHub Releases with ZIP, SBOM, and Sigstore assets; never marks prereleases latest | verify the release is not draft, is marked prerelease, and has non-empty ZIP/SBOM/Sigstore assets |
+| GitLab | tagged `release` job in the managed `.gitlab-ci.yml` | existing tag | repairs the selected GitLab release path and skips WordPress.org redeploy unless explicitly allowed | inspect GitLab release assets and Woo vendor/QIT status directly; GitLab has no separate WooCommerce status workflow |
 
 ## Migration Note
 

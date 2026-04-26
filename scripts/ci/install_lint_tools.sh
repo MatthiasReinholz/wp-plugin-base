@@ -5,8 +5,8 @@ set -euo pipefail
 DEST_DIR="${1:-}"
 TOOL_SELECTION="${2:-all}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SHELLCHECK_VERSION='0.10.0'
-ACTIONLINT_VERSION='1.7.7'
+SHELLCHECK_VERSION='0.11.0'
+ACTIONLINT_VERSION='1.7.12'
 EDITORCONFIG_CHECKER_VERSION='3.6.1'
 GITLEAKS_VERSION='8.30.1'
 
@@ -15,8 +15,8 @@ if [ -z "$DEST_DIR" ]; then
   exit 1
 fi
 
-OS="$(uname -s)"
-ARCH="$(uname -m)"
+OS="${WP_PLUGIN_BASE_INSTALL_TOOLS_OS:-$(uname -s)}"
+ARCH="${WP_PLUGIN_BASE_INSTALL_TOOLS_ARCH:-$(uname -m)}"
 
 shellcheck_archive=''
 shellcheck_sha256=''
@@ -59,9 +59,9 @@ if [ "$needs_binary_tools" = true ]; then
   case "${OS}:${ARCH}" in
     Linux:x86_64)
       shellcheck_archive="shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
-      shellcheck_sha256='6c881ab0698e4e6ea235245f22832860544f17ba386442fe7e9d629f8cbedf87'
+      shellcheck_sha256='8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198'
       actionlint_archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-      actionlint_sha256='023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757'
+      actionlint_sha256='8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
       editorconfig_checker_archive='editorconfig-checker-linux-amd64.tar.gz'
       editorconfig_checker_sha256='9c3a046b1f17933b292044645e048764f56f8d687c9c8c7d9c7358153f8e3b65'
       gitleaks_archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -69,9 +69,9 @@ if [ "$needs_binary_tools" = true ]; then
       ;;
     Darwin:x86_64)
       shellcheck_archive="shellcheck-v${SHELLCHECK_VERSION}.darwin.x86_64.tar.xz"
-      shellcheck_sha256='ef27684f23279d112d8ad84e0823642e43f838993bbb8c0963db9b58a90464c2'
+      shellcheck_sha256='3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6'
       actionlint_archive="actionlint_${ACTIONLINT_VERSION}_darwin_amd64.tar.gz"
-      actionlint_sha256='28e5de5a05fc558474f638323d736d822fff183d2d492f0aecb2b73cc44584f5'
+      actionlint_sha256='5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644'
       editorconfig_checker_archive='editorconfig-checker-darwin-all.tar.gz'
       editorconfig_checker_sha256='f96c15df363e70dd32e29c911e468e4a5e989ee2a264b562ca52631e8fa5996e'
       gitleaks_archive="gitleaks_${GITLEAKS_VERSION}_darwin_x64.tar.gz"
@@ -79,9 +79,9 @@ if [ "$needs_binary_tools" = true ]; then
       ;;
     Darwin:arm64)
       shellcheck_archive="shellcheck-v${SHELLCHECK_VERSION}.darwin.aarch64.tar.xz"
-      shellcheck_sha256='bbd2f14826328eee7679da7221f2bc3afb011f6a928b848c80c321f6046ddf81'
+      shellcheck_sha256='56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79'
       actionlint_archive="actionlint_${ACTIONLINT_VERSION}_darwin_arm64.tar.gz"
-      actionlint_sha256='2693315b9093aeacb4ebd91a993fea54fc215057bf0da2659056b4bc033873db'
+      actionlint_sha256='aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f'
       editorconfig_checker_archive='editorconfig-checker-darwin-all.tar.gz'
       editorconfig_checker_sha256='f96c15df363e70dd32e29c911e468e4a5e989ee2a264b562ca52631e8fa5996e'
       gitleaks_archive="gitleaks_${GITLEAKS_VERSION}_darwin_arm64.tar.gz"
@@ -89,7 +89,7 @@ if [ "$needs_binary_tools" = true ]; then
       ;;
     *)
       echo "Automatic tool installation is unsupported on ${OS}/${ARCH}. Install the requested binary tools manually." >&2
-      exit 0
+      exit 1
       ;;
   esac
 fi
@@ -132,33 +132,71 @@ sha256_check() {
   exit 1
 }
 
+download_file_with_retry() {
+  local output_path="$1"
+  local url="$2"
+  local label="$3"
+  local attempts="${WP_PLUGIN_BASE_TOOL_DOWNLOAD_RETRIES:-5}"
+  local delay="${WP_PLUGIN_BASE_TOOL_DOWNLOAD_RETRY_DELAY_SECONDS:-2}"
+  local attempt=1
+
+  if ! [[ "$attempts" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Tool download retry count must be a positive integer: $attempts" >&2
+    exit 1
+  fi
+  if ! [[ "$delay" =~ ^[0-9]+$ ]]; then
+    echo "Tool download retry delay must be a non-negative integer: $delay" >&2
+    exit 1
+  fi
+
+  while [ "$attempt" -le "$attempts" ]; do
+    if curl -fsSLo "$output_path" "$url"; then
+      return 0
+    fi
+
+    rm -f "$output_path"
+    if [ "$attempt" -eq "$attempts" ]; then
+      echo "Failed to download $label after $attempts attempt(s): $url" >&2
+      return 1
+    fi
+
+    echo "Download failed for $label on attempt ${attempt}/${attempts}; retrying in ${delay}s." >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+  done
+}
+
 if tool_requested shellcheck; then
-  curl -fsSLo "$TMP_DIR/$shellcheck_archive" \
-    "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${shellcheck_archive}"
+  download_file_with_retry "$TMP_DIR/$shellcheck_archive" \
+    "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${shellcheck_archive}" \
+    "shellcheck"
   sha256_check "$shellcheck_sha256" "$TMP_DIR/$shellcheck_archive"
   tar -xJf "$TMP_DIR/$shellcheck_archive" -C "$TMP_DIR"
   install "$TMP_DIR/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$DEST_DIR/shellcheck"
 fi
 
 if tool_requested actionlint; then
-  curl -fsSLo "$TMP_DIR/$actionlint_archive" \
-    "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_archive}"
+  download_file_with_retry "$TMP_DIR/$actionlint_archive" \
+    "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_archive}" \
+    "actionlint"
   sha256_check "$actionlint_sha256" "$TMP_DIR/$actionlint_archive"
   tar -xzf "$TMP_DIR/$actionlint_archive" -C "$TMP_DIR"
   install "$TMP_DIR/actionlint" "$DEST_DIR/actionlint"
 fi
 
 if tool_requested editorconfig-checker; then
-  curl -fsSLo "$TMP_DIR/$editorconfig_checker_archive" \
-    "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v${EDITORCONFIG_CHECKER_VERSION}/${editorconfig_checker_archive}"
+  download_file_with_retry "$TMP_DIR/$editorconfig_checker_archive" \
+    "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v${EDITORCONFIG_CHECKER_VERSION}/${editorconfig_checker_archive}" \
+    "editorconfig-checker"
   sha256_check "$editorconfig_checker_sha256" "$TMP_DIR/$editorconfig_checker_archive"
   tar -xzf "$TMP_DIR/$editorconfig_checker_archive" -C "$TMP_DIR"
   install "$TMP_DIR/editorconfig-checker" "$DEST_DIR/editorconfig-checker"
 fi
 
 if tool_requested gitleaks; then
-  curl -fsSLo "$TMP_DIR/$gitleaks_archive" \
-    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gitleaks_archive}"
+  download_file_with_retry "$TMP_DIR/$gitleaks_archive" \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gitleaks_archive}" \
+    "gitleaks"
   sha256_check "$gitleaks_sha256" "$TMP_DIR/$gitleaks_archive"
   tar -xzf "$TMP_DIR/$gitleaks_archive" -C "$TMP_DIR"
   install "$TMP_DIR/gitleaks" "$DEST_DIR/gitleaks"

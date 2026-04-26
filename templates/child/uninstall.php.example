@@ -10,10 +10,6 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-if ( ! current_user_can( 'activate_plugins' ) ) {
-	return;
-}
-
 if ( is_multisite() ) {
 	$site_ids = get_sites(
 		array(

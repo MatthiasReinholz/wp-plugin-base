@@ -415,6 +415,7 @@ EOF
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 grep -Fq '@wordpress/dataviews' "$runtime_pack_abilities_fixture/.wp-plugin-base-admin-ui/package.json"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+bash "$ROOT_DIR/scripts/foundation/test_wordpress_env_retry.sh"
 bash "$ROOT_DIR/scripts/foundation/test_runtime_packs_wordpress.sh"
 
 rm -rf "$runtime_pack_abilities_fixture"
@@ -556,6 +557,48 @@ cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.jso
       "identifier": "register_rest_route",
       "path": "includes/legacy-rest.php",
       "justification": "Temporary migration bridge while a legacy endpoint moves into the managed operation registry."
+    }
+  ]
+}
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+
+rm -rf "$runtime_pack_abilities_fixture"
+runtime_pack_abilities_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$runtime_pack_abilities_fixture/"
+mkdir -p "$runtime_pack_abilities_fixture/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_abilities_fixture/.wp-plugin-base/"
+mkdir -p "$runtime_pack_abilities_fixture/lib"
+cat > "$runtime_pack_abilities_fixture/lib/custom-rest.php" <<'EOF'
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+  exit;
+}
+
+register_rest_route(
+  'runtime-pack-ready/v1',
+  '/custom-lib',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => '__return_false',
+  )
+);
+EOF
+WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+if WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" "" >/dev/null 2>&1; then
+  echo "Runtime pack validation unexpectedly passed with an unsuppressed child lib/register_rest_route call." >&2
+  exit 1
+fi
+cat > "$runtime_pack_abilities_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "rest_route_bypass",
+      "identifier": "register_rest_route",
+      "path": "lib/custom-rest.php",
+      "justification": "Temporary migration bridge while a child lib endpoint moves into the managed operation registry."
     }
   ]
 }

@@ -16,6 +16,13 @@ wp_plugin_base_url_host() {
 
   remainder="${url#"$https_prefix"}"
   host="${remainder%%/*}"
+  host="${host#*@}"
+  if [[ "$host" = \[*\]* ]]; then
+    host="${host#\[}"
+    host="${host%%\]*}"
+    printf '%s\n' "$host"
+    return
+  fi
   host="${host%%:*}"
   printf '%s\n' "$host"
 }
@@ -33,34 +40,113 @@ wp_plugin_base_host_is_default_trusted_git_host() {
 
 wp_plugin_base_host_is_local_or_private() {
   local host="${1:-}"
-  local octets=()
+  local lower_host=""
+  local second_octet=""
+  local components=()
+  local component=""
 
-  case "$host" in
-    ""|localhost|localhost.localdomain|*.internal)
+  lower_host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+  lower_host="${lower_host%.}"
+  if [[ "$lower_host" = \[*\] ]]; then
+    lower_host="${lower_host#\[}"
+    lower_host="${lower_host%\]}"
+  fi
+
+  case "$lower_host" in
+    ""|localhost|localhost.localdomain|*.localhost|*.local|*.internal)
       return 0
       ;;
   esac
 
-  if [[ "$host" =~ ^127\. ]]; then
+  if [[ "$lower_host" != *.* && "$lower_host" != *:* ]]; then
     return 0
   fi
 
-  if [[ "$host" =~ ^10\. ]]; then
+  case "$lower_host" in
+    ::|::1|0:0:0:0:0:0:0:1|fe[89ab]:*|fc*:*|fd*:*)
+      return 0
+      ;;
+  esac
+
+  if [[ "$lower_host" =~ ^::ffff:(127|10|0)\. ]]; then
     return 0
   fi
 
-  if [[ "$host" =~ ^192\.168\. ]]; then
+  if [[ "$lower_host" =~ ^::ffff:192\.168\. ]]; then
     return 0
   fi
 
-  if [[ "$host" =~ ^169\.254\. ]]; then
+  if [[ "$lower_host" =~ ^::ffff:169\.254\. ]]; then
     return 0
   fi
 
-  if [[ "$host" =~ ^172\.([0-9]{1,3})\. ]]; then
+  if [[ "$lower_host" =~ ^::ffff:172\.([0-9]{1,3})\. ]]; then
     if [ "${BASH_REMATCH[1]}" -ge 16 ] && [ "${BASH_REMATCH[1]}" -le 31 ]; then
       return 0
     fi
+  fi
+
+  if [[ "$lower_host" =~ ^::ffff:100\.([0-9]{1,3})\. ]]; then
+    if [ "${BASH_REMATCH[1]}" -ge 64 ] && [ "${BASH_REMATCH[1]}" -le 127 ]; then
+      return 0
+    fi
+  fi
+
+  if [[ "$lower_host" =~ ^::ffff:198\.(18|19)\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^([0-9]+|0x[0-9a-f]+)(\.([0-9]+|0x[0-9a-f]+))*$ ]] && [[ ! "$lower_host" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+    IFS='.' read -r -a components <<< "$lower_host"
+    for component in "${components[@]}"; do
+      if [ "$component" -gt 255 ]; then
+        return 0
+      fi
+      if [[ "$component" =~ ^0[0-9]+$ ]]; then
+        return 0
+      fi
+    done
+  fi
+
+  if [[ "$lower_host" =~ ^0\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^127\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^10\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^192\.168\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^169\.254\. ]]; then
+    return 0
+  fi
+
+  if [[ "$lower_host" =~ ^100\.([0-9]{1,3})\. ]]; then
+    second_octet="${BASH_REMATCH[1]}"
+    if [ "$second_octet" -ge 64 ] && [ "$second_octet" -le 127 ]; then
+      return 0
+    fi
+  fi
+
+  if [[ "$lower_host" =~ ^172\.([0-9]{1,3})\. ]]; then
+    if [ "${BASH_REMATCH[1]}" -ge 16 ] && [ "${BASH_REMATCH[1]}" -le 31 ]; then
+      return 0
+    fi
+  fi
+
+  if [[ "$lower_host" =~ ^198\.(18|19)\. ]]; then
+    return 0
   fi
 
   return 1
@@ -185,23 +271,48 @@ wp_plugin_base_provider_sigstore_oidc_issuer() {
   esac
 }
 
+wp_plugin_base_escape_extended_regex_literal() {
+  local value="${1:-}"
+  local escaped=""
+  local char=""
+  local index=0
+
+  for ((index = 0; index < ${#value}; index++)); do
+    char="${value:index:1}"
+    case "$char" in
+      "\\"|"."|"["|"]"|"("|")"|"{"|"}"|"^"|"$"|"*"|"+"|"?"|"|")
+        escaped+="\\$char"
+        ;;
+      *)
+        escaped+="$char"
+        ;;
+    esac
+  done
+
+  printf '%s\n' "$escaped"
+}
+
 wp_plugin_base_provider_sigstore_identity_regex() {
   local provider="${1:-}"
   local api_base="${2:-}"
   local reference="${3:-}"
   local scope="${4:-plugin}"
   local web_base=""
+  local escaped_web_base=""
+  local escaped_reference=""
 
   web_base="$(wp_plugin_base_provider_web_base "$provider" "$api_base")"
+  escaped_web_base="$(wp_plugin_base_escape_extended_regex_literal "$web_base")"
+  escaped_reference="$(wp_plugin_base_escape_extended_regex_literal "$reference")"
 
   case "$provider" in
     github|github-release)
       case "$scope" in
         plugin)
-          printf '^%s/%s/.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+          printf '^%s/%s/\\.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
           ;;
         foundation)
-          printf '^%s/%s/.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+          printf '^%s/%s/\\.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
           ;;
         *)
           return 1
@@ -209,7 +320,7 @@ wp_plugin_base_provider_sigstore_identity_regex() {
       esac
       ;;
     gitlab|gitlab-release)
-      printf '^%s/%s/\\.gitlab-ci\\.yml@refs/heads/main$\n' "$web_base" "$reference"
+      printf '^%s/%s/\\.gitlab-ci\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
       ;;
     *)
       return 1

@@ -27,7 +27,7 @@ Normal release flow:
 4. Review the auto-generated changelog entry, adjust it if needed, and complete any plugin-specific smoke tests.
 5. Merge the `release/x.y.z` change request into `main`.
 6. The merged release flow creates the `x.y.z` tag and publishes the platform release from the selected automation host.
-7. Use the host-specific release recovery flow only for an existing tag if automatic publication needs to be repeated.
+7. Use the host-specific release recovery flow only for an existing stable tag if automatic publication needs to be repeated.
 
 Hotfixes use the same model from `hotfix/x.y.z` branches.
 
@@ -55,7 +55,7 @@ Managed automation files:
 - `docs/admin-ui-pack.md`, `lib/wp-plugin-base/admin-ui/**`, and `.wp-plugin-base-admin-ui/build.sh` / `.wp-plugin-base-admin-ui/shared/**` when `ADMIN_UI_PACK_ENABLED=true`
 - `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`, when absent
 
-GitHub repos use `finalize-release.yml` as the normal automated publish path and `release.yml` as the manual recovery workflow for an already existing tag. GitLab repos use the managed `.gitlab-ci.yml` release stage for both tagged publication and manual recovery. `.github/dependabot.yml` is GitHub-only and keeps GitHub Actions pins moving through reviewable PRs.
+GitHub repos use `finalize-release.yml` as the normal automated publish path, `release.yml` as the manual recovery workflow for an already existing stable tag, and `publish-tag-release.yml` as a prerelease-only safety net for tags such as `v1.2.3-beta.1`. GitLab repos use the managed `.gitlab-ci.yml` release stage for both tagged publication and manual recovery. `.github/dependabot.yml` is GitHub-only and keeps GitHub Actions pins moving through reviewable PRs.
 Managed CI also runs a separate `gitleaks` secret-scan job by default.
 When `WORDPRESS_QUALITY_PACK_ENABLED=true` or `WORDPRESS_SECURITY_PACK_ENABLED=true`, treat those settings as readiness submodes. Both require `WORDPRESS_READINESS_ENABLED=true`.
 
@@ -66,10 +66,10 @@ When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a fo
 - explicit `WordPress.Security` sniffs for escaping, nonce verification, and sanitized input
 - explicit `WordPress.DB` sniffs for direct queries and prepared SQL
 - explicit `WordPress.WP.Capabilities` checks
-- a narrow REST authorization pattern scan that fails on `permission_callback => __return_true`
+- a REST authorization pattern scan that fails on missing or always-public REST permission callbacks unless explicitly justified
 - dependency audits for root `composer.lock` and runtime `package-lock.json` files when present
 
-If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation and WordPress metadata checks with each interpreter version so syntax- and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present, including bridge-only mode when `WORDPRESS_QUALITY_PACK_ENABLED=false`.
+If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each interpreter version so syntax-, include-, and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present, including bridge-only mode when `WORDPRESS_QUALITY_PACK_ENABLED=false`.
 
 When that PHPUnit bridge path is enabled, `tests/bootstrap.php` is managed by foundation sync. Keep child-specific PHPUnit preloads and support-class requires in `tests/wp-plugin-base/bootstrap-child.php`, which is seeded as child-owned.
 
@@ -101,7 +101,7 @@ Set `WP_ORG_DEPLOY_ENABLED` in your CI settings as either:
 
 If WordPress.org deploy is enabled, keep `SVN_USERNAME` and `SVN_PASSWORD` in protected CI secrets, and protect the `PRODUCTION_ENVIRONMENT` environment with at least one reviewer. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset. GitHub validation checks that protection automatically. GitLab validation fails closed until you rerun with `WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true` after reviewing the environment manually.
 
-Repair release flows verify that the requested tag already exists and skip WordPress.org redeploy by default so a repair run does not mutate an existing SVN tag. GitHub uses the manual `release.yml` workflow. GitLab uses the tagged `release` job in the managed `.gitlab-ci.yml`. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+Repair release flows verify that the requested tag already exists and skip WordPress.org redeploy by default so a repair run does not mutate an existing SVN tag. GitHub uses the manual `release.yml` workflow for stable repairs and the `publish-tag-release.yml` workflow to create or repair GitHub prereleases from trusted prerelease tags. GitLab uses the tagged `release` job in the managed `.gitlab-ci.yml`. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Security Expectations
 

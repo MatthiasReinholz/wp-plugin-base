@@ -405,7 +405,7 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `ADMIN_UI_NPM_AUDIT_LEVEL` controls the managed admin UI npm audit threshold when the security pack is enabled. Keep the default `high` for release readiness. `critical` is only allowed outside `RELEASE_READINESS_MODE=security-sensitive` as a temporary compatibility override for non-runtime, upstream-owned admin UI toolchain advisories while you update `@wordpress/*` packages or add narrow npm `overrides`.
 
-`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation and WordPress metadata checks with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 
 PHP quality-pack and runtime-matrix behavior matrix:
 
@@ -426,7 +426,7 @@ When the PHPUnit bridge is active, treat `tests/bootstrap.php` as managed and ke
 
 `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS` controls WooCommerce.com API request timeouts for deploy and status checks (default `30` seconds).
 
-`PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-runtime-updater.php`. Set `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` to the matching repository or JSON metadata URL and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';` to the plugin main file. `github-release` requires `AUTOMATION_PROVIDER=github`. `gitlab-release` requires `AUTOMATION_PROVIDER=gitlab`. `generic-json` is host-agnostic, but it is a runtime updater transport only, not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation. Systems such as `wp-core-base` should keep consuming the authoritative Git host release surface. Do not ship secrets in `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`. `GITHUB_RELEASE_UPDATER_ENABLED` and `GITHUB_RELEASE_UPDATER_REPO_URL` remain accepted as GitHub-only compatibility aliases.
+`PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-runtime-updater.php`. Set `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` to the matching repository or JSON metadata URL and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';` to the plugin main file. `github-release` requires `AUTOMATION_PROVIDER=github`. `gitlab-release` requires `AUTOMATION_PROVIDER=gitlab`. `generic-json` is host-agnostic, but it is a runtime updater transport only, not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation. Systems such as `wp-core-base` should keep consuming the authoritative Git host release surface. Runtime update URLs must be public HTTPS URLs without credentials, query strings, fragments, localhost/private-network hosts, or token-like material. `GITHUB_RELEASE_UPDATER_ENABLED` and `GITHUB_RELEASE_UPDATER_REPO_URL` remain accepted as GitHub-only compatibility aliases.
 
 `REST_OPERATIONS_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared REST operation registry and adapters in `lib/wp-plugin-base/rest-operations/` while seeding child-owned examples in `includes/rest-operations/`. Set `REST_API_NAMESPACE=<plugin-slug>/v1` to override the default namespace and add `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` to the plugin main file.
 
@@ -466,24 +466,17 @@ WordPress.org can therefore fail after the selected Git host release is already 
 
 Repair runbook after publication:
 
-- GitHub: run the manual `release.yml` workflow for the existing tag, then run `woocommerce-status.yml` when WooCommerce.com is enabled
+- GitHub stable release: run the manual `release.yml` workflow for the existing tag, then run `woocommerce-status.yml` when WooCommerce.com is enabled
+- GitHub prerelease: push or rerun the trusted prerelease tag so `publish-tag-release.yml` creates or repairs the prerelease GitHub Release
 - GitLab: rerun the tagged `release` job from the managed `.gitlab-ci.yml`; there is no separate `woocommerce-status.yml` workflow on GitLab, so inspect Woo vendor/QIT status directly when that channel is enabled
 
 If you are migrating from older internal release ordering where WordPress.org deploy blocked tag publication, treat this as a behavior change and update release runbooks.
 
 For stronger review on production publishing, protect the deployment environment named by `PRODUCTION_ENVIRONMENT` and require at least one reviewer before the workflow can access deploy credentials. GitHub validation checks this automatically. GitLab validation fails closed until you rerun with `WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true` after manually reviewing the protected environment rules.
 
-Repair flows skip WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. On GitHub that behavior lives in the manual `release.yml` workflow. On GitLab it lives in the tagged `release` job from the managed `.gitlab-ci.yml`. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+Repair flows skip WordPress.org redeploy by default so an existing `tags/<version>` entry is not mutated during a repair run. On GitHub that behavior lives in the manual `release.yml` workflow for stable tags and the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags. On GitLab it lives in the tagged `release` job from the managed `.gitlab-ci.yml`. Only set the repository or environment variable `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
 
 ## Guides
-
-Start here by intent:
-
-- new plugin repository: [New project setup](docs/new-project.md)
-- existing plugin migration: [Existing project migration](docs/existing-project-migration.md)
-- release and distribution behavior: [Release model](docs/release-model.md)
-- security and workflow policy: [Security model](docs/security-model.md)
-- maintainer/coding-agent change map: [Maintainer and agent map](docs/maintainer-agent-map.md)
 
 - [New project setup](docs/new-project.md)
 - [Existing project migration](docs/existing-project-migration.md)

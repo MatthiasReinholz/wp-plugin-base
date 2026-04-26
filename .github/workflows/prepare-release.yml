@@ -38,6 +38,31 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Validate base ref
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BASE_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] ||
+            [[ "$BASE_REF" == refs/* ]] ||
+            [[ "$BASE_REF" == pull/* ]] ||
+            [[ "$BASE_REF" == *'/pull/'* ]] ||
+            [[ "$BASE_REF" == *..* ]] ||
+            [[ "$BASE_REF" == *"//"* ]]; then
+            echo "Unsupported release base ref: $BASE_REF" >&2
+            exit 1
+          fi
+
+          if [ "$BASE_REF" != "main" ]; then
+            encoded_ref="$(jq -nr --arg value "$BASE_REF" '$value|@uri')"
+            protected="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${encoded_ref}" --jq '.protected')"
+            if [ "$protected" != "true" ]; then
+              echo "Release base ref $BASE_REF must be main or a protected branch." >&2
+              exit 1
+            fi
+          fi
+
       - name: Checkout base ref
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:

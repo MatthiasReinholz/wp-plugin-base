@@ -10,6 +10,7 @@ fixture_origin="$(mktemp -d)"
 helper_dir="$(mktemp -d)"
 pr_output="$(mktemp)"
 auth_marker="$(mktemp)"
+expected_auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' 'fixture-token' | base64 | tr -d '\n')"
 
 cleanup() {
   rm -rf "$fixture_repo" "$fixture_origin" "$helper_dir" "$pr_output" "$auth_marker"
@@ -58,23 +59,25 @@ set -euo pipefail
 
 real_git="$real_git"
 auth_marker="$auth_marker"
-scheme="https:"
-expected_config="url.\${scheme}//x-access-token:fixture-token"
-expected_config="\${expected_config}@github.com/.insteadOf=\${scheme}//github.com/"
+argv_log="$helper_dir/git-argv.log"
+expected_header="$expected_auth_header"
 
 saw_push=false
-saw_auth=false
 for arg in "\$@"; do
+  printf '%s\n' "\$arg" >> "\$argv_log"
   if [ "\$arg" = "push" ]; then
     saw_push=true
   fi
-  if [ "\$arg" = "\$expected_config" ]; then
-    saw_auth=true
-  fi
 done
 
-if [ "\$saw_push" = true ] && [ "\$saw_auth" = true ]; then
-  : > "\$auth_marker"
+if [ "\$saw_push" = true ]; then
+  configured_header=""
+  if [ "\${GIT_CONFIG_COUNT:-0}" = "1" ] && [ "\${GIT_CONFIG_KEY_0:-}" = "http.https://github.com/.extraheader" ]; then
+    configured_header="\${GIT_CONFIG_VALUE_0:-}"
+  fi
+  if [ "\$configured_header" = "\$expected_header" ]; then
+    : > "\$auth_marker"
+  fi
 fi
 
 exec "\$real_git" "\$@"
@@ -99,7 +102,22 @@ printf '%s\n' 'release prep' >> "$fixture_repo/README.md"
 )
 
 if [ ! -f "$auth_marker" ]; then
-  echo "create_or_update_pr did not inject GitHub token auth into git push." >&2
+  echo "create_or_update_pr did not configure GitHub token auth before git push." >&2
+  exit 1
+fi
+
+if grep -Fq 'fixture-token' "$helper_dir/git-argv.log"; then
+  echo "create_or_update_pr leaked the GitHub token through git process arguments." >&2
+  exit 1
+fi
+
+if grep -Fq "$expected_auth_header" "$helper_dir/git-argv.log"; then
+  echo "create_or_update_pr leaked the GitHub auth header through git process arguments." >&2
+  exit 1
+fi
+
+if git -C "$fixture_repo" config --local --get-regexp '^url\\..*\\.insteadOf$|^http\\..*\\.extraheader$' | grep -Eq 'fixture-token|AUTHORIZATION: basic'; then
+  echo "create_or_update_pr persisted GitHub token authentication in local git config." >&2
   exit 1
 fi
 

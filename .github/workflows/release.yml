@@ -7,10 +7,6 @@ on:
         required: false
         type: string
         default: .wp-plugin-base.env
-      production_environment:
-        required: false
-        type: string
-        default: production
       version:
         required: true
         type: string
@@ -24,11 +20,6 @@ on:
         description: 'Path to the project config file'
         required: false
         default: .wp-plugin-base.env
-        type: string
-      production_environment:
-        description: 'GitHub environment for release publishing'
-        required: false
-        default: production
         type: string
 
 env:
@@ -48,7 +39,7 @@ jobs:
       pull-requests: read
       attestations: write
       id-token: write
-    environment: ${{ inputs.production_environment || github.event.inputs.production_environment || 'production' }}
+    environment: production
     env:
       WP_ORG_DEPLOY_ENABLED: ${{ vars.WP_ORG_DEPLOY_ENABLED }}
       WOOCOMMERCE_COM_DEPLOY_ENABLED: ${{ vars.WOOCOMMERCE_COM_DEPLOY_ENABLED }}
@@ -88,6 +79,50 @@ jobs:
           ref: refs/tags/${{ steps.resolved.outputs.version }}
           fetch-depth: 0
 
+      - name: Verify release tag is annotated
+        env:
+          VERSION: ${{ steps.resolved.outputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          if [ "$(git cat-file -t "refs/tags/$VERSION")" != "tag" ]; then
+            echo "Tag $VERSION exists but is not an annotated tag." >&2
+            exit 1
+          fi
+
+      - name: Verify release tag comes from a merged release PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolved.outputs.version }}
+        run: |
+          set -euo pipefail
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          response="$(
+            curl -fsSL \
+              --connect-timeout 10 \
+              --max-time 60 \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${COMMIT_SHA}/pulls"
+          )"
+          match_count="$(
+            jq --arg version "$VERSION" --arg sha "$COMMIT_SHA" '
+              map(
+                select(
+                  .merged_at != null and
+                  .base.ref == "main" and
+                  (.head.ref == ("release/" + $version) or .head.ref == ("hotfix/" + $version)) and
+                  .merge_commit_sha == $sha
+                )
+              ) | length
+            ' <<<"$response"
+          )"
+          if [ "$match_count" -lt 1 ]; then
+            echo "Commit ${COMMIT_SHA} is not the merge commit of a merged release or hotfix PR for version ${VERSION}." >&2
+            exit 1
+          fi
+
       - name: Read config
         id: config
         shell: bash
@@ -102,13 +137,6 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ steps.config.outputs.node_version }}
-
-      - name: Verify release tag comes from a merged release PR
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          COMMIT_SHA="$(git rev-parse HEAD)"
-          bash .wp-plugin-base/scripts/ci/check_release_pr.sh "${GITHUB_REPOSITORY}" "${{ steps.resolved.outputs.version }}" "$COMMIT_SHA"
 
       - name: Validate WordPress readiness
         if: ${{ steps.config.outputs.wordpress_readiness_enabled == 'true' }}
@@ -207,6 +235,20 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}" \
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolved.outputs.version }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          bash .wp-plugin-base/scripts/release/verify_github_release_assets.sh \
+            "$VERSION" \
+            false \
+            "dist/${ZIP_FILE}" \
+            "dist/${ZIP_FILE}.sbom.cdx.json" \
+            "dist/${ZIP_FILE}.sigstore.json"
 
       - name: Deploy to WooCommerce.com Marketplace
         if: ${{ env.WOOCOMMERCE_COM_DEPLOY_ENABLED == 'true' && steps.config.outputs.woocommerce_com_product_id != '' }}

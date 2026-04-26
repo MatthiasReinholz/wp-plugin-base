@@ -126,6 +126,33 @@ Recovery:
 2. Rerun `bash .wp-plugin-base/scripts/update/sync_child_repo.sh`.
 3. Rerun `bash .wp-plugin-base/scripts/ci/validate_project.sh`.
 
+## Security Readiness Or Scanner Failures
+
+For public endpoint failures, rerun the scanner directly so you can copy the exact suppression tuple:
+
+```bash
+bash .wp-plugin-base/scripts/ci/scan_wordpress_authorization_patterns.sh
+```
+
+Use the reported `kind`, `identifier`, and repo-relative `path` exactly in the configured suppressions file. Add a non-empty justification that explains why the endpoint is intentionally public and what guard makes it safe. If the endpoint mutates state or exposes private data, fix the permission callback instead of suppressing the finding.
+
+For Semgrep failures, rerun the security pass and inspect the SARIF:
+
+```bash
+bash .wp-plugin-base/scripts/ci/run_semgrep_security.sh
+```
+
+The CI workflow uploads Semgrep SARIF to the host security surface when the scan runs there. Local failures usually mean either `semgrep` is missing or a rule found code that needs a scoped fix; do not bypass the scan for release branches.
+
+For Plugin Check failures, validate the package and rerun the checker:
+
+```bash
+bash .wp-plugin-base/scripts/ci/build_zip.sh
+bash .wp-plugin-base/scripts/ci/run_plugin_check.sh
+```
+
+Docker must be running because Plugin Check uses `@wordpress/env`. If `RELEASE_READINESS_MODE=security-sensitive`, remove narrowed Plugin Check filters and keep strict warning mode enabled; that profile intentionally fails closed when coverage is weakened.
+
 ## External Dependency Updater Workflow Fails
 
 The foundation's external dependency updater lives at `.github/workflows/update-plugin-check.yml` (display name: `update-external-dependencies`).
@@ -147,11 +174,12 @@ The selected host release flow publishes the Git tag/release first, then runs do
 
 Repair path:
 
-1. on GitHub, run `release.yml` for the existing release tag
-2. on GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`
-3. review WordPress.org/WooCommerce.com channel logs
-4. on GitHub, run `woocommerce-status.yml` when Woo is enabled
-5. rerun the same host-specific repair path until the failed channel succeeds or reports already-live state
+1. on GitHub stable releases, run `release.yml` for the existing release tag
+2. on GitHub prereleases, rerun the trusted prerelease tag through `publish-tag-release.yml`
+3. on GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`
+4. review WordPress.org/WooCommerce.com channel logs
+5. on GitHub, run `woocommerce-status.yml` when Woo is enabled
+6. rerun the same host-specific repair path until the failed channel succeeds or reports already-live state
 
 If a tag with the release version exists on a different commit, stop and resolve the mismatch manually before retrying automated release flows.
 

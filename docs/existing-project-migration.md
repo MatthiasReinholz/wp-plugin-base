@@ -72,7 +72,7 @@ Before enabling WordPress.org deploy, confirm:
 - the plugin main file and `readme.txt` already exist before validation
 - the selected CI host policy matches the allowlist and pinning rules documented in [Security model](security-model.md)
 
-If you later need to repair a published host release manually, use the host-specific repair flow. GitHub uses the manual `release.yml` workflow. GitLab uses the tagged `release` job from the managed `.gitlab-ci.yml`. Both paths verify the existing tag and skip WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
+If you later need to repair a published host release manually, use the host-specific repair flow. GitHub uses the manual `release.yml` workflow for stable tags and the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags. GitLab uses the tagged `release` job from the managed `.gitlab-ci.yml`. Both paths verify the existing tag and skip WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
 Downstream channels can fail after host-release publication. On GitHub, pair release repair with `woocommerce-status.yml` when WooCommerce.com is enabled. On GitLab, inspect Woo vendor/QIT status directly because there is no separate status workflow.
 
 ## Release-Order Behavior Change

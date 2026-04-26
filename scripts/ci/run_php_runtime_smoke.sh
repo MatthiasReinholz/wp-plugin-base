@@ -43,6 +43,28 @@ if wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
   bash "$SCRIPT_DIR/validate_wordpress_metadata.sh" "$CONFIG_OVERRIDE"
 fi
 
+main_plugin_path="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
+if ! WP_PLUGIN_BASE_RUNTIME_SMOKE_PLUGIN_FILE="$main_plugin_path" php <<'PHP'
+<?php
+declare(strict_types=1);
+
+$plugin_file = getenv('WP_PLUGIN_BASE_RUNTIME_SMOKE_PLUGIN_FILE');
+if (! is_string($plugin_file) || '' === $plugin_file || ! is_file($plugin_file)) {
+    fwrite(STDERR, "Runtime smoke could not resolve the main plugin file.\n");
+    exit(1);
+}
+
+if (! defined('ABSPATH')) {
+    define('ABSPATH', dirname($plugin_file) . '/');
+}
+
+require $plugin_file;
+PHP
+then
+  echo "Runtime smoke failed to load the main plugin file: $MAIN_PLUGIN_FILE" >&2
+  exit 1
+fi
+
 if [ "$PHP_RUNTIME_MATRIX_MODE" = "strict" ] && [ -f "$ROOT_DIR/phpunit.xml.dist" ] && [ -f "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.json" ] && [ -f "$ROOT_DIR/.wp-plugin-base-quality-pack/composer.lock" ]; then
   if wp_plugin_base_docker_is_available; then
     composer_work_dir="$(mktemp -d)"

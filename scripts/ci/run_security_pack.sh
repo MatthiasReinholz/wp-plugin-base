@@ -78,6 +78,15 @@ composer_install_command() {
 
 wp_plugin_base_run_with_retry 3 2 "Security pack Composer install" composer_install_command
 
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+  -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+  -v "$COMPOSER_WORK_DIR":/workspace \
+  -w /workspace \
+  "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+  audit --locked --no-interaction
+
 php "$COMPOSER_WORK_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs-security.xml.dist"
 if wp_plugin_base_is_true "${WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP:-false}"; then
   echo "Semgrep pass is delegated to a separate step; skipping Semgrep execution in security pack."

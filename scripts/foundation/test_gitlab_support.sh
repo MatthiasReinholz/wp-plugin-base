@@ -70,6 +70,20 @@ if ! printf '%s\n' 'https://gitlab.com/example-group/wp-plugin-base/.gitlab-ci.y
   echo "GitLab Sigstore identity regex did not match a canonical GitLab identity." >&2
   exit 1
 fi
+if printf '%s\n' 'https://gitlab.com/example-group/wp-pluginXbase/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_identity_regex"; then
+  echo "GitLab Sigstore identity regex matched a similarly named repository." >&2
+  exit 1
+fi
+
+gitlab_nested_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/platform/plugin.base foundation)"
+if ! printf '%s\n' 'https://gitlab.com/example-group/platform/plugin.base/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_nested_identity_regex"; then
+  echo "GitLab Sigstore identity regex did not match a nested dotted repository path." >&2
+  exit 1
+fi
+if printf '%s\n' 'https://gitlab.com/example-group/platform/pluginXbase/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_nested_identity_regex"; then
+  echo "GitLab Sigstore identity regex treated a dotted repository path as a pattern." >&2
+  exit 1
+fi
 
 if [ "$(wp_plugin_base_provider_sigstore_oidc_issuer gitlab-release https://gitlab.com/api/v4)" != 'https://gitlab.com' ]; then
   echo "GitLab.com Sigstore issuer did not resolve to https://gitlab.com." >&2

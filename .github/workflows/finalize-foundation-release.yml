@@ -140,10 +140,24 @@ jobs:
             repair_args+=(--repair)
           fi
           bash scripts/release/publish_github_release.sh \
+            --mark-latest \
             "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \
             dist-foundation-release.md \
+            dist-foundation-release.json \
+            dist-foundation-release.sbom.cdx.json \
+            dist-foundation-release.json.sigstore.json
+
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/verify_github_release_assets.sh \
+            "$VERSION" \
+            false \
             dist-foundation-release.json \
             dist-foundation-release.sbom.cdx.json \
             dist-foundation-release.json.sigstore.json

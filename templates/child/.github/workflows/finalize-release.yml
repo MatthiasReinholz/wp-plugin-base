@@ -198,6 +198,7 @@ jobs:
             repair_args+=(--repair)
           fi
           bash .wp-plugin-base/scripts/release/publish_github_release.sh \
+            --mark-latest \
             "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
             "${{ steps.release.outputs.version }}" \
@@ -205,6 +206,20 @@ jobs:
             "dist/${{ steps.config.outputs.zip_file }}" \
             "dist/${{ steps.config.outputs.zip_file }}.sbom.cdx.json" \
             "dist/${{ steps.config.outputs.zip_file }}.sigstore.json"
+
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ZIP_FILE: ${{ steps.config.outputs.zip_file }}
+        run: |
+          set -euo pipefail
+          bash .wp-plugin-base/scripts/release/verify_github_release_assets.sh \
+            "$VERSION" \
+            false \
+            "dist/${ZIP_FILE}" \
+            "dist/${ZIP_FILE}.sbom.cdx.json" \
+            "dist/${ZIP_FILE}.sigstore.json"
 
       - name: Install Subversion (post-publish)
         if: ${{ env.WP_ORG_DEPLOY_ENABLED == 'true' }}
