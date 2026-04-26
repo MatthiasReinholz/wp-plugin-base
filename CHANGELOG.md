@@ -5,6 +5,8 @@
 * Add prerelease tag publication for GitHub child plugins.
 * Verify stable GitHub releases after publication and reject lightweight release tags in repair flows.
 * Build deterministic ZIP archives for managed child packages.
+* Harden release repair, runtime updater URL validation, REST endpoint scanning, and optional pack runtime behavior.
+* Refresh Semgrep, ShellCheck, actionlint, Syft, and admin UI PostCSS pins.
 
 ## v1.7.9
 

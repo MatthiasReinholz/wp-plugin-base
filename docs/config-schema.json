@@ -61,7 +61,7 @@
       "pattern": "^(none|github-release|gitlab-release|generic-json)$"
     },
     "PLUGIN_RUNTIME_UPDATE_SOURCE_URL": {
-      "description": "Runtime updater source URL. Host-backed providers must point at trusted GitHub/GitLab hosts or allowlisted self-managed hosts. Do not embed secrets in this URL because it ships in the plugin payload.",
+      "description": "Runtime updater source URL. Host-backed providers must point at trusted GitHub/GitLab hosts or allowlisted self-managed hosts. All runtime update URLs must be public HTTPS URLs without credentials, query strings, fragments, localhost/private-network hosts, or embedded secrets because the URL ships in the plugin payload.",
       "default": "",
       "pattern": "^$|^https://[^[:space:]]+$"
     },

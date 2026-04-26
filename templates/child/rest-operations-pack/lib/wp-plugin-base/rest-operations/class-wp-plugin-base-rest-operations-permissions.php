@@ -154,13 +154,24 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 */
 		private static function check_scopes( $plugin_slug, array $operation, WP_REST_Request $request ) {
 			$required_scopes = isset( $operation['required_scopes'] ) ? $operation['required_scopes'] : array();
+			if ( ! is_array( $required_scopes ) ) {
+				return self::invalid_scope_configuration_error();
+			}
+
 			if ( empty( $required_scopes ) ) {
 				return true;
 			}
 
 			$granted_scopes = self::granted_scopes( $plugin_slug, $operation, $request );
+			if ( is_wp_error( $granted_scopes ) ) {
+				return $granted_scopes;
+			}
 
 			foreach ( $required_scopes as $required_scope ) {
+				if ( ! is_string( $required_scope ) || '' === $required_scope ) {
+					return self::invalid_scope_configuration_error();
+				}
+
 				if ( ! self::has_scope( $required_scope, $granted_scopes ) ) {
 					return new WP_Error(
 						'wp_plugin_base_rest_scope_forbidden',
@@ -181,7 +192,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 		 * @param string              $plugin_slug Plugin slug.
 		 * @param array<string,mixed> $operation   Operation manifest.
 		 * @param WP_REST_Request     $request     Request instance.
-		 * @return array<int,string>
+		 * @return array<int,string>|WP_Error
 		 */
 		private static function granted_scopes( $plugin_slug, array $operation, WP_REST_Request $request ) {
 			$granted_scopes = array();
@@ -201,15 +212,27 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 				$granted_scopes = array_merge( $granted_scopes, self::normalize_scopes( $user_scopes ) );
 			}
 
-			$filtered_scopes = apply_filters(
-				$plugin_slug . '_rest_granted_scopes',
-				$granted_scopes,
-				$operation,
-				$request
-			);
+			try {
+				$filtered_scopes = apply_filters(
+					$plugin_slug . '_rest_granted_scopes',
+					$granted_scopes,
+					$operation,
+					$request
+				);
+			} catch ( Throwable $error ) {
+				return new WP_Error(
+					'wp_plugin_base_rest_scope_check_failed',
+					__( 'The REST operation scope filter failed.', '__PLUGIN_SLUG__' ),
+					array( 'status' => 500 )
+				);
+			}
 
 			if ( ! is_array( $filtered_scopes ) ) {
-				return array_values( array_unique( $granted_scopes ) );
+				return new WP_Error(
+					'wp_plugin_base_rest_scope_check_failed',
+					__( 'The REST operation scope filter returned invalid data.', '__PLUGIN_SLUG__' ),
+					array( 'status' => 500 )
+				);
 			}
 
 			return array_values( array_unique( self::normalize_scopes( $filtered_scopes ) ) );
@@ -277,6 +300,21 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Permissions' ) ) {
 			}
 
 			return false;
+		}
+
+		/**
+		 * Returns the fail-closed error for malformed operation scope metadata.
+		 *
+		 * @since NEXT
+		 *
+		 * @return WP_Error
+		 */
+		private static function invalid_scope_configuration_error() {
+			return new WP_Error(
+				'wp_plugin_base_rest_invalid_scope_configuration',
+				__( 'The REST operation scope configuration is invalid.', '__PLUGIN_SLUG__' ),
+				array( 'status' => 500 )
+			);
 		}
 	}
 }

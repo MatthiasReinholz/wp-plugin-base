@@ -65,7 +65,23 @@ readiness_filtered_fixture="$(make_fixture)"
 readiness_reduced_audit_fixture="$(make_fixture)"
 readiness_invalid_audit_fixture="$(make_fixture)"
 readiness_pass_fixture="$(make_fixture)"
-trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture" "$readiness_missing_fixture" "$readiness_strict_fixture" "$readiness_filtered_fixture" "$readiness_reduced_audit_fixture" "$readiness_invalid_audit_fixture" "$readiness_pass_fixture"' EXIT
+runtime_url_secret_fixture="$(make_fixture)"
+runtime_url_private_fixture="$(make_fixture)"
+runtime_url_cgnat_fixture="$(make_fixture)"
+legacy_updater_secret_fixture="$(make_fixture)"
+runtime_url_pass_fixture="$(make_fixture)"
+trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture" "$readiness_missing_fixture" "$readiness_strict_fixture" "$readiness_filtered_fixture" "$readiness_reduced_audit_fixture" "$readiness_invalid_audit_fixture" "$readiness_pass_fixture" "$runtime_url_secret_fixture" "$runtime_url_private_fixture" "$runtime_url_cgnat_fixture" "$legacy_updater_secret_fixture" "$runtime_url_pass_fixture"' EXIT
+
+runtime_secret_url='https:'
+runtime_secret_url="${runtime_secret_url}//updates.example.com/standard-plugin.json?token=secret"
+runtime_private_url='https:'
+runtime_private_url="${runtime_private_url}//127.0.0.1/standard-plugin.json"
+runtime_cgnat_url='https:'
+runtime_cgnat_url="${runtime_cgnat_url}//100.64.0.10/standard-plugin.json"
+legacy_updater_secret_url='https:'
+legacy_updater_secret_url="${legacy_updater_secret_url}//github.com/example/standard-plugin#token"
+runtime_pass_url='https:'
+runtime_pass_url="${runtime_pass_url}//updates.example.com/standard-plugin.json"
 
 write_base_config "$defaults_fixture/.defaults.env"
 cat >> "$defaults_fixture/.defaults.env" <<'EOF_CONFIG'
@@ -192,5 +208,51 @@ RELEASE_READINESS_MODE=security-sensitive
 WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
 EOF_CONFIG
 WP_PLUGIN_BASE_ROOT="$readiness_pass_fixture" bash "$VALIDATE_CONFIG" --scope project .readiness-pass.env >/dev/null
+
+write_base_config "$runtime_url_secret_fixture/.runtime-url-secret.env"
+cat >> "$runtime_url_secret_fixture/.runtime-url-secret.env" <<EOF_CONFIG
+PLUGIN_RUNTIME_UPDATE_PROVIDER=generic-json
+PLUGIN_RUNTIME_UPDATE_SOURCE_URL=${runtime_secret_url}
+EOF_CONFIG
+expect_validation_failure \
+  "$runtime_url_secret_fixture" \
+  .runtime-url-secret.env \
+  "PLUGIN_RUNTIME_UPDATE_SOURCE_URL must not include query strings or fragments: ${runtime_secret_url}"
+
+write_base_config "$runtime_url_private_fixture/.runtime-url-private.env"
+cat >> "$runtime_url_private_fixture/.runtime-url-private.env" <<EOF_CONFIG
+PLUGIN_RUNTIME_UPDATE_PROVIDER=generic-json
+PLUGIN_RUNTIME_UPDATE_SOURCE_URL=${runtime_private_url}
+EOF_CONFIG
+expect_validation_failure \
+  "$runtime_url_private_fixture" \
+  .runtime-url-private.env \
+  'PLUGIN_RUNTIME_UPDATE_SOURCE_URL must not use localhost, private-network, link-local, or *.internal hosts: 127.0.0.1'
+
+write_base_config "$runtime_url_cgnat_fixture/.runtime-url-cgnat.env"
+cat >> "$runtime_url_cgnat_fixture/.runtime-url-cgnat.env" <<EOF_CONFIG
+PLUGIN_RUNTIME_UPDATE_PROVIDER=generic-json
+PLUGIN_RUNTIME_UPDATE_SOURCE_URL=${runtime_cgnat_url}
+EOF_CONFIG
+expect_validation_failure \
+  "$runtime_url_cgnat_fixture" \
+  .runtime-url-cgnat.env \
+  'PLUGIN_RUNTIME_UPDATE_SOURCE_URL must not use localhost, private-network, link-local, or *.internal hosts: 100.64.0.10'
+
+write_base_config "$legacy_updater_secret_fixture/.legacy-updater-secret.env"
+cat >> "$legacy_updater_secret_fixture/.legacy-updater-secret.env" <<EOF_CONFIG
+GITHUB_RELEASE_UPDATER_REPO_URL=${legacy_updater_secret_url}
+EOF_CONFIG
+expect_validation_failure \
+  "$legacy_updater_secret_fixture" \
+  .legacy-updater-secret.env \
+  "GITHUB_RELEASE_UPDATER_REPO_URL must not include query strings or fragments: ${legacy_updater_secret_url}"
+
+write_base_config "$runtime_url_pass_fixture/.runtime-url-pass.env"
+cat >> "$runtime_url_pass_fixture/.runtime-url-pass.env" <<EOF_CONFIG
+PLUGIN_RUNTIME_UPDATE_PROVIDER=generic-json
+PLUGIN_RUNTIME_UPDATE_SOURCE_URL=${runtime_pass_url}
+EOF_CONFIG
+WP_PLUGIN_BASE_ROOT="$runtime_url_pass_fixture" bash "$VALIDATE_CONFIG" --scope project .runtime-url-pass.env >/dev/null
 
 echo "Config runtime-pack contract tests passed."

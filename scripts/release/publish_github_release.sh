@@ -51,16 +51,17 @@ if gh release view "$TAG_NAME" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; th
     exit 1
   fi
 
+  if [ "$#" -gt 0 ]; then
+    gh release upload "$TAG_NAME" "$@" --repo "${GITHUB_REPOSITORY}" --clobber
+  fi
+
   gh release edit "$TAG_NAME" \
     --repo "${GITHUB_REPOSITORY}" \
     --title "$RELEASE_TITLE" \
     --notes-file "$NOTES_FILE" \
+    --draft=false \
     --prerelease=false \
     --latest
-
-  if [ "$#" -gt 0 ]; then
-    gh release upload "$TAG_NAME" "$@" --repo "${GITHUB_REPOSITORY}" --clobber
-  fi
 
   exit 0
 fi

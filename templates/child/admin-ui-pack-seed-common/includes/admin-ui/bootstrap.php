@@ -9,6 +9,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if (
+	function_exists( 'is_admin' )
+	&& ! is_admin()
+	&& ! ( defined( 'WP_CLI' ) && WP_CLI )
+) {
+	return;
+}
+
 WP_Plugin_Base_Admin_UI_Loader::register_page(
 	array(
 		'page_title'             => '__PLUGIN_NAME__',

@@ -10,6 +10,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+$wp_plugin_base_runtime_updater_should_bootstrap = (
+	( function_exists( 'is_admin' ) && is_admin() )
+	|| ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() )
+	|| ( defined( 'DOING_CRON' ) && DOING_CRON )
+	|| ( defined( 'WP_CLI' ) && WP_CLI )
+);
+
+if ( function_exists( 'apply_filters' ) ) {
+	$wp_plugin_base_runtime_updater_should_bootstrap = (bool) apply_filters(
+		'__PLUGIN_SLUG___runtime_updater_should_bootstrap',
+		$wp_plugin_base_runtime_updater_should_bootstrap
+	);
+}
+
+if ( ! $wp_plugin_base_runtime_updater_should_bootstrap ) {
+	return;
+}
+
 $wp_plugin_base_puc_bootstrap = __DIR__ . '/plugin-update-checker/plugin-update-checker.php';
 if ( ! file_exists( $wp_plugin_base_puc_bootstrap ) ) {
 	return;

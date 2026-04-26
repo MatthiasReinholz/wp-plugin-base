@@ -7,7 +7,9 @@ ROOT_DIR="${1:?Usage: $0 <root-dir>}"
 audit_fixture=""
 zip_fixture=""
 forbidden_fixture=""
+admin_ui_budget_fixture=""
 authorization_fixture=""
+strict_tools_fixture=""
 deploy_protection_fixture=""
 deploy_local_project_fixture=""
 plugin_check_release_fixture=""
@@ -40,7 +42,7 @@ updater_missing_require_fixture=""
 updater_missing_runtime_fixture=""
 updater_disabled_fixture=""
 
-trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$authorization_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture" "$woocommerce_deploy_fixture" "$woocommerce_status_fixture" "$updater_fixture" "$updater_missing_require_fixture" "$updater_missing_runtime_fixture" "$updater_disabled_fixture"' EXIT
+trap 'rm -rf "$audit_fixture" "$zip_fixture" "$forbidden_fixture" "$admin_ui_budget_fixture" "$authorization_fixture" "$strict_tools_fixture" "$deploy_protection_fixture" "$deploy_local_project_fixture" "$plugin_check_release_fixture" "$plugin_check_resolve_output" "$external_dependency_pr_body" "$foundation_release_fixture" "$foundation_resolve_output" "$foundation_verify_fixture" "$foundation_verify_output" "$foundation_verify_verify_script" "$foundation_verify_release_json" "$foundation_verify_tag_ref_json" "$foundation_verify_compare_json" "$foundation_verify_pulls_json" "$foundation_verify_metadata_json" "$foundation_verify_sigstore_json" "$release_branch_source_fixture" "$release_branch_source_output" "$pr_stage_fixture" "$pr_stage_origin" "$pr_stage_output" "$pr_stage_helper_dir" "$release_publish_fixture" "$release_publish_output" "$wordpress_org_deploy_fixture" "$woocommerce_deploy_fixture" "$woocommerce_status_fixture" "$updater_fixture" "$updater_missing_require_fixture" "$updater_missing_runtime_fixture" "$updater_disabled_fixture"' EXIT
 
 plugin_check_release_fixture="$(mktemp)"
 cat > "$plugin_check_release_fixture" <<'EOF'
@@ -1124,6 +1126,102 @@ if ! WP_PLUGIN_BASE_ROOT="$authorization_fixture" bash "$ROOT_DIR/scripts/ci/sca
   exit 1
 fi
 
+cat > "$authorization_fixture/includes/rest-public.php" <<'EOF'
+<?php
+
+function fixture_allow_public_rest() {
+  return true;
+}
+
+register_rest_route(
+  'fixture/v1',
+  '/named-public',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => 'fixture_allow_public_rest',
+  )
+);
+
+\register_rest_route(
+  'fixture/v1',
+  '/arrow-public',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => fn() => true,
+  )
+);
+
+register_rest_route(
+  'fixture/v1',
+  '/static-public',
+  array(
+    'methods'             => 'GET',
+    'callback'            => '__return_null',
+    'permission_callback' => static function () {
+      return true;
+    },
+  )
+);
+
+register_rest_route(
+  'fixture/v1',
+  '/missing-permission',
+  array(
+    'methods'  => 'GET',
+    'callback' => '__return_null',
+  )
+);
+EOF
+
+if WP_PLUGIN_BASE_ROOT="$authorization_fixture" bash "$ROOT_DIR/scripts/ci/scan_wordpress_authorization_patterns.sh" >/dev/null 2>&1; then
+  echo "Authorization scan unexpectedly passed for public REST routes without suppressions." >&2
+  exit 1
+fi
+
+cat > "$authorization_fixture/.wp-plugin-base-security-suppressions.json" <<'EOF'
+{
+  "suppressions": [
+    {
+      "kind": "wp_ajax_nopriv",
+      "identifier": "my_public_action",
+      "path": "includes/public-endpoints.php",
+      "justification": "Public endpoint is required for unauthenticated preflight and only returns nonce-gated non-sensitive metadata."
+    },
+    {
+      "kind": "rest_permission_callback_true",
+      "identifier": "fixture/v1:/named-public",
+      "path": "includes/rest-public.php",
+      "justification": "Intentional public REST fixture for named callback scanner coverage."
+    },
+    {
+      "kind": "rest_permission_callback_true",
+      "identifier": "fixture/v1:/arrow-public",
+      "path": "includes/rest-public.php",
+      "justification": "Intentional public REST fixture for arrow callback scanner coverage."
+    },
+    {
+      "kind": "rest_permission_callback_true",
+      "identifier": "fixture/v1:/static-public",
+      "path": "includes/rest-public.php",
+      "justification": "Intentional public REST fixture for static closure scanner coverage."
+    },
+    {
+      "kind": "rest_permission_callback_missing",
+      "identifier": "fixture/v1:/missing-permission",
+      "path": "includes/rest-public.php",
+      "justification": "Intentional missing-permission fixture to prove suppression wiring only."
+    }
+  ]
+}
+EOF
+
+if ! WP_PLUGIN_BASE_ROOT="$authorization_fixture" bash "$ROOT_DIR/scripts/ci/scan_wordpress_authorization_patterns.sh" >/dev/null 2>&1; then
+  echo "Authorization scan unexpectedly failed for justified public REST route suppressions." >&2
+  exit 1
+fi
+
 deploy_protection_fixture="$(mktemp -d)"
 cat > "$deploy_protection_fixture/.wp-plugin-base.env" <<'EOF'
 PRODUCTION_ENVIRONMENT=production
@@ -1178,6 +1276,42 @@ if WP_PLUGIN_BASE_ROOT="$zip_fixture" bash "$ROOT_DIR/scripts/ci/validate_config
 fi
 
 rm -rf "$zip_fixture"
+
+admin_ui_budget_fixture="$(mktemp -d)"
+cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$admin_ui_budget_fixture/"
+cat >> "$admin_ui_budget_fixture/.wp-plugin-base.env" <<'EOF'
+REST_OPERATIONS_PACK_ENABLED=true
+ADMIN_UI_PACK_ENABLED=true
+BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh
+EOF
+mkdir -p "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui" "$admin_ui_budget_fixture/assets/admin-ui" "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui"
+cat > "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui/build.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+EOF
+chmod +x "$admin_ui_budget_fixture/.wp-plugin-base-admin-ui/build.sh"
+printf 'console.log("fixture");\n' > "$admin_ui_budget_fixture/assets/admin-ui/index.js"
+printf '.fixture{display:block;}\n' > "$admin_ui_budget_fixture/assets/admin-ui/style-index.css"
+cat > "$admin_ui_budget_fixture/assets/admin-ui/index.asset.php" <<'EOF'
+<?php
+return array(
+  'dependencies' => array(),
+  'version'      => 'fixture',
+);
+EOF
+cp "$admin_ui_budget_fixture/assets/admin-ui/"* "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/"
+( cd "$admin_ui_budget_fixture/dist/package" && zip -q "../standard-plugin.zip" standard-plugin/assets/admin-ui/index.js standard-plugin/assets/admin-ui/index.asset.php standard-plugin/assets/admin-ui/style-index.css )
+WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null
+if WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_BYTES=4 bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null 2>&1; then
+  echo "Admin UI pack validation unexpectedly passed with an undersized script budget." >&2
+  exit 1
+fi
+
+strict_tools_fixture="$(mktemp -d)"
+if WP_PLUGIN_BASE_INSTALL_TOOLS_OS=Plan9 WP_PLUGIN_BASE_INSTALL_TOOLS_ARCH=weird bash "$ROOT_DIR/scripts/ci/install_lint_tools.sh" "$strict_tools_fixture" shellcheck >/dev/null 2>&1; then
+  echo "Strict-local tool installation unexpectedly passed on an unsupported platform." >&2
+  exit 1
+fi
 
 release_branch_source_fixture="$(mktemp -d)"
 mkdir -p "$release_branch_source_fixture/bin"
@@ -1433,6 +1567,14 @@ if ! git -C "$pr_auth_fixture" config --local --get-all http.https://github.com/
   echo "PR automation did not configure GitHub HTTPS authentication from the explicit GH_TOKEN." >&2
   exit 1
 fi
+if grep -Fq 'fixture-pr-token' "$PR_AUTH_GIT_LOG"; then
+  echo "PR automation leaked the explicit GH_TOKEN through git process arguments." >&2
+  exit 1
+fi
+if git -C "$pr_auth_fixture" config --local --get-regexp '^url\\..*\\.insteadOf$' | grep -Fq 'fixture-pr-token'; then
+  echo "PR automation persisted a token-bearing URL rewrite." >&2
+  exit 1
+fi
 
 pr_workflow_permission_fixture="$(mktemp -d)"
 pr_workflow_permission_origin="$(mktemp -d)"
@@ -1519,6 +1661,10 @@ if [ "$1" = "release" ] && [ "$2" = "view" ]; then
   fi
   exit 1
 fi
+if [ "$1" = "release" ] && [ "$2" = "upload" ] && [ "${RELEASE_UPLOAD_SHOULD_FAIL:-false}" = "true" ]; then
+  echo "fixture upload failure" >&2
+  exit 1
+fi
 if [ "$1" = "release" ] && { [ "$2" = "edit" ] || [ "$2" = "upload" ] || [ "$2" = "create" ]; }; then
   exit 0
 fi
@@ -1574,8 +1720,37 @@ fi
 )
 grep -Fq 'release edit v1.2.3' "$release_publish_output"
 grep -Fq 'release upload v1.2.3' "$release_publish_output"
+grep -Fq -- '--draft=false' "$release_publish_output"
+upload_line="$(grep -nF 'release upload v1.2.3' "$release_publish_output" | head -n 1 | cut -d: -f1)"
+edit_line="$(grep -nF 'release edit v1.2.3' "$release_publish_output" | head -n 1 | cut -d: -f1)"
+if [ "$upload_line" -ge "$edit_line" ]; then
+  echo "Release repair must upload assets before publishing repaired metadata." >&2
+  exit 1
+fi
 if grep -Fq 'release create' "$release_publish_output"; then
   echo "Release repair unexpectedly recreated the release instead of editing it." >&2
+  exit 1
+fi
+: > "$release_publish_output"
+if (
+  cd "$release_publish_fixture"
+  PATH="$release_publish_fixture/bin:$PATH" \
+    GITHUB_REPOSITORY="example/repo" \
+    RELEASE_PUBLISH_LOG="$release_publish_output" \
+    RELEASE_ALREADY_EXISTS=true \
+    RELEASE_UPLOAD_SHOULD_FAIL=true \
+    bash "$ROOT_DIR/scripts/release/publish_github_release.sh" \
+      --repair \
+      "v1.2.3" \
+      "Release v1.2.3" \
+      "$release_publish_fixture/notes.md" \
+      "$release_publish_fixture/asset.txt"
+); then
+  echo "Release repair unexpectedly passed when asset replacement failed." >&2
+  exit 1
+fi
+if grep -Fq 'release edit v1.2.3' "$release_publish_output"; then
+  echo "Release repair edited release metadata after asset replacement failed." >&2
   exit 1
 fi
 
@@ -1951,6 +2126,90 @@ WP_PLUGIN_BASE_ROOT="$updater_fixture" bash "$ROOT_DIR/scripts/ci/build_zip.sh"
 updater_zip_listing="$(unzip -Z1 "$updater_fixture/dist/standard-plugin.zip")"
 grep -Fq 'standard-plugin/lib/wp-plugin-base/wp-plugin-base-github-updater.php' <<<"$updater_zip_listing"
 grep -Fq 'standard-plugin/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php' <<<"$updater_zip_listing"
+
+cat > "$updater_fixture/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php" <<'EOF'
+<?php
+namespace YahnisElsts\PluginUpdateChecker\v5;
+
+class PucFactory {
+  public static $built = array();
+
+  public static function buildUpdateChecker( $source_url, $main_file, $slug ) {
+    self::$built[] = array( $source_url, $main_file, $slug );
+    return new Fixture_Checker();
+  }
+}
+
+class Fixture_Checker {
+  public function getVcsApi() {
+    return new Fixture_Vcs_Api();
+  }
+}
+
+class Fixture_Vcs_Api {
+  public function enableReleaseAssets( $pattern ) {
+    $GLOBALS['wp_plugin_base_runtime_updater_asset_pattern'] = $pattern;
+  }
+}
+EOF
+
+WP_PLUGIN_BASE_UPDATER_FILE="$updater_fixture/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php" php <<'PHP'
+<?php
+define( 'ABSPATH', '/' );
+function is_admin() {
+  return false;
+}
+function wp_doing_cron() {
+  return false;
+}
+function apply_filters( $hook_name, $value ) {
+  return $value;
+}
+
+require getenv( 'WP_PLUGIN_BASE_UPDATER_FILE' );
+
+if ( class_exists( '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory', false ) ) {
+  fwrite( STDERR, "Runtime updater unexpectedly loaded Plugin Update Checker on a frontend request.\n" );
+  exit( 1 );
+}
+PHP
+
+WP_PLUGIN_BASE_UPDATER_FILE="$updater_fixture/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php" php <<'PHP'
+<?php
+define( 'ABSPATH', '/' );
+function is_admin() {
+  return true;
+}
+function wp_doing_cron() {
+  return false;
+}
+function apply_filters( $hook_name, $value ) {
+  return $value;
+}
+
+require getenv( 'WP_PLUGIN_BASE_UPDATER_FILE' );
+
+if ( ! class_exists( '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory', false ) ) {
+  fwrite( STDERR, "Runtime updater did not load Plugin Update Checker in admin context.\n" );
+  exit( 1 );
+}
+
+if ( 1 !== count( \YahnisElsts\PluginUpdateChecker\v5\PucFactory::$built ) ) {
+  fwrite( STDERR, "Runtime updater did not build exactly one update checker.\n" );
+  exit( 1 );
+}
+
+$built = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::$built[0];
+if ( 'https://github.com/example/standard-plugin' !== $built[0] || 'standard-plugin' !== $built[2] ) {
+  fwrite( STDERR, "Runtime updater passed unexpected source URL or slug into PUC.\n" );
+  exit( 1 );
+}
+
+if ( '/\\.zip($|[?&#])/i' !== ( $GLOBALS['wp_plugin_base_runtime_updater_asset_pattern'] ?? '' ) ) {
+  fwrite( STDERR, "Runtime updater did not restrict release assets to ZIP files.\n" );
+  exit( 1 );
+}
+PHP
 
 updater_missing_require_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$updater_missing_require_fixture/"

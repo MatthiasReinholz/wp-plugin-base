@@ -135,7 +135,7 @@
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
-        "pattern": "SHELLCHECK_VERSION='0.10.0'"
+        "pattern": "SHELLCHECK_VERSION='0.11.0'"
       }
     },
     {
@@ -147,7 +147,7 @@
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
-        "pattern": "ACTIONLINT_VERSION='1.7.7'"
+        "pattern": "ACTIONLINT_VERSION='1.7.12'"
       }
     },
     {
@@ -183,7 +183,7 @@
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "SYFT_VERSION='1.42.3'"
+        "pattern": "SYFT_VERSION='1.43.0'"
       }
     },
     {

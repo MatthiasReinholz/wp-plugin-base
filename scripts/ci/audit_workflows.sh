@@ -679,7 +679,7 @@ while IFS=: read -r file line url; do
     fi
     exit 1
   fi
-done < <(perl -ne 'while (m{(https?://[^\s"'\''()]+)}g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
+done < <(perl -ne 'while (m#(https?://[^\s"'\''()\$\{\}]+)#g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
 
 while IFS=: read -r file line content; do
   [ -n "$content" ] || continue

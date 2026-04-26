@@ -7,6 +7,7 @@ The shared release model is:
 - `prepare-release` creates or updates `release/x.y.z`
 - merging `release/*` or `hotfix/*` into `main` publishes from the selected downstream host
 - GitHub uses the managed finalize workflow to create the annotated tag and publish release artifacts automatically
+- GitHub stable tags are owned by the release PR/finalize flow; the managed `publish-tag-release.yml` workflow only publishes trusted prerelease tags such as `v1.2.3-beta.1`
 - GitLab uses a managed release MR plus a manual tag push after merge to trigger the tag pipeline and publish release artifacts
 - the repair flow verifies that the tag exists remotely, checks out that exact tag, and repairs the host release when it already exists
 - publish only succeeds for versions that match the merge commit of the correct merged release or hotfix PR
@@ -34,7 +35,8 @@ External automation/downstream consumers such as `wp-core-base` should consume t
 
 ## Repair Entry Points
 
-- GitHub: run the manual `release.yml` workflow for the existing tag; run `woocommerce-status.yml` as a separate diagnostics step when WooCommerce.com is enabled
+- GitHub stable release: run the manual `release.yml` workflow for the existing stable tag; run `woocommerce-status.yml` as a separate diagnostics step when WooCommerce.com is enabled
+- GitHub prerelease: push or rerun the trusted prerelease tag so `publish-tag-release.yml` creates or repairs the prerelease GitHub Release with ZIP, SBOM, and Sigstore assets
 - GitLab: rerun the tagged `release` job in the managed `.gitlab-ci.yml` for the existing tag; there is no separate WooCommerce status workflow on GitLab
 
 ## Migration Note

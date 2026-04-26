@@ -170,6 +170,48 @@ validate_https_url() {
   fi
 }
 
+validate_url_without_secrets() {
+  local value="$1"
+  local label="$2"
+  local remainder
+  local authority
+
+  remainder="${value#https://}"
+  authority="${remainder%%/*}"
+  authority="${authority%%\?*}"
+  authority="${authority%%#*}"
+
+  if [[ "$authority" = *@* ]]; then
+    echo "${label} must not include URL credentials: ${value}" >&2
+    exit 1
+  fi
+
+  if [[ "$value" = *\?* || "$value" = *#* ]]; then
+    echo "${label} must not include query strings or fragments: ${value}" >&2
+    exit 1
+  fi
+}
+
+validate_public_https_url() {
+  local value="$1"
+  local label="$2"
+  local host=""
+
+  validate_https_url "$value" "$label"
+  validate_url_without_secrets "$value" "$label"
+
+  host="$(wp_plugin_base_url_host "$value")"
+  if [ -z "$host" ]; then
+    echo "Invalid ${label}: ${value}" >&2
+    exit 1
+  fi
+
+  if wp_plugin_base_host_is_local_or_private "$host"; then
+    echo "${label} must not use localhost, private-network, link-local, or *.internal hosts: ${host}" >&2
+    exit 1
+  fi
+}
+
 validate_trusted_git_host() {
   local host="$1"
   local label="$2"
@@ -338,12 +380,8 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${ADMIN_UI_STARTER:-}" '^$|^(basic|dataviews)$' 'ADMIN_UI_STARTER'
   validate_regex "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS:-false}" '^(true|false)$' 'ADMIN_UI_EXPERIMENTAL_DATAVIEWS'
   validate_regex "${ADMIN_UI_NPM_AUDIT_LEVEL:-high}" '^(high|critical)$' 'ADMIN_UI_NPM_AUDIT_LEVEL'
-  if [ -n "${PLUGIN_RUNTIME_UPDATE_SOURCE_URL:-}" ]; then
-    validate_https_url "$PLUGIN_RUNTIME_UPDATE_SOURCE_URL" 'PLUGIN_RUNTIME_UPDATE_SOURCE_URL'
-  fi
-
   if [ -n "${GITHUB_RELEASE_UPDATER_REPO_URL:-}" ]; then
-    validate_https_url "$GITHUB_RELEASE_UPDATER_REPO_URL" 'GITHUB_RELEASE_UPDATER_REPO_URL'
+    validate_public_https_url "$GITHUB_RELEASE_UPDATER_REPO_URL" 'GITHUB_RELEASE_UPDATER_REPO_URL'
     if [[ "$GITHUB_RELEASE_UPDATER_REPO_URL" != https://github.com/* ]]; then
       echo "Invalid GITHUB_RELEASE_UPDATER_REPO_URL: ${GITHUB_RELEASE_UPDATER_REPO_URL}" >&2
       exit 1
@@ -354,6 +392,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
       echo "Invalid GITHUB_RELEASE_UPDATER_REPO_URL: ${GITHUB_RELEASE_UPDATER_REPO_URL}" >&2
       exit 1
     fi
+  fi
+
+  if [ -n "${PLUGIN_RUNTIME_UPDATE_SOURCE_URL:-}" ]; then
+    validate_public_https_url "$PLUGIN_RUNTIME_UPDATE_SOURCE_URL" 'PLUGIN_RUNTIME_UPDATE_SOURCE_URL'
   fi
 
   https_scheme_regex='https:'
@@ -389,6 +431,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
         echo "PLUGIN_RUNTIME_UPDATE_PROVIDER=generic-json requires PLUGIN_RUNTIME_UPDATE_SOURCE_URL." >&2
         exit 1
       fi
+      validate_public_https_url "$PLUGIN_RUNTIME_UPDATE_SOURCE_URL" 'PLUGIN_RUNTIME_UPDATE_SOURCE_URL'
       ;;
   esac
 

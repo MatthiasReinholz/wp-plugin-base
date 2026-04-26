@@ -25,6 +25,33 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 		private static $operations = array();
 
 		/**
+		 * Child-owned bootstrap path, loaded on first registry read.
+		 *
+		 * @var string
+		 */
+		private static $bootstrap_path = '';
+
+		/**
+		 * Whether the child bootstrap has already been loaded.
+		 *
+		 * @var bool
+		 */
+		private static $bootstrap_loaded = false;
+
+		/**
+		 * Defers child-owned operation manifest loading until first use.
+		 *
+		 * @since NEXT
+		 *
+		 * @param string $bootstrap_path Child operation bootstrap path.
+		 * @return void
+		 */
+		public static function set_bootstrap_path( $bootstrap_path ) {
+			self::$bootstrap_path   = (string) $bootstrap_path;
+			self::$bootstrap_loaded = false;
+		}
+
+		/**
 		 * Registers a batch of operations.
 		 *
 		 * @since NEXT
@@ -62,6 +89,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 		 * @return array<int,array<string,mixed>>
 		 */
 		public static function all() {
+			self::ensure_loaded();
+
 			return array_values( self::$operations );
 		}
 
@@ -73,6 +102,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 		 * @return array<string,array<string,mixed>>
 		 */
 		public static function summary() {
+			self::ensure_loaded();
+
 			$summary = array();
 
 			foreach ( self::$operations as $operation_id => $operation ) {
@@ -84,6 +115,29 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Registry' ) ) {
 			}
 
 			return $summary;
+		}
+
+		/**
+		 * Loads the child-owned operation manifest once.
+		 *
+		 * @since NEXT
+		 *
+		 * @return void
+		 */
+		private static function ensure_loaded() {
+			if ( self::$bootstrap_loaded ) {
+				return;
+			}
+
+			self::$bootstrap_loaded = true;
+			if ( '' === self::$bootstrap_path || ! file_exists( self::$bootstrap_path ) ) {
+				return;
+			}
+
+			$operations = require self::$bootstrap_path;
+			if ( is_array( $operations ) ) {
+				self::register_many( $operations );
+			}
 		}
 	}
 }

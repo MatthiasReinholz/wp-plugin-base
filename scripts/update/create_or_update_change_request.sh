@@ -97,19 +97,12 @@ configure_github_git_auth() {
 
 git_push_with_auth() {
   local token=""
-  local scheme=""
-  local rewrite_base=""
 
   if [ "$AUTOMATION_PROVIDER" = "github" ]; then
     token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -n "$token" ]; then
       configure_github_git_auth
-      scheme="https:"
-      rewrite_base="${scheme}//x-access-token:${token}"
-      rewrite_base="${rewrite_base}@github.com/"
-      git -C "$ROOT_DIR" \
-        -c "url.${rewrite_base}.insteadOf=${scheme}//github.com/" \
-        push "$@"
+      git -C "$ROOT_DIR" push "$@"
       return
     fi
   fi

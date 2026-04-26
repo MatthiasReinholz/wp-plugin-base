@@ -44,11 +44,15 @@ Future Layer 2 additions should stay constrained to optional runtime concerns su
 
 ## Layer 3: Optional Packs
 
-Future opt-in modules can sit above the foundation, for example:
+Current opt-in readiness packs sit above the foundation and remain additive:
 
-- quality packs for child repos
+- WordPress quality pack files when `WORDPRESS_QUALITY_PACK_ENABLED=true`
+- WordPress security pack files when `WORDPRESS_SECURITY_PACK_ENABLED=true`
+- WooCommerce-oriented release/QIT helpers when explicitly enabled
+
+Future opt-in modules can follow the same pattern, for example:
+
 - example plugin repos
-- WordPress.org deployment presets
 - WooCommerce-oriented runtime starters
 
 Those modules should remain additive and should not change the Layer 1 contract without a major version.

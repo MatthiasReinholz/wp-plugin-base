@@ -5,9 +5,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
 
 CONFIG_OVERRIDE="${1:-}"
 
+wp_plugin_base_require_commands "WordPress authorization pattern scan" php
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
 SUPPRESSIONS_FILE="${WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE:-.wp-plugin-base-security-suppressions.json}"
@@ -27,14 +30,14 @@ if [ -f "$SUPPRESSIONS_PATH" ]; then
     ((.suppressions // []) | type == "array") and
     all((.suppressions // [])[];
       (.kind | type == "string") and
-      (.kind == "wp_ajax_nopriv" or .kind == "admin_post_nopriv" or .kind == "rest_permission_callback_true" or .kind == "rest_public_operation" or .kind == "rest_route_bypass") and
+      (.kind == "wp_ajax_nopriv" or .kind == "admin_post_nopriv" or .kind == "rest_permission_callback_true" or .kind == "rest_permission_callback_missing" or .kind == "rest_public_operation" or .kind == "rest_route_bypass") and
       (.identifier | type == "string") and
       (.path | type == "string") and
       (.justification | type == "string") and
       ((.justification | gsub("^[[:space:]]+|[[:space:]]+$"; "") | length) > 0)
     )
   ' "$SUPPRESSIONS_PATH" >/dev/null; then
-    echo "Invalid suppression file format in $SUPPRESSIONS_FILE. Each suppression requires kind in {wp_ajax_nopriv, admin_post_nopriv, rest_permission_callback_true, rest_public_operation, rest_route_bypass}, identifier, path, and non-empty justification." >&2
+    echo "Invalid suppression file format in $SUPPRESSIONS_FILE. Each suppression requires kind in {wp_ajax_nopriv, admin_post_nopriv, rest_permission_callback_true, rest_permission_callback_missing, rest_public_operation, rest_route_bypass}, identifier, path, and non-empty justification." >&2
     exit 1
   fi
 fi
@@ -94,22 +97,9 @@ for file in "${php_files[@]}"; do
 
     matches+=("$relative_path:$line:$message (kind=$kind, identifier=$identifier)")
   done < <(
-    perl -0ne '
-      while (/register_rest_route\s*\((.*?)\)\s*;/sg) {
-        my $route_call = $&;
-        next unless $route_call =~ /permission_callback/s;
-        if ($route_call =~ /permission_callback\s*=>\s*["'"'"']__return_true["'"'"']/s) {
-          my $offset = pos() - length($route_call);
-          my $prefix = substr($_, 0, $offset);
-          my $line = 1 + ($prefix =~ tr/\n//);
-          my $identifier = "__return_true";
-          if ($route_call =~ /register_rest_route\s*\(\s*["'"'"']([^"'"'"']+)["'"'"']\s*,\s*["'"'"']([^"'"'"']+)["'"'"']/s) {
-            $identifier = "$1:$2";
-          }
-          print "rest_permission_callback_true\t$line\t$identifier\tRegistering a REST route with permission_callback => __return_true requires explicit security review.\n";
-        }
-      }
+    php "$SCRIPT_DIR/php_wordpress_authorization_scanner.php" "$file"
 
+    perl -0ne '
       while (/add_action\s*\(\s*["'"'"']wp_ajax_nopriv_([^"'"'"']+)["'"'"']/sg) {
         my $offset = pos() - length($&);
         my $prefix = substr($_, 0, $offset);

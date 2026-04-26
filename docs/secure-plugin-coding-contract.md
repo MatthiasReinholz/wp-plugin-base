@@ -51,6 +51,7 @@ Allowed `kind` values:
 - `wp_ajax_nopriv`
 - `admin_post_nopriv`
 - `rest_permission_callback_true`
+- `rest_permission_callback_missing`
 - `rest_public_operation`
 - `rest_route_bypass`
 

@@ -9,6 +9,8 @@ Add to `.wp-plugin-base.env`:
 - `PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json`
 - `PLUGIN_RUNTIME_UPDATE_SOURCE_URL=<provider URL>`
 
+The source URL must be a public HTTPS URL without credentials, query strings, fragments, localhost/private-network hosts, or token-bearing material. It is rendered into the shipped plugin.
+
 Host-backed providers must match the selected downstream host:
 
 - `github-release` requires `AUTOMATION_PROVIDER=github`
@@ -28,6 +30,7 @@ require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';
 ## What this provides
 
 - WordPress in-dashboard update checks for the configured runtime update provider.
+- Bootstrap is limited to admin, cron, WP-CLI, and explicit updater contexts so normal frontend requests do not load Plugin Update Checker.
 - Release asset ZIP filtering to avoid SBOM/signature artifacts.
 - No behavior change unless explicitly enabled.
 - Do not embed long-lived secrets in `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`.

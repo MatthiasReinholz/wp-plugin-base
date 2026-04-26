@@ -147,11 +147,12 @@ The selected host release flow publishes the Git tag/release first, then runs do
 
 Repair path:
 
-1. on GitHub, run `release.yml` for the existing release tag
-2. on GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`
-3. review WordPress.org/WooCommerce.com channel logs
-4. on GitHub, run `woocommerce-status.yml` when Woo is enabled
-5. rerun the same host-specific repair path until the failed channel succeeds or reports already-live state
+1. on GitHub stable releases, run `release.yml` for the existing release tag
+2. on GitHub prereleases, rerun the trusted prerelease tag through `publish-tag-release.yml`
+3. on GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`
+4. review WordPress.org/WooCommerce.com channel logs
+5. on GitHub, run `woocommerce-status.yml` when Woo is enabled
+6. rerun the same host-specific repair path until the failed channel succeeds or reports already-live state
 
 If a tag with the release version exists on a different commit, stop and resolve the mismatch manually before retrying automated release flows.
 

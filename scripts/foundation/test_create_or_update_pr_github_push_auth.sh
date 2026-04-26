@@ -58,23 +58,22 @@ set -euo pipefail
 
 real_git="$real_git"
 auth_marker="$auth_marker"
-scheme="https:"
-expected_config="url.\${scheme}//x-access-token:fixture-token"
-expected_config="\${expected_config}@github.com/.insteadOf=\${scheme}//github.com/"
+argv_log="$helper_dir/git-argv.log"
+expected_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' 'fixture-token' | base64 | tr -d '\n')"
 
 saw_push=false
-saw_auth=false
 for arg in "\$@"; do
+  printf '%s\n' "\$arg" >> "\$argv_log"
   if [ "\$arg" = "push" ]; then
     saw_push=true
   fi
-  if [ "\$arg" = "\$expected_config" ]; then
-    saw_auth=true
-  fi
 done
 
-if [ "\$saw_push" = true ] && [ "\$saw_auth" = true ]; then
-  : > "\$auth_marker"
+if [ "\$saw_push" = true ]; then
+  configured_header="\$("\$real_git" config --local --get-all http.https://github.com/.extraheader || true)"
+  if [ "\$configured_header" = "\$expected_header" ]; then
+    : > "\$auth_marker"
+  fi
 fi
 
 exec "\$real_git" "\$@"
@@ -99,7 +98,17 @@ printf '%s\n' 'release prep' >> "$fixture_repo/README.md"
 )
 
 if [ ! -f "$auth_marker" ]; then
-  echo "create_or_update_pr did not inject GitHub token auth into git push." >&2
+  echo "create_or_update_pr did not configure GitHub token auth before git push." >&2
+  exit 1
+fi
+
+if grep -Fq 'fixture-token' "$helper_dir/git-argv.log"; then
+  echo "create_or_update_pr leaked the GitHub token through git process arguments." >&2
+  exit 1
+fi
+
+if git -C "$fixture_repo" config --local --get-regexp '^url\\..*\\.insteadOf$' | grep -Fq 'fixture-token'; then
+  echo "create_or_update_pr persisted a token-bearing URL rewrite." >&2
   exit 1
 fi
 
