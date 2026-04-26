@@ -415,6 +415,7 @@ EOF
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 grep -Fq '@wordpress/dataviews' "$runtime_pack_abilities_fixture/.wp-plugin-base-admin-ui/package.json"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
+bash "$ROOT_DIR/scripts/foundation/test_wordpress_env_retry.sh"
 bash "$ROOT_DIR/scripts/foundation/test_runtime_packs_wordpress.sh"
 
 rm -rf "$runtime_pack_abilities_fixture"

@@ -78,7 +78,7 @@ run_variant() {
   ' "$wp_env_config"
 
   WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
-    wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null
+    wp_plugin_base_wordpress_env_start_with_retry "$wp_env_tools_dir" --config="$wp_env_config"
 
   mounted_plugin_dir="$(basename "$fixture_dir")"
   plugin_entry="${mounted_plugin_dir}/runtime-pack-ready.php"
