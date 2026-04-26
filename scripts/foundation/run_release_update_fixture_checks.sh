@@ -1352,7 +1352,11 @@ return array(
   'version'      => 'fixture',
 );
 EOF
-cp "$admin_ui_budget_fixture/assets/admin-ui/"index.js "$admin_ui_budget_fixture/assets/admin-ui/"index.asset.php "$admin_ui_budget_fixture/assets/admin-ui/"style-index.css "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/"
+cp \
+  "$admin_ui_budget_fixture/assets/admin-ui/index.js" \
+  "$admin_ui_budget_fixture/assets/admin-ui/index.asset.php" \
+  "$admin_ui_budget_fixture/assets/admin-ui/style-index.css" \
+  "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/"
 cp "$admin_ui_budget_fixture/assets/admin-ui/media/large.bin" "$admin_ui_budget_fixture/dist/package/standard-plugin/assets/admin-ui/media/"
 ( cd "$admin_ui_budget_fixture/dist/package" && zip -q "../standard-plugin.zip" standard-plugin/assets/admin-ui/index.js standard-plugin/assets/admin-ui/index.asset.php standard-plugin/assets/admin-ui/style-index.css standard-plugin/assets/admin-ui/media/large.bin )
 WP_PLUGIN_BASE_ROOT="$admin_ui_budget_fixture" bash "$ROOT_DIR/scripts/ci/check_admin_ui_pack.sh" >/dev/null
