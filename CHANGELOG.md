@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.12
+
+* Guard foundation changelog hygiene (#119)
+
 ## v1.7.11
 
 * Harden child repository ergonomics (#117)
