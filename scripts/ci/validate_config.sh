@@ -313,6 +313,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_trusted_git_url "$AUTOMATION_API_BASE" 'AUTOMATION_API_BASE'
   validate_regex "${PHP_RUNTIME_MATRIX:-}" '^$|^[0-9]+(\.[0-9]+){0,2}(,[0-9]+(\.[0-9]+){0,2})*$' 'PHP_RUNTIME_MATRIX'
   validate_regex "$PHP_RUNTIME_MATRIX_MODE" '^(smoke|strict)$' 'PHP_RUNTIME_MATRIX_MODE'
+  validate_regex "${PHPSTAN_MEMORY_LIMIT:-}" '^$|^-1$|^[1-9][0-9]*[KMGkmg]?$' 'PHPSTAN_MEMORY_LIMIT'
   validate_file "$MAIN_PLUGIN_FILE" "Main plugin file"
   validate_file "$README_FILE" "Readme file"
 

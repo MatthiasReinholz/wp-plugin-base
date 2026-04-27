@@ -51,6 +51,7 @@ if (! $configPath || ! file_exists($configPath)) {
 $configContents = (string) file_get_contents($configPath);
 $expectedDist = (string) getenv('WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_DIST');
 $expectedOverlay = (string) getenv('WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_OVERLAY');
+$expectedMemoryLimit = (string) getenv('WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_MEMORY_LIMIT');
 
 if (false === strpos($configContents, $expectedDist)) {
     fwrite(STDERR, "Generated PHPStan config did not include phpstan.neon.dist.\n");
@@ -59,6 +60,11 @@ if (false === strpos($configContents, $expectedDist)) {
 
 if (false === strpos($configContents, $expectedOverlay)) {
     fwrite(STDERR, "Generated PHPStan config did not include the child-owned phpstan.neon overlay.\n");
+    exit(1);
+}
+
+if ($expectedMemoryLimit && ! in_array('--memory-limit=' . $expectedMemoryLimit, $argv, true)) {
+    fwrite(STDERR, "PHPStan fallback test did not receive the expected memory limit.\n");
     exit(1);
 }
 
@@ -91,6 +97,8 @@ WP_PLUGIN_BASE_ROOT="$FIXTURE_DIR" \
 WP_PLUGIN_BASE_TEST_LOG="$LOG_FILE" \
 WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_DIST="$FIXTURE_DIR/phpstan.neon.dist" \
 WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_OVERLAY="$FIXTURE_DIR/phpstan.neon" \
+WP_PLUGIN_BASE_TEST_EXPECTED_PHPSTAN_MEMORY_LIMIT="768M" \
+PHPSTAN_MEMORY_LIMIT="768M" \
 bash "$ROOT_DIR/scripts/ci/run_quality_pack.sh" >/dev/null
 
 grep -Fq 'composer:--working-dir=' "$LOG_FILE" || {

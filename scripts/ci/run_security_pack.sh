@@ -38,10 +38,14 @@ audit_npm_lockfile() {
     exit 1
   fi
 
-  (
-    cd "$audit_dir"
-    NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --audit-level="$audit_level" "$@"
-  )
+  npm_audit_command() {
+    (
+      cd "$audit_dir"
+      NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm audit --package-lock-only --audit-level="$audit_level" "$@"
+    )
+  }
+
+  wp_plugin_base_run_with_retry 3 5 "${description} npm audit" npm_audit_command "$@"
 }
 
 cleanup() {
@@ -78,14 +82,18 @@ composer_install_command() {
 
 wp_plugin_base_run_with_retry 3 2 "Security pack Composer install" composer_install_command
 
-docker run --rm \
-  -u "$(id -u):$(id -g)" \
-  -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-  -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
-  -v "$COMPOSER_WORK_DIR":/workspace \
-  -w /workspace \
-  "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-  audit --locked --no-interaction
+security_pack_composer_audit_command() {
+  docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+    -v "$COMPOSER_WORK_DIR":/workspace \
+    -w /workspace \
+    "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+    audit --locked --no-interaction
+}
+
+wp_plugin_base_run_with_retry 3 5 "Security pack Composer audit" security_pack_composer_audit_command
 
 php "$COMPOSER_WORK_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs-security.xml.dist"
 if wp_plugin_base_is_true "${WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP:-false}"; then
@@ -103,14 +111,18 @@ fi
 bash "$SCRIPT_DIR/scan_wordpress_authorization_patterns.sh" "$CONFIG_OVERRIDE"
 
 if [ -f "$ROOT_DIR/composer.lock" ] && [ -f "$ROOT_DIR/composer.json" ]; then
-  docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-    -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
-    -v "$ROOT_DIR":/workspace \
-    -w /workspace \
-    "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-    audit --locked --no-interaction --no-dev
+  root_composer_audit_command() {
+    docker run --rm \
+      -u "$(id -u):$(id -g)" \
+      -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+      -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+      -v "$ROOT_DIR":/workspace \
+      -w /workspace \
+      "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+      audit --locked --no-interaction --no-dev
+  }
+
+  wp_plugin_base_run_with_retry 3 5 "Root Composer dependency audit" root_composer_audit_command
 else
   echo "No root composer.lock found; skipping Composer dependency audit."
 fi

@@ -129,7 +129,12 @@ WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/updat
 test -f "$custom_suppressions_fixture/.security/custom-security-suppressions.json"
 test ! -e "$custom_suppressions_fixture/.wp-plugin-base-security-suppressions.json"
 managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" ".wp-plugin-base.env")"
-grep -Fxq '.security/custom-security-suppressions.json' <<<"$managed_paths_output"
+stage_paths_output="$(WP_PLUGIN_BASE_ROOT="$custom_suppressions_fixture" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" --mode stage ".wp-plugin-base.env")"
+grep -Fxq '.security/custom-security-suppressions.json' <<<"$stage_paths_output"
+if grep -Fxq '.security/custom-security-suppressions.json' <<<"$managed_paths_output"; then
+  echo "Custom security suppressions should be staged but not listed as managed." >&2
+  exit 1
+fi
 grep -Fxq '.phpcs.xml.dist' <<<"$managed_paths_output"
 grep -Fxq '.phpcs-security.xml.dist' <<<"$managed_paths_output"
 grep -Fq '/.security/custom-security-suppressions.json' "$custom_suppressions_fixture/.distignore"

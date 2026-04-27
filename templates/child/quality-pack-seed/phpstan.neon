@@ -1,9 +1,16 @@
 # Child-owned PHPStan overlay loaded after phpstan.neon.dist.
 #
-# Add repo-specific bootstrapFiles, scanFiles, or exclusions here when the
-# managed WordPress quality pack is enabled.
+# Add repo-specific paths, excludePaths, bootstrapFiles, and scanFiles here
+# when the managed WordPress quality pack is enabled. Set PHPSTAN_MEMORY_LIMIT
+# in .wp-plugin-base.env if local PHP memory limits need tuning.
 #
 # Example:
 # parameters:
+#   paths:
+#     - includes
+#     - __MAIN_PLUGIN_FILE__
+#   excludePaths:
+#     - vendor
+#     - .wp-plugin-base
 #   bootstrapFiles:
 #     - vendor/autoload.php

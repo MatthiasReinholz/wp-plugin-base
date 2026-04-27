@@ -28,6 +28,7 @@ wp_plugin_base_quality_pack_template_mode() {
     ".wp-plugin-base-quality-pack/composer.lock" | \
     "phpunit.xml.dist" | \
     "tests/bootstrap.php" | \
+    "tests/wp-plugin-base/BootstrapTest.php" | \
     "tests/wp-plugin-base/PluginLoadsTest.php")
       if wp_plugin_base_quality_pack_is_full_enabled || wp_plugin_base_quality_pack_phpunit_bridge_enabled; then
         printf 'phpunit-bridge\n'

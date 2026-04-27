@@ -1,4 +1,4 @@
 [codespell]
-skip = .git,node_modules,dist,package-lock.json,tools/wordpress-env/package-lock.json,templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker
+skip = .git,.wp-plugin-base-tools,node_modules,dist,package-lock.json,tools/wordpress-env/package-lock.json,templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker
 ignore-words-list = Agressive,agressive
 quiet-level = 2

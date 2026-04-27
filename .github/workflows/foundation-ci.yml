@@ -47,9 +47,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install foundation lint and security tools
+      - name: Install foundation assurance tools
         run: |
           bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
           echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
 
       - name: Validate foundation
@@ -112,9 +113,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install foundation lint and security tools
+      - name: Install foundation assurance tools
         run: |
           bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
           echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
 
       - name: Validate full foundation

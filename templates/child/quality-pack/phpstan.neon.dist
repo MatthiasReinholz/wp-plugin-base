@@ -6,7 +6,9 @@ parameters:
     - .git (?)
     - .github (?)
     - .wp-plugin-base (?)
+    - .wp-plugin-base-admin-ui (?)
     - .wp-plugin-base-quality-pack (?)
+    - .wp-plugin-base-security-pack (?)
     - dist (?)
     - node_modules (?)
     - tests

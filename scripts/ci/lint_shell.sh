@@ -25,6 +25,7 @@ while IFS= read -r file; do
   shell_files+=("$file")
 done < <(find "$ROOT_DIR" \
   -path "$ROOT_DIR/.git" -prune -o \
+  -path "$ROOT_DIR/.wp-plugin-base-tools" -prune -o \
   -path "$ROOT_DIR/node_modules" -prune -o \
   -path "$ROOT_DIR/dist" -prune -o \
   -type f -name '*.sh' -print | sort)

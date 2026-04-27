@@ -1455,7 +1455,12 @@ EOF
 cat > "$pr_stage_fixture/.security/custom-security-suppressions.json" <<'EOF'
 {"suppressions":[]}
 EOF
+cat > "$pr_stage_fixture/.gitignore" <<'EOF'
+/.wp-plugin-base-quality-pack/vendor/
+/.wp-plugin-base-security-pack/vendor/
+EOF
 git -C "$pr_stage_fixture" add \
+  .gitignore \
   .wp-plugin-base-security-pack/composer.json \
   .phpcs-security.xml.dist \
   .phpcs.xml.dist \
@@ -1467,6 +1472,11 @@ git -C "$pr_stage_fixture" push -q -u origin main
 rm -rf "$pr_stage_fixture/.wp-plugin-base-security-pack"
 rm -f "$pr_stage_fixture/.phpcs-security.xml.dist" "$pr_stage_fixture/.phpcs.xml.dist"
 rm -f "$pr_stage_fixture/.security/custom-security-suppressions.json"
+mkdir -p \
+  "$pr_stage_fixture/.wp-plugin-base-quality-pack/vendor/example" \
+  "$pr_stage_fixture/.wp-plugin-base-security-pack/vendor/example"
+printf '%s\n' '<?php // local quality-pack tooling state' > "$pr_stage_fixture/.wp-plugin-base-quality-pack/vendor/example/tool.php"
+printf '%s\n' '<?php // local security-pack tooling state' > "$pr_stage_fixture/.wp-plugin-base-security-pack/vendor/example/tool.php"
 pr_stage_helper_dir="$(mktemp -d)"
 cat > "$pr_stage_helper_dir/body.md" <<'EOF'
 fixture body
@@ -1504,7 +1514,7 @@ pr_stage_output="$(mktemp)"
     GITHUB_REPOSITORY="example/repo" \
     GITHUB_REPOSITORY_OWNER="example" \
     GITHUB_OUTPUT="$pr_stage_output" \
-    GIT_ADD_PATHS=".wp-plugin-base-security-pack,.phpcs-security.xml.dist,.phpcs.xml.dist,.security/custom-security-suppressions.json" \
+    GIT_ADD_PATHS=".wp-plugin-base-quality-pack,.wp-plugin-base-security-pack,.phpcs-security.xml.dist,.phpcs.xml.dist,.security/custom-security-suppressions.json" \
     bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
       "chore/fixture-removal" \
       "main" \
@@ -1526,6 +1536,10 @@ if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.phpcs.xml
 fi
 if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '.security/custom-security-suppressions.json'; then
   echo "Explicit path staging unexpectedly failed to commit a configured suppressions-file deletion." >&2
+  exit 1
+fi
+if git -C "$pr_stage_fixture" ls-tree -r --name-only HEAD | grep -Fq '/vendor/'; then
+  echo "Explicit path staging unexpectedly committed local pack vendor tooling state." >&2
   exit 1
 fi
 : > "$PR_STAGE_GH_LOG"
@@ -2067,6 +2081,19 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$forbidden_fixture/.wp-plugin-base/"
 touch "$forbidden_fixture/.DS_Store"
 if WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_forbidden_files.sh" >/dev/null 2>&1; then
   echo "Forbidden file policy unexpectedly accepted .DS_Store." >&2
+  exit 1
+fi
+rm -f "$forbidden_fixture/.DS_Store"
+WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" >/dev/null
+mkdir -p "$forbidden_fixture/.wp-plugin-base-quality-pack/vendor/example"
+printf '%s\n' '<?php // local-only quality tool' > "$forbidden_fixture/.wp-plugin-base-quality-pack/vendor/example/tool.php"
+WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_forbidden_files.sh" >/dev/null
+git -C "$forbidden_fixture" init -q
+git -C "$forbidden_fixture" config user.email "fixture@example.com"
+git -C "$forbidden_fixture" config user.name "Fixture"
+git -C "$forbidden_fixture" add -f .wp-plugin-base-quality-pack/vendor/example/tool.php
+if WP_PLUGIN_BASE_ROOT="$forbidden_fixture" bash "$ROOT_DIR/scripts/ci/check_forbidden_files.sh" >/dev/null 2>&1; then
+  echo "Forbidden file policy unexpectedly accepted tracked quality-pack vendor tooling state." >&2
   exit 1
 fi
 

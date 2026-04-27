@@ -56,7 +56,7 @@ while IFS= read -r required_path; do
   resolved_required_path="$(wp_plugin_base_resolve_path "$required_path")"
   if [ ! -f "$resolved_required_path" ]; then
     wp_plugin_base_quality_pack_validation_hint "$required_path" "seed" >&2 || true
-    echo "Required seeded pack file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
+    echo "Required seeded child-owned file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
     exit 1
   fi
 done < <(wp_plugin_base_print_required_seed_paths)
