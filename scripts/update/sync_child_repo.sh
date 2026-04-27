@@ -32,6 +32,8 @@ fi
 
 FOUNDATION_DIR="$ROOT_DIR/.wp-plugin-base"
 TEMPLATE_DIR="$FOUNDATION_DIR/templates/child"
+AGENTS_MANAGED_START='<!-- wp-plugin-base:agents-start -->'
+AGENTS_MANAGED_END='<!-- wp-plugin-base:agents-end -->'
 
 if [ ! -d "$TEMPLATE_DIR" ]; then
   echo "Template directory not found: $TEMPLATE_DIR" >&2
@@ -61,6 +63,94 @@ seed_template_once() {
   fi
 
   render_template "$source_file" "$destination_file"
+}
+
+sync_agents_file() {
+  local source_file="$1"
+  local destination_file="$2"
+  local rendered_file
+  local stripped_rendered_file
+  local updated_file
+  local start_count
+  local end_count
+
+  rendered_file="$(mktemp)"
+  stripped_rendered_file="$(mktemp)"
+  updated_file="$(mktemp)"
+
+  render_template "$source_file" "$rendered_file"
+  awk \
+    -v start="$AGENTS_MANAGED_START" \
+    -v end="$AGENTS_MANAGED_END" \
+    '$0 != start && $0 != end { print }' \
+    "$rendered_file" > "$stripped_rendered_file"
+
+  if [ ! -e "$destination_file" ]; then
+    mkdir -p "$(dirname "$destination_file")"
+    cp "$rendered_file" "$destination_file"
+    rm -f "$rendered_file" "$stripped_rendered_file" "$updated_file"
+    return 0
+  fi
+
+  if [ ! -f "$destination_file" ]; then
+    echo "AGENTS.md must be a regular file so sync can preserve project-owned instructions: $destination_file" >&2
+    rm -f "$rendered_file" "$stripped_rendered_file" "$updated_file"
+    exit 1
+  fi
+
+  start_count="$(grep -Fxc "$AGENTS_MANAGED_START" "$destination_file" || true)"
+  end_count="$(grep -Fxc "$AGENTS_MANAGED_END" "$destination_file" || true)"
+
+  if [ "$start_count" -eq 1 ] && [ "$end_count" -eq 1 ]; then
+    if ! WP_PLUGIN_BASE_AGENTS_RENDERED="$rendered_file" \
+      WP_PLUGIN_BASE_AGENTS_START="$AGENTS_MANAGED_START" \
+      WP_PLUGIN_BASE_AGENTS_END="$AGENTS_MANAGED_END" \
+      perl -0pe '
+        BEGIN {
+          local $/;
+          open my $fh, "<", $ENV{WP_PLUGIN_BASE_AGENTS_RENDERED} or die "open rendered AGENTS.md: $!";
+          $replacement = <$fh>;
+          $start = $ENV{WP_PLUGIN_BASE_AGENTS_START};
+          $end = $ENV{WP_PLUGIN_BASE_AGENTS_END};
+        }
+        s/\Q$start\E.*?\Q$end\E/$replacement/s or die "managed AGENTS.md section not found\n";
+      ' "$destination_file" > "$updated_file"; then
+      echo "AGENTS.md has invalid managed-section markers; expected one start marker before one end marker." >&2
+      rm -f "$rendered_file" "$stripped_rendered_file" "$updated_file"
+      exit 1
+    fi
+    mv "$updated_file" "$destination_file"
+    rm -f "$rendered_file" "$stripped_rendered_file"
+    return 0
+  fi
+
+  if [ "$start_count" -ne 0 ] || [ "$end_count" -ne 0 ]; then
+    echo "AGENTS.md has invalid managed-section markers; expected exactly one start marker and one end marker." >&2
+    rm -f "$rendered_file" "$stripped_rendered_file" "$updated_file"
+    exit 1
+  fi
+
+  WP_PLUGIN_BASE_AGENTS_RENDERED="$rendered_file" \
+    WP_PLUGIN_BASE_AGENTS_LEGACY="$stripped_rendered_file" \
+    perl -0pe '
+      BEGIN {
+        local $/;
+        open my $rfh, "<", $ENV{WP_PLUGIN_BASE_AGENTS_RENDERED} or die "open rendered AGENTS.md: $!";
+        open my $lfh, "<", $ENV{WP_PLUGIN_BASE_AGENTS_LEGACY} or die "open legacy AGENTS.md: $!";
+        $replacement = <$rfh>;
+        $legacy = <$lfh>;
+      }
+      if (index($_, $legacy) >= 0) {
+        s/\Q$legacy\E/$replacement/s;
+      } elsif (length($_) == 0) {
+        $_ = $replacement;
+      } else {
+        s/\s*\z/\n\n/s;
+        $_ .= $replacement;
+      }
+    ' "$destination_file" > "$updated_file"
+  mv "$updated_file" "$destination_file"
+  rm -f "$rendered_file" "$stripped_rendered_file"
 }
 
 warn_quality_pack_bootstrap_migration_risk() {
@@ -126,6 +216,10 @@ remove_stale_automation_managed_files() {
   esac
 }
 
+if [ -f "$TEMPLATE_DIR/AGENTS.md" ]; then
+  sync_agents_file "$TEMPLATE_DIR/AGENTS.md" "$ROOT_DIR/AGENTS.md"
+fi
+
 while IFS=$'\t' read -r source_file destination_path; do
   [ -n "$source_file" ] || continue
   if [ "$destination_path" = "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" ] && [ -f "$ROOT_DIR/$destination_path" ]; then
@@ -133,6 +227,12 @@ while IFS=$'\t' read -r source_file destination_path; do
   fi
   render_template "$source_file" "$ROOT_DIR/$destination_path"
 done < <(wp_plugin_base_print_base_managed_template_pairs "$TEMPLATE_DIR")
+
+if [ -f "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" ]; then
+  seed_template_once \
+    "$TEMPLATE_DIR/.wp-plugin-base-security-suppressions.json" \
+    "$ROOT_DIR/$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
+fi
 
 remove_stale_managed_aliases
 remove_stale_automation_managed_files

@@ -37,11 +37,23 @@ for dir in "$ROOT_DIR/.idea" "$ROOT_DIR/.vscode"; do
   fi
 done
 
+if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  while IFS= read -r tracked_path; do
+    [ -n "$tracked_path" ] || continue
+    forbidden_files+=("$ROOT_DIR/$tracked_path")
+  done < <(
+    git -C "$ROOT_DIR" ls-files -- \
+      '.wp-plugin-base-quality-pack/vendor/*' \
+      '.wp-plugin-base-security-pack/vendor/*'
+  )
+fi
+
 if [ "${#forbidden_files[@]}" -eq 0 ]; then
   echo "Forbidden file policy passed."
   exit 0
 fi
 
 echo "Forbidden files or directories are present and must not be committed:" >&2
+echo "Generated quality/security pack vendor files are local tooling state; remove them from git if listed below." >&2
 printf '  %s\n' "${forbidden_files[@]}" >&2
 exit 1

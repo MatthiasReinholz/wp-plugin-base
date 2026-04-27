@@ -102,6 +102,11 @@
       "default": "smoke",
       "pattern": "^(smoke|strict)$"
     },
+    "PHPSTAN_MEMORY_LIMIT": {
+      "description": "Optional PHPStan memory limit passed to the managed quality-pack PHPStan run, for example 768M, 1G, or -1.",
+      "default": "",
+      "pattern": "^$|^-1$|^[1-9][0-9]*[KMGkmg]?$"
+    },
     "VERSION_CONSTANT_NAME": {
       "pattern": "^[A-Z][A-Z0-9_]*$"
     },

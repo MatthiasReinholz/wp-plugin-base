@@ -65,6 +65,8 @@ readiness_filtered_fixture="$(make_fixture)"
 readiness_reduced_audit_fixture="$(make_fixture)"
 readiness_invalid_audit_fixture="$(make_fixture)"
 readiness_pass_fixture="$(make_fixture)"
+phpstan_memory_invalid_fixture="$(make_fixture)"
+phpstan_memory_pass_fixture="$(make_fixture)"
 runtime_url_secret_fixture="$(make_fixture)"
 runtime_url_private_fixture="$(make_fixture)"
 runtime_url_cgnat_fixture="$(make_fixture)"
@@ -72,7 +74,7 @@ runtime_url_single_label_fixture="$(make_fixture)"
 automation_api_secret_fixture="$(make_fixture)"
 legacy_updater_secret_fixture="$(make_fixture)"
 runtime_url_pass_fixture="$(make_fixture)"
-trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture" "$readiness_missing_fixture" "$readiness_strict_fixture" "$readiness_filtered_fixture" "$readiness_reduced_audit_fixture" "$readiness_invalid_audit_fixture" "$readiness_pass_fixture" "$runtime_url_secret_fixture" "$runtime_url_private_fixture" "$runtime_url_cgnat_fixture" "$runtime_url_single_label_fixture" "$automation_api_secret_fixture" "$legacy_updater_secret_fixture" "$runtime_url_pass_fixture"' EXIT
+trap 'rm -rf "$defaults_fixture" "$abilities_fixture" "$admin_fixture" "$dataviews_fixture" "$starter_fixture" "$conflict_fixture" "$readiness_missing_fixture" "$readiness_strict_fixture" "$readiness_filtered_fixture" "$readiness_reduced_audit_fixture" "$readiness_invalid_audit_fixture" "$readiness_pass_fixture" "$phpstan_memory_invalid_fixture" "$phpstan_memory_pass_fixture" "$runtime_url_secret_fixture" "$runtime_url_private_fixture" "$runtime_url_cgnat_fixture" "$runtime_url_single_label_fixture" "$automation_api_secret_fixture" "$legacy_updater_secret_fixture" "$runtime_url_pass_fixture"' EXIT
 
 runtime_secret_url='https:'
 runtime_secret_url="${runtime_secret_url}//updates.example.com/standard-plugin.json?token=secret"
@@ -214,6 +216,21 @@ RELEASE_READINESS_MODE=security-sensitive
 WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS=true
 EOF_CONFIG
 WP_PLUGIN_BASE_ROOT="$readiness_pass_fixture" bash "$VALIDATE_CONFIG" --scope project .readiness-pass.env >/dev/null
+
+write_base_config "$phpstan_memory_invalid_fixture/.phpstan-memory-invalid.env"
+cat >> "$phpstan_memory_invalid_fixture/.phpstan-memory-invalid.env" <<'EOF_CONFIG'
+PHPSTAN_MEMORY_LIMIT=lots
+EOF_CONFIG
+expect_validation_failure \
+  "$phpstan_memory_invalid_fixture" \
+  .phpstan-memory-invalid.env \
+  'Invalid PHPSTAN_MEMORY_LIMIT: lots'
+
+write_base_config "$phpstan_memory_pass_fixture/.phpstan-memory-pass.env"
+cat >> "$phpstan_memory_pass_fixture/.phpstan-memory-pass.env" <<'EOF_CONFIG'
+PHPSTAN_MEMORY_LIMIT=768M
+EOF_CONFIG
+WP_PLUGIN_BASE_ROOT="$phpstan_memory_pass_fixture" bash "$VALIDATE_CONFIG" --scope project .phpstan-memory-pass.env >/dev/null
 
 write_base_config "$runtime_url_secret_fixture/.runtime-url-secret.env"
 cat >> "$runtime_url_secret_fixture/.runtime-url-secret.env" <<EOF_CONFIG

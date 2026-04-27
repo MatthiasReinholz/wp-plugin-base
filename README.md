@@ -112,7 +112,7 @@ Full local validation and optional flows need additional tools:
 
 The shared scripts now fail fast with explicit missing-tool errors instead of failing deeper into release or update flows.
 
-Foundation-only linting uses `shellcheck`, `actionlint`, `yamllint`, `markdownlint-cli2`, `codespell`, `editorconfig-checker`, and `gitleaks` when they are installed locally. Foundation CI installs and runs them strictly even if they are absent on a contributor machine.
+Foundation-only linting and release-security smoke checks use `shellcheck`, `actionlint`, `yamllint`, `markdownlint-cli2`, `codespell`, `editorconfig-checker`, `gitleaks`, `syft`, and `cosign` when they are installed locally. Foundation CI installs and runs them strictly even if they are absent on a contributor machine.
 
 The repository pre-push hook runs:
 
@@ -121,17 +121,7 @@ The repository pre-push hook runs:
 
 Set `WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE=1` only when you intentionally need to bypass the local gate.
 
-On macOS, install the binary tools locally with:
-
-```bash
-brew install shellcheck actionlint editorconfig-checker gitleaks
-```
-
-Install the local Markdown linting bundle with the committed lockfile:
-
-```bash
-npm ci --prefix tools/markdownlint --ignore-scripts --no-audit --no-fund
-```
+Use `scripts/foundation/bootstrap_strict_local.sh` to install the supported strict-local toolchain into `.wp-plugin-base-tools`. The bootstrap script installs pinned binary, Python, and Node-based tools with checksum, lockfile, or hash validation.
 
 Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`.
 
@@ -304,6 +294,7 @@ Optional keys:
 - `PLUGIN_RUNTIME_UPDATE_SOURCE_URL`
 - `PHP_RUNTIME_MATRIX`
 - `PHP_RUNTIME_MATRIX_MODE`
+- `PHPSTAN_MEMORY_LIMIT`
 - `VERSION_CONSTANT_NAME`
 - `POT_FILE`
 - `POT_PROJECT_NAME`
@@ -382,7 +373,7 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 
 `FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER` is only needed for self-managed GitLab foundation sources. `gitlab.com` uses its standard issuer automatically; self-managed GitLab must set the issuer explicitly.
 
-`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. Full quality-pack mode manages PHPCS/PHPStan/PHPUnit support files.
+`WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. Full quality-pack mode manages PHPCS/PHPStan/PHPUnit support files, and seeds a child-owned `phpstan.neon` overlay for project-specific paths, excludes, bootstrap files, and scan files.
 
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
@@ -407,9 +398,11 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 
+`PHPSTAN_MEMORY_LIMIT` optionally passes a memory limit to the managed PHPStan command, for example `768M`, `1G`, or `-1`. Keep analysis paths, excludes, bootstrap files, and scan files in the child-owned `phpstan.neon` overlay so sync can update `phpstan.neon.dist` without taking over project-specific analysis scope.
+
 PHP quality-pack and runtime-matrix behavior matrix:
 
-| `WORDPRESS_QUALITY_PACK_ENABLED` | `PHP_RUNTIME_MATRIX` | `PHP_RUNTIME_MATRIX_MODE` | Managed PHPUnit bridge files (`phpunit.xml.dist`, `tests/bootstrap.php`, `.wp-plugin-base-quality-pack/**`) | Full pack-only files (`.phpcs.xml.dist`, `phpstan.neon.dist`, `phpstan.neon`) |
+| `WORDPRESS_QUALITY_PACK_ENABLED` | `PHP_RUNTIME_MATRIX` | `PHP_RUNTIME_MATRIX_MODE` | Managed PHPUnit bridge files (`phpunit.xml.dist`, `tests/bootstrap.php`, `.wp-plugin-base-quality-pack/**`, `tests/wp-plugin-base/*Test.php`) | Full pack-only files (`.phpcs.xml.dist`, `phpstan.neon.dist`) and seeded child-owned files (`phpstan.neon`) |
 | --- | --- | --- | --- | --- |
 | `false` | unset | `smoke` (default) | no | no |
 | `false` | set | `smoke` | no | no |
@@ -446,7 +439,7 @@ Disabling `ADMIN_UI_PACK_ENABLED` is also a manual reconciliation step. Sync rem
 
 `EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
 
-Local `validate.sh` defaults to `fast-local` mode. That mode still proves the release tooling wiring and SBOM generation, but it reports which checks were skipped when local prerequisites are unavailable. Use `--mode strict-local` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for Sigstore/OIDC-sensitive checks.
+Local `validate.sh` defaults to `fast-local` mode. That mode proves the release tooling wiring and reports any checks that were skipped when local prerequisites are unavailable. Use `--mode strict-local` after `bootstrap_strict_local.sh` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for GitHub Actions OIDC-sensitive Sigstore signing checks.
 
 ## WordPress.org Deploy
 

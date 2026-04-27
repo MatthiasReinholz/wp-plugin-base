@@ -19,7 +19,6 @@ wp_plugin_base_print_base_managed_template_pairs() {
     ".editorconfig" \
     ".gitattributes" \
     ".gitignore" \
-    "AGENTS.md" \
     "CONTRIBUTING.md" \
     "SECURITY.md" \
     "uninstall.php.example"
@@ -59,9 +58,6 @@ wp_plugin_base_print_base_managed_template_pairs() {
     esac
   fi
 
-  printf '%s\t%s\n' \
-    "$template_dir/.wp-plugin-base-security-suppressions.json" \
-    "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
 }
 
 wp_plugin_base_print_optional_managed_template_pairs() {
@@ -166,6 +162,16 @@ wp_plugin_base_print_required_seed_template_pairs() {
   local quality_pack_seed_dir="$template_dir/quality-pack-seed"
   local template_file=""
   local relative_path=""
+
+  if [ -f "$template_dir/AGENTS.md" ]; then
+    printf '%s\t%s\n' "$template_dir/AGENTS.md" "AGENTS.md"
+  fi
+
+  if [ -f "$template_dir/.wp-plugin-base-security-suppressions.json" ]; then
+    printf '%s\t%s\n' \
+      "$template_dir/.wp-plugin-base-security-suppressions.json" \
+      "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
+  fi
 
   if wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
     wp_plugin_base_print_seed_template_pairs "rest-operations-pack-seed" "$template_dir"

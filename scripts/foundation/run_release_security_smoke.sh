@@ -31,7 +31,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$MODE" in
-  ci|local-lite)
+  ci|local-required|local-lite)
     ;;
   *)
     echo "Unsupported mode: $MODE" >&2
@@ -65,6 +65,12 @@ if [ "$have_release_tools" != true ] && [ "$MODE" = "ci" ]; then
   bash "$ROOT_DIR/scripts/release/install_release_security_tools.sh" "$tools_dir" >/dev/null
   export PATH="$tools_dir:$PATH"
   have_release_tools=true
+fi
+
+if [ "$have_release_tools" != true ] && [ "$MODE" = "local-required" ]; then
+  echo "Release security smoke requires syft and cosign in local-required mode." >&2
+  echo "Run scripts/foundation/bootstrap_strict_local.sh and prepend its tools directory to PATH." >&2
+  exit 1
 fi
 
 fixture="$(mktemp -d)"
@@ -106,7 +112,7 @@ if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUES
     exit 1
   fi
 
-  echo "GitHub Actions OIDC token access is unavailable locally; skipping Sigstore signing checks."
+  echo "Local SBOM checks completed. Sigstore signing checks require GitHub Actions OIDC and are enforced in ci mode."
   exit 0
 fi
 

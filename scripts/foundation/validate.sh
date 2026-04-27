@@ -55,7 +55,7 @@ esac
 
 wp_plugin_base_require_commands "foundation validation" git php node ruby perl rsync zip unzip jq
 
-declare -a optional_lint_tools=(
+declare -a assurance_tools=(
   shellcheck
   actionlint
   yamllint
@@ -63,22 +63,24 @@ declare -a optional_lint_tools=(
   codespell
   editorconfig-checker
   gitleaks
+  syft
+  cosign
 )
-declare -a missing_optional_lint_tools=()
+declare -a missing_assurance_tools=()
 
-for tool in "${optional_lint_tools[@]}"; do
+for tool in "${assurance_tools[@]}"; do
   if ! command -v "$tool" >/dev/null 2>&1; then
-    missing_optional_lint_tools+=("$tool")
+    missing_assurance_tools+=("$tool")
   fi
 done
 
 echo "Foundation assurance mode: $ASSURANCE_MODE"
-if [ "${#missing_optional_lint_tools[@]}" -gt 0 ]; then
-  missing_tools_csv="$(printf '%s, ' "${missing_optional_lint_tools[@]}")"
+if [ "${#missing_assurance_tools[@]}" -gt 0 ]; then
+  missing_tools_csv="$(printf '%s, ' "${missing_assurance_tools[@]}")"
   missing_tools_csv="${missing_tools_csv%, }"
 
   if [ "$ASSURANCE_MODE" = "fast-local" ]; then
-    echo "Optional foundation tools not installed; fast-local mode will skip: $missing_tools_csv"
+    echo "Optional foundation assurance tools not installed; fast-local mode may skip: $missing_tools_csv"
   else
     echo "Assurance mode $ASSURANCE_MODE requires these installed foundation tools: $missing_tools_csv" >&2
     exit 1
@@ -145,6 +147,7 @@ bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "release/$(tr -d '\n
 unset FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE
 unset PHP_VERSION NODE_VERSION VERSION_CONSTANT_NAME WORDPRESS_ORG_SLUG CODEOWNERS_REVIEWERS PRODUCTION_ENVIRONMENT
 unset PHP_RUNTIME_MATRIX PHP_RUNTIME_MATRIX_MODE WORDPRESS_READINESS_ENABLED WORDPRESS_QUALITY_PACK_ENABLED
+unset PHPSTAN_MEMORY_LIMIT
 unset WORDPRESS_SECURITY_PACK_ENABLED WOOCOMMERCE_QIT_ENABLED WP_ORG_DEPLOY_ENABLED
 unset REST_OPERATIONS_PACK_ENABLED REST_API_NAMESPACE REST_ABILITIES_ENABLED ADMIN_UI_PACK_ENABLED
 unset ADMIN_UI_STARTER ADMIN_UI_EXPERIMENTAL_DATAVIEWS
@@ -195,13 +198,42 @@ test -f "$managed_child/CHANGELOG.md"
 test -f "$managed_child/SECURITY.md"
 test -f "$managed_child/uninstall.php.example"
 managed_paths_output="$(WP_PLUGIN_BASE_ROOT="$managed_child" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh")"
-grep -Fxq '.wp-plugin-base-security-suppressions.json' <<<"$managed_paths_output"
-grep -Fxq 'AGENTS.md' <<<"$managed_paths_output"
+if grep -Fxq 'AGENTS.md' <<<"$managed_paths_output"; then
+  echo "AGENTS.md should be child-owned except for its marked managed foundation section." >&2
+  exit 1
+fi
+if grep -Fxq '.wp-plugin-base-security-suppressions.json' <<<"$managed_paths_output"; then
+  echo "Security suppressions should be child-owned after initial seeding." >&2
+  exit 1
+fi
+stage_paths_output="$(WP_PLUGIN_BASE_ROOT="$managed_child" bash "$ROOT_DIR/scripts/ci/list_managed_files.sh" --mode stage)"
+grep -Fxq 'AGENTS.md' <<<"$stage_paths_output"
+grep -Fxq '.wp-plugin-base-security-suppressions.json' <<<"$stage_paths_output"
+grep -Fq '<!-- wp-plugin-base:agents-start -->' "$managed_child/AGENTS.md"
+grep -Fq '<!-- wp-plugin-base:agents-end -->' "$managed_child/AGENTS.md"
 grep -Fq '/AGENTS.md export-ignore' "$managed_child/.gitattributes"
+grep -Fq '/.wp-plugin-base-admin-ui/node_modules/' "$managed_child/.gitignore"
+grep -Fq '/.wp-plugin-base-quality-pack/vendor/' "$managed_child/.gitignore"
+grep -Fq '/.wp-plugin-base-security-pack/vendor/' "$managed_child/.gitignore"
 grep -Fq '/.wp-plugin-base-security-pack export-ignore' "$managed_child/.gitattributes"
 grep -Fq '/.phpcs-security.xml.dist export-ignore' "$managed_child/.gitattributes"
 grep -Fq 'secret-scan:' "$managed_child/.github/workflows/ci.yml"
 test ! -f "$managed_child/.github/CODEOWNERS"
+
+cat > "$managed_child/AGENTS.md" <<'EOF'
+# Child Agent Instructions
+
+Preserve project-specific instructions when the foundation managed section is missing.
+EOF
+WP_PLUGIN_BASE_ROOT="$managed_child" bash "$managed_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
+grep -Fq 'Preserve project-specific instructions when the foundation managed section is missing.' "$managed_child/AGENTS.md"
+grep -Fq '<!-- wp-plugin-base:agents-start -->' "$managed_child/AGENTS.md"
+grep -Fq '<!-- wp-plugin-base:agents-end -->' "$managed_child/AGENTS.md"
+
+printf '\nProject-owned agent instruction fixture.\n' >> "$managed_child/AGENTS.md"
+WP_PLUGIN_BASE_ROOT="$managed_child" bash "$managed_child/.wp-plugin-base/scripts/update/sync_child_repo.sh"
+grep -Fq 'Project-owned agent instruction fixture.' "$managed_child/AGENTS.md"
+grep -Fq 'This project consumes `wp-plugin-base` as vendored foundation source under `.wp-plugin-base/`.' "$managed_child/AGENTS.md"
 
 cat >> "$managed_child/.wp-plugin-base.env" <<'EOF'
 CODEOWNERS_REVIEWERS="@example/platform @example/reviewer"
@@ -250,7 +282,11 @@ bash "$ROOT_DIR/scripts/foundation/assert_foundation_contracts.sh" \
   "$ROOT_DIR" \
   "$managed_security_child" \
   "$managed_security_paths_output"
-bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode local-lite
+release_security_smoke_mode="local-lite"
+if [ "$ASSURANCE_MODE" != "fast-local" ]; then
+  release_security_smoke_mode="local-required"
+fi
+bash "$ROOT_DIR/scripts/foundation/run_release_security_smoke.sh" --mode "$release_security_smoke_mode"
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_contracts.sh"
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_executor.sh"
 bash "$ROOT_DIR/scripts/foundation/test_rest_operations_pack_abilities.sh"

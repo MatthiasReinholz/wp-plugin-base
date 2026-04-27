@@ -49,6 +49,7 @@ assert_regular_file "$full_fixture/phpunit.xml.dist" "Full quality pack should m
 assert_regular_file "$full_fixture/phpstan.neon" "Full quality pack should seed phpstan.neon."
 assert_regular_file "$full_fixture/tests/bootstrap.php" "Full quality pack should manage tests/bootstrap.php."
 assert_regular_file "$full_fixture/tests/wp-plugin-base/bootstrap-child.php" "Full quality pack should seed bootstrap-child.php."
+assert_regular_file "$full_fixture/tests/wp-plugin-base/BootstrapTest.php" "Full quality pack should manage the baseline bootstrap test."
 assert_regular_file "$full_fixture/tests/wp-plugin-base/PluginLoadsTest.php" "Full quality pack should manage the baseline plugin load test."
 assert_regular_file "$full_fixture/.wp-plugin-base-quality-pack/composer.json" "Full quality pack should manage composer.json."
 
@@ -125,6 +126,7 @@ WP_PLUGIN_BASE_ROOT="$bridge_fixture" bash "$ROOT_DIR/scripts/ci/validate_projec
 assert_regular_file "$bridge_fixture/phpunit.xml.dist" "Strict runtime matrix should manage phpunit.xml.dist."
 assert_regular_file "$bridge_fixture/tests/bootstrap.php" "Strict runtime matrix should manage tests/bootstrap.php."
 assert_regular_file "$bridge_fixture/tests/wp-plugin-base/bootstrap-child.php" "Strict runtime matrix should seed bootstrap-child.php."
+assert_regular_file "$bridge_fixture/tests/wp-plugin-base/BootstrapTest.php" "Strict runtime matrix should manage the baseline bootstrap test."
 assert_regular_file "$bridge_fixture/tests/wp-plugin-base/PluginLoadsTest.php" "Strict runtime matrix should manage the baseline plugin load test."
 assert_regular_file "$bridge_fixture/.wp-plugin-base-quality-pack/composer.json" "Strict runtime matrix should manage composer.json."
 assert_regular_file "$bridge_fixture/.wp-plugin-base-quality-pack/composer.lock" "Strict runtime matrix should manage composer.lock."

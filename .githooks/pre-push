@@ -4,6 +4,10 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+if [ -d "$repo_root/.wp-plugin-base-tools" ]; then
+  export PATH="$repo_root/.wp-plugin-base-tools:$PATH"
+fi
+
 if [ "${WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE:-}" = "1" ]; then
   echo "Skipping local push gate because WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE=1"
   exit 0

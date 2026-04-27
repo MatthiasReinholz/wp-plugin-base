@@ -69,6 +69,25 @@ parameters:
 EOF
 }
 
+run_phpstan() {
+  local phpstan_bin="$1"
+  local phpstan_args=(
+    analyse
+    "--configuration=$PHPSTAN_CONFIG"
+    --no-progress
+  )
+
+  if [ -n "${PHPSTAN_MEMORY_LIMIT:-}" ]; then
+    phpstan_args+=("--memory-limit=$PHPSTAN_MEMORY_LIMIT")
+  fi
+
+  php "$phpstan_bin" "${phpstan_args[@]}"
+}
+
+composer_audit_command() {
+  composer --working-dir="$1" audit --locked --no-interaction
+}
+
 run_quality_pack_with_docker() {
   composer_install_command() {
     docker run --rm \
@@ -83,19 +102,23 @@ run_quality_pack_with_docker() {
 
   wp_plugin_base_run_with_retry 3 2 "Quality pack Composer install" composer_install_command
 
-  docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
-    -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
-    -v "$COMPOSER_WORK_DIR":/workspace \
-    -w /workspace \
-    "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
-    audit --locked --no-interaction
+  composer_docker_audit_command() {
+    docker run --rm \
+      -u "$(id -u):$(id -g)" \
+      -e COMPOSER_CACHE_DIR=/tmp/composer-cache \
+      -v "$COMPOSER_CACHE_DIR":/tmp/composer-cache \
+      -v "$COMPOSER_WORK_DIR":/workspace \
+      -w /workspace \
+      "$WP_PLUGIN_BASE_COMPOSER_IMAGE" \
+      audit --locked --no-interaction
+  }
+
+  wp_plugin_base_run_with_retry 3 5 "Quality pack Composer audit" composer_docker_audit_command
 
   write_phpstan_config "$COMPOSER_WORK_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
   php "$COMPOSER_WORK_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs.xml.dist"
-  php "$COMPOSER_WORK_DIR/vendor/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --no-progress
+  run_phpstan "$COMPOSER_WORK_DIR/vendor/bin/phpstan"
   php "$COMPOSER_WORK_DIR/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
 }
 
@@ -103,10 +126,10 @@ run_quality_pack_with_local_bundle() {
   wp_plugin_base_require_commands "WordPress quality pack local fallback" composer
   write_phpstan_config "$TOOLS_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
-  composer --working-dir="$TOOLS_DIR" audit --locked --no-interaction
+  wp_plugin_base_run_with_retry 3 5 "Quality pack Composer audit" composer_audit_command "$TOOLS_DIR"
 
   php "$TOOLS_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs.xml.dist"
-  php "$TOOLS_DIR/vendor/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --no-progress
+  run_phpstan "$TOOLS_DIR/vendor/bin/phpstan"
   php "$TOOLS_DIR/vendor/bin/phpunit" --configuration="$ROOT_DIR/phpunit.xml.dist"
 }
 

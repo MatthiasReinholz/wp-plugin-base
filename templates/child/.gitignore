@@ -1,5 +1,8 @@
 dist/
 node_modules/
+/.wp-plugin-base-admin-ui/node_modules/
+/.wp-plugin-base-quality-pack/vendor/
+/.wp-plugin-base-security-pack/vendor/
 .DS_Store
 Thumbs.db
 Desktop.ini

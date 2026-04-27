@@ -42,4 +42,13 @@ case "$MODE" in
 esac
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
-wp_plugin_base_print_managed_paths | awk '!seen[$0]++'
+
+case "$MODE" in
+  validate)
+    wp_plugin_base_print_managed_paths
+    ;;
+  stage)
+    wp_plugin_base_print_managed_paths
+    wp_plugin_base_print_required_seed_paths
+    ;;
+esac | awk '!seen[$0]++'
