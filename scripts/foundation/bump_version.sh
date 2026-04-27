@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="${WP_PLUGIN_BASE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 VERSION_FILE="$ROOT_DIR/VERSION"
 CHANGELOG_FILE="$ROOT_DIR/CHANGELOG.md"
 CHILD_ENV_EXAMPLE="$ROOT_DIR/templates/child/.wp-plugin-base.env.example"
@@ -18,6 +18,11 @@ trap cleanup EXIT
 
 if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Usage: $0 vX.Y.Z" >&2
+  exit 1
+fi
+
+if grep -q '^## Unreleased$' "$CHANGELOG_FILE"; then
+  echo "CHANGELOG.md contains a persistent ## Unreleased section. Move draft notes into a concrete release section before bumping." >&2
   exit 1
 fi
 

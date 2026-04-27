@@ -7,9 +7,6 @@
 ## v1.7.10
 
 * Harden release verification and agent contracts
-
-## Unreleased
-
 * Add prerelease tag publication for GitHub child plugins.
 * Verify stable GitHub releases after publication and reject lightweight release tags in repair flows.
 * Build deterministic ZIP archives for managed child packages.

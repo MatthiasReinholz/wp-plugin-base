@@ -141,6 +141,7 @@ if grep -Fq 'pull/[0-9]+/merge' "$ROOT_DIR/scripts/release/verify_sigstore_bundl
 fi
 
 bash "$ROOT_DIR/scripts/foundation/check_version.sh"
+bash "$ROOT_DIR/scripts/foundation/test_changelog_policy.sh"
 bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "release/$(tr -d '\n' < "$ROOT_DIR/VERSION")"
 
 # Keep fixture validation hermetic even if the runner exports repository-level config vars.
