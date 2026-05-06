@@ -13,7 +13,7 @@
     "@wordpress/api-fetch": "7.44.0",
     "@wordpress/components": "33.0.0",
     "@wordpress/data": "10.44.0",
-    "@wordpress/element": "6.44.0",
+    "@wordpress/element": "6.45.0",
     "@wordpress/i18n": "6.18.0",
     "@wordpress/scripts": "32.0.0"
   },
