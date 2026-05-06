@@ -13,9 +13,9 @@
     "@wordpress/api-fetch": "7.44.0",
     "@wordpress/components": "32.6.0",
     "@wordpress/data": "10.44.0",
-    "@wordpress/dataviews": "14.1.0",
+    "@wordpress/dataviews": "^14.2.0",
     "@wordpress/element": "6.44.0",
-    "@wordpress/i18n": "6.17.0",
+    "@wordpress/i18n": "^6.18.0",
     "@wordpress/scripts": "32.0.0"
   },
   "overrides": {
