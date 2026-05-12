@@ -43,6 +43,11 @@ The initial pack targets WordPress-native admin apps:
 
 The shared API client intentionally separates registry-backed operations from direct REST paths: use `fetchOperation()` for registered operation ids and `fetchPath()` only for explicit raw-path calls.
 
+The seeded admin page appears under the WordPress Settings menu by default through
+`parent_slug => 'options-general.php'` in `includes/admin-ui/bootstrap.php`. Set
+`parent_slug` to another parent menu slug, or remove it to register a top-level
+admin menu, when a plugin intentionally needs different placement.
+
 ## Audit And Update Strategy
 
 When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation audits `.wp-plugin-base-admin-ui/package-lock.json` with `npm audit --package-lock-only --audit-level=high` by default. Security-sensitive plugins should also set `RELEASE_READINESS_MODE=security-sensitive` so releases fail if the quality pack, security pack, strict Plugin Check, or admin UI audit coverage is weakened.

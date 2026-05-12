@@ -137,7 +137,6 @@ function wp_plugin_base_runtime_pack_smoke_fail( \$message ) {
 }
 
 \$namespace = 'runtime-pack-ready/v1';
-\$hook      = 'toplevel_page_runtime-pack-ready-admin-ui';
 
 \$unauthenticated_response = rest_do_request( new WP_REST_Request( 'GET', '/' . \$namespace . '/settings' ) );
 if ( 401 !== \$unauthenticated_response->get_status() ) {
@@ -201,6 +200,18 @@ if ( empty( \$routes['/' . \$namespace . '/settings'] ) ) {
 }
 
 do_action( 'admin_menu' );
+\$hook = '';
+foreach ( array_keys( isset( \$GLOBALS['_registered_pages'] ) && is_array( \$GLOBALS['_registered_pages'] ) ? \$GLOBALS['_registered_pages'] : array() ) as \$registered_hook ) {
+  if ( false !== strpos( \$registered_hook, 'runtime-pack-ready-admin-ui' ) ) {
+    \$hook = \$registered_hook;
+    break;
+  }
+}
+
+if ( '' === \$hook ) {
+  wp_plugin_base_runtime_pack_smoke_fail( 'Expected runtime pack admin page hook to be registered.' );
+}
+
 if ( function_exists( 'set_current_screen' ) ) {
   set_current_screen( \$hook );
 }

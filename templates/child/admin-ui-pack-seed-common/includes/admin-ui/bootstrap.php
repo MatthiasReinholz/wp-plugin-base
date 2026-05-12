@@ -22,6 +22,7 @@ WP_Plugin_Base_Admin_UI_Loader::register_page(
 		'page_title'             => '__PLUGIN_NAME__',
 		'menu_title'             => '__PLUGIN_NAME__',
 		'capability'             => 'manage_options',
+		'parent_slug'            => 'options-general.php',
 		'menu_slug'              => '__PLUGIN_SLUG__-admin-ui',
 		'root_id'                => '__PLUGIN_SLUG__-admin-ui-root',
 		'plugin_slug'            => '__PLUGIN_SLUG__',

@@ -18,6 +18,21 @@ function buildNamespacedPath(route) {
   return `/${getRestNamespace()}${normalized}`;
 }
 
+function normalizePath(path) {
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+function isNamespacedPath(path) {
+  const normalized = normalizePath(path);
+  const namespace = `/${getRestNamespace()}`;
+
+  return (
+    normalized === namespace ||
+    normalized.startsWith(`${namespace}/`) ||
+    normalized.startsWith(`${namespace}?`)
+  );
+}
+
 export function getOperationPath(operationId) {
   const operation = getOperationSummary(operationId);
 
@@ -29,7 +44,7 @@ export function getOperationPath(operationId) {
 }
 
 export function getPath(path) {
-  return buildNamespacedPath(path);
+  return isNamespacedPath(path) ? normalizePath(path) : buildNamespacedPath(path);
 }
 
 /**

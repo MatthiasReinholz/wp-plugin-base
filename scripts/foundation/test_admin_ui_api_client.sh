@@ -60,6 +60,14 @@ if (clientModule.getPath("health") !== "/example-plugin/v1/health") {
   throw new Error("Expected raw paths to be normalized into the managed namespace.");
 }
 
+if (clientModule.getPath("/example-plugin/v1/settings") !== "/example-plugin/v1/settings") {
+  throw new Error("Expected already namespaced paths to be preserved.");
+}
+
+if (clientModule.getPath("example-plugin/v1/settings?context=edit") !== "/example-plugin/v1/settings?context=edit") {
+  throw new Error("Expected already namespaced paths with query strings to be preserved.");
+}
+
 if (clientModule.getRestPath("/health") !== "/example-plugin/v1/health") {
   throw new Error("Expected getRestPath() to remain a raw-path compatibility alias.");
 }
