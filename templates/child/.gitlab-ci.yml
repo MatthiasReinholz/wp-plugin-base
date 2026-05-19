@@ -1,18 +1,30 @@
 stages:
   - validate
+  - test
   - maintenance
   - release
 
-default:
-  image: ubuntu:24.04
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+.wp_plugin_base_runtime:
+  image: ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
   before_script:
     - apt-get update
     - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby unzip zip
+
+.wp_plugin_base_release_runtime:
+  image: ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby subversion unzip zip
 
 variables:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 validate:
+  extends: .wp_plugin_base_runtime
   stage: validate
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -26,6 +38,7 @@ validate:
       - dist/
 
 prepare_release:
+  extends: .wp_plugin_base_runtime
   stage: maintenance
   rules:
     - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -36,6 +49,7 @@ prepare_release:
     - bash .wp-plugin-base/scripts/release/prepare_release_change_request.sh "${RELEASE_TYPE}" "${RELEASE_VERSION:-}" "${BASE_REF:-main}" ".wp-plugin-base.env"
 
 update_foundation:
+  extends: .wp_plugin_base_runtime
   stage: maintenance
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -46,14 +60,12 @@ update_foundation:
     - bash .wp-plugin-base/scripts/update/run_foundation_update.sh ".wp-plugin-base.env" "${BASE_REF:-main}"
 
 release:
+  extends: .wp_plugin_base_release_runtime
   stage: release
   environment:
     name: __PRODUCTION_ENVIRONMENT__
   rules:
     - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+$/'
-  before_script:
-    - apt-get update
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby subversion unzip zip
   script:
     - bash .wp-plugin-base/scripts/release/run_gitlab_release.sh "${CI_COMMIT_TAG}" ".wp-plugin-base.env"
   artifacts:
