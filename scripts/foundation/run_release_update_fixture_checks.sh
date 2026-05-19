@@ -507,6 +507,27 @@ fi
 
 rm -rf "$audit_fixture"
 audit_fixture="$(mktemp -d)"
+mkdir -p "$audit_fixture/templates/child/qit-pack/.github/workflows"
+
+cat > "$audit_fixture/templates/child/qit-pack/.github/workflows/woocommerce-qit.yml" <<'EOF'
+name: woocommerce-qit
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  qit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+EOF
+
+if bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture"; then
+  echo "Audit unexpectedly passed for an unpinned nested managed workflow action." >&2
+  exit 1
+fi
+
+rm -rf "$audit_fixture"
+audit_fixture="$(mktemp -d)"
 mkdir -p "$audit_fixture/.github/workflows"
 
 cat > "$audit_fixture/.github/workflows/ci.yml" <<'EOF'
