@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/require_tools.sh
+. "$SCRIPT_DIR/../lib/require_tools.sh"
+
 ARTIFACT_PATH="${1:-}"
 BUNDLE_PATH="${2:-}"
 
@@ -22,6 +26,11 @@ fi
 
 mkdir -p "$(dirname "$BUNDLE_PATH")"
 
-cosign sign-blob --yes --bundle "$BUNDLE_PATH" "$ARTIFACT_PATH" >/dev/null
+sign_release_artifact() {
+  rm -f "$BUNDLE_PATH"
+  cosign sign-blob --yes --bundle "$BUNDLE_PATH" "$ARTIFACT_PATH" >/dev/null
+}
+
+wp_plugin_base_run_with_retry 3 5 "Sigstore release artifact signing" sign_release_artifact
 
 echo "Signed $ARTIFACT_PATH with keyless Sigstore bundle $BUNDLE_PATH"
