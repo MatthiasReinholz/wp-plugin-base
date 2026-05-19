@@ -10,7 +10,7 @@
     "lint:js": "wp-scripts lint-js src --max-warnings=0"
   },
   "devDependencies": {
-    "@wordpress/api-fetch": "7.44.0",
+    "@wordpress/api-fetch": "7.46.0",
     "@wordpress/components": "33.0.0",
     "@wordpress/data": "10.44.0",
     "@wordpress/element": "6.44.0",
