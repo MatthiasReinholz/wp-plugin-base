@@ -1,6 +1,8 @@
 dist/
 node_modules/
 .wp-plugin-base-tools/
+__pycache__/
+*.pyc
 .DS_Store
 Thumbs.db
 Desktop.ini
