@@ -50,6 +50,10 @@ test ! -e "$fixture_dir/.github/dependabot.yml"
 test -f "$fixture_dir/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php"
 test -f "$fixture_dir/lib/wp-plugin-base/wp-plugin-base-github-updater.php"
 
+grep -Fq 'image: ubuntu:24.04@sha256:' "$fixture_dir/.gitlab-ci.yml"
+grep -Fq 'template: Jobs/SAST.gitlab-ci.yml' "$fixture_dir/.gitlab-ci.yml"
+grep -Fq 'template: Jobs/Secret-Detection.gitlab-ci.yml' "$fixture_dir/.gitlab-ci.yml"
+
 grep -Fq "__PLUGIN_RUNTIME_UPDATE_PROVIDER__" "$fixture_dir/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php" && {
   echo "Runtime updater template placeholders were not rendered." >&2
   exit 1

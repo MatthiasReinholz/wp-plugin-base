@@ -29,51 +29,88 @@ declare -a scan_dirs=()
 declare -a workflow_files=()
 declare -a action_files=()
 
-for dir in \
-  "$TARGET_ROOT/.github/workflows" \
-  "$TARGET_ROOT/templates/child/.github/workflows" \
-  "$TARGET_ROOT/.wp-plugin-base/.github/workflows"
-do
-  if [ -d "$dir" ]; then
-    workflow_dirs+=("$dir")
-  fi
-done
+append_workflow_dir() {
+  local dir="$1"
+  local existing
 
-for dir in \
-  "$TARGET_ROOT/.github/actions" \
-  "$TARGET_ROOT/templates/child/.github/actions" \
-  "$TARGET_ROOT/.wp-plugin-base/.github/actions"
-do
-  if [ -d "$dir" ]; then
-    action_dirs+=("$dir")
-  fi
-done
+  [ -d "$dir" ] || return 0
 
-for dir in \
-  "$TARGET_ROOT/.github/workflows" \
-  "$TARGET_ROOT/templates/child/.github/workflows" \
-  "$TARGET_ROOT/scripts" \
-  "$TARGET_ROOT/.github/actions" \
-  "$TARGET_ROOT/templates/child/.github/actions" \
-  "$TARGET_ROOT/.wp-plugin-base/.github/workflows" \
-  "$TARGET_ROOT/.wp-plugin-base/.github/actions" \
-  "$TARGET_ROOT/.wp-plugin-base/scripts"
-do
-  if [ -d "$dir" ]; then
-    scan_dirs+=("$dir")
+  if [ "${workflow_dirs+x}" = x ]; then
+    for existing in "${workflow_dirs[@]}"; do
+      [ "$existing" != "$dir" ] || return 0
+    done
   fi
-done
 
-if [ "${#workflow_dirs[@]}" -eq 0 ]; then
+  workflow_dirs+=("$dir")
+}
+
+append_action_dir() {
+  local dir="$1"
+  local existing
+
+  [ -d "$dir" ] || return 0
+
+  if [ "${action_dirs+x}" = x ]; then
+    for existing in "${action_dirs[@]}"; do
+      [ "$existing" != "$dir" ] || return 0
+    done
+  fi
+
+  action_dirs+=("$dir")
+}
+
+append_scan_dir() {
+  local dir="$1"
+  local existing
+
+  [ -d "$dir" ] || return 0
+
+  if [ "${scan_dirs+x}" = x ]; then
+    for existing in "${scan_dirs[@]}"; do
+      [ "$existing" != "$dir" ] || return 0
+    done
+  fi
+
+  scan_dirs+=("$dir")
+}
+
+append_workflow_dir "$TARGET_ROOT/.github/workflows"
+if [ -d "$TARGET_ROOT/templates/child" ]; then
+  while IFS= read -r dir; do
+    append_workflow_dir "$dir"
+  done < <(find "$TARGET_ROOT/templates/child" -type d -path '*/.github/workflows' | sort)
+fi
+append_workflow_dir "$TARGET_ROOT/.wp-plugin-base/.github/workflows"
+
+append_action_dir "$TARGET_ROOT/.github/actions"
+if [ -d "$TARGET_ROOT/templates/child" ]; then
+  while IFS= read -r dir; do
+    append_action_dir "$dir"
+  done < <(find "$TARGET_ROOT/templates/child" -type d -path '*/.github/actions' | sort)
+fi
+append_action_dir "$TARGET_ROOT/.wp-plugin-base/.github/actions"
+
+if [ "${workflow_dirs+x}" != x ]; then
   echo "No workflow directories found under $TARGET_ROOT" >&2
   exit 1
 fi
+
+for dir in "${workflow_dirs[@]}"; do
+  append_scan_dir "$dir"
+done
+append_scan_dir "$TARGET_ROOT/scripts"
+if [ "${action_dirs+x}" = x ]; then
+  for dir in "${action_dirs[@]}"; do
+    append_scan_dir "$dir"
+  done
+fi
+append_scan_dir "$TARGET_ROOT/.wp-plugin-base/scripts"
 
 while IFS= read -r file; do
   workflow_files+=("$file")
 done < <(find "${workflow_dirs[@]}" -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
 
-if [ "${#workflow_files[@]}" -eq 0 ]; then
+if [ "${workflow_files+x}" != x ]; then
   echo "No workflow files found under $TARGET_ROOT" >&2
   exit 1
 fi
@@ -84,7 +121,7 @@ while IFS= read -r file; do
   exit 1
 done < <(printf '%s\n' "${workflow_files[@]}" | grep -E '\.yaml$' || true)
 
-if [ "${#action_dirs[@]}" -gt 0 ]; then
+if [ "${action_dirs+x}" = x ]; then
   while IFS= read -r file; do
     action_files+=("$file")
   done < <(find "${action_dirs[@]}" -type f \( -name 'action.yml' -o -name 'action.yaml' \) | sort)
@@ -94,7 +131,7 @@ export WP_PLUGIN_BASE_AUDIT_ROOT="$TARGET_ROOT"
 export WP_PLUGIN_BASE_AUDIT_WORKFLOWS
 WP_PLUGIN_BASE_AUDIT_WORKFLOWS="$(printf '%s\n' "${workflow_files[@]}")"
 export WP_PLUGIN_BASE_AUDIT_ACTIONS
-if [ "${#action_files[@]}" -gt 0 ]; then
+if [ "${action_files+x}" = x ]; then
   WP_PLUGIN_BASE_AUDIT_ACTIONS="$(printf '%s\n' "${action_files[@]}")"
 else
   WP_PLUGIN_BASE_AUDIT_ACTIONS=''

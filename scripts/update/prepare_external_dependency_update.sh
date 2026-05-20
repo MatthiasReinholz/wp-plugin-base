@@ -170,7 +170,13 @@ replace_variable_assignment() {
   local variable="$2"
   local value="$3"
 
-  perl -0pi -e "s/^${variable}='[^']*'\$/${variable}='${value}'/m" "$file"
+  WP_PLUGIN_BASE_REPLACE_VARIABLE="$variable" \
+  WP_PLUGIN_BASE_REPLACE_VALUE="$value" \
+    perl -0pi -e '
+      my $variable = $ENV{"WP_PLUGIN_BASE_REPLACE_VARIABLE"};
+      my $value = $ENV{"WP_PLUGIN_BASE_REPLACE_VALUE"};
+      s{^\Q$variable\E=\x27[^\x27]*\x27$}{$variable . "=\x27" . $value . "\x27"}em;
+    ' "$file"
 }
 
 replace_ordered_single_quoted_values() {
@@ -198,10 +204,11 @@ replace_ordered_single_quoted_values() {
           printf "Too many matches for %s in %s\n", needle, FILENAME > "/dev/stderr"
           exit 2
         }
-        if (sub(/\047[^\047]*\047/, sprintf("\047%s\047", replacements[idx])) == 0) {
+        if (match($0, /\047[^\047]*\047/) == 0) {
           printf "Unable to replace value for %s in %s\n", needle, FILENAME > "/dev/stderr"
           exit 2
         }
+        $0 = substr($0, 1, RSTART - 1) "\047" replacements[idx] "\047" substr($0, RSTART + RLENGTH)
         idx++
       }
       print
@@ -370,10 +377,20 @@ prepare_puc_runtime_update() {
   rm -rf "$target_dir"
   mv "$extracted_dir" "$target_dir"
 
-  perl -0pi -e "s/(currently vendors \\x60YahnisElsts\\/plugin-update-checker\\x60 \\x60)v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(\\x60\\.)/\${1}v${latest_version}\${2}/" "$ROOT_DIR/docs/distribution-runtime-updater.md"
-  perl -0pi -e "s#\\[v[0-9]+\\.[0-9]+(?:\\.[0-9]+)? tar\\.gz\\]\\(https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v[0-9]+\\.[0-9]+(?:\\.[0-9]+)?\\.tar\\.gz\\)#[v${latest_version} tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v${latest_version}.tar.gz)#" "$ROOT_DIR/docs/distribution-runtime-updater.md"
-  perl -0pi -e "s/- SHA256: \\x60[0-9a-f]{64}\\x60/- SHA256: \\x60${tarball_sha}\\x60/" "$ROOT_DIR/docs/distribution-runtime-updater.md"
-  perl -0pi -e "s/(Plugin Update Checker Library )[0-9]+\\.[0-9]+(?:\\.[0-9]+)?/\${1}${latest_version}/" "$ROOT_DIR/docs/dependency-inventory.json"
+  WP_PLUGIN_BASE_LATEST_VERSION="$latest_version" \
+  WP_PLUGIN_BASE_TARBALL_SHA="$tarball_sha" \
+    perl -0pi -e '
+      my $latest_version = $ENV{"WP_PLUGIN_BASE_LATEST_VERSION"};
+      my $tarball_sha = $ENV{"WP_PLUGIN_BASE_TARBALL_SHA"};
+      s{(currently vendors `YahnisElsts/plugin-update-checker` `)v[0-9]+\.[0-9]+(?:\.[0-9]+)?(`\.)}{$1 . "v" . $latest_version . $2}e;
+      s{\[v[0-9]+\.[0-9]+(?:\.[0-9]+)? tar\.gz\]\(https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz\)}{"[v" . $latest_version . " tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v" . $latest_version . ".tar.gz)"}e;
+      s{- SHA256: `[0-9a-f]{64}`}{"- SHA256: `" . $tarball_sha . "`"}e;
+    ' "$ROOT_DIR/docs/distribution-runtime-updater.md"
+  WP_PLUGIN_BASE_LATEST_VERSION="$latest_version" \
+    perl -0pi -e '
+      my $latest_version = $ENV{"WP_PLUGIN_BASE_LATEST_VERSION"};
+      s{(Plugin Update Checker Library )[0-9]+\.[0-9]+(?:\.[0-9]+)?}{$1 . $latest_version}e;
+    ' "$ROOT_DIR/docs/dependency-inventory.json"
 
   if ! grep -Fq "v${latest_version} tar.gz" "$ROOT_DIR/docs/distribution-runtime-updater.md"; then
     echo "Failed to update plugin-update-checker tarball version reference in docs/distribution-runtime-updater.md" >&2
@@ -477,7 +494,9 @@ prepare_release_security_binary_update() {
   local repository="$2"
   local version_variable="$3"
   local sha_variable="$4"
-  local asset_template="$5"
+  local linux_asset_template="$5"
+  local darwin_amd64_asset_template="$6"
+  local darwin_arm64_asset_template="$7"
 
   local install_script="$ROOT_DIR/scripts/release/install_release_security_tools.sh"
   local current_version
@@ -494,15 +513,23 @@ prepare_release_security_binary_update() {
     return
   fi
 
-  local asset
-  asset="${asset_template//\{version\}/$latest_version}"
+  local linux_asset darwin_amd64_asset darwin_arm64_asset
+  linux_asset="${linux_asset_template//\{version\}/$latest_version}"
+  darwin_amd64_asset="${darwin_amd64_asset_template//\{version\}/$latest_version}"
+  darwin_arm64_asset="${darwin_arm64_asset_template//\{version\}/$latest_version}"
 
-  curl -fsSLo "$TMP_DIR/$asset" "https://github.com/${repository}/releases/download/v${latest_version}/${asset}"
-  local asset_sha
-  asset_sha="$(compute_sha256 "$TMP_DIR/$asset")"
+  local linux_sha darwin_amd64_sha darwin_arm64_sha
+  curl -fsSLo "$TMP_DIR/$linux_asset" "https://github.com/${repository}/releases/download/v${latest_version}/${linux_asset}"
+  linux_sha="$(compute_sha256 "$TMP_DIR/$linux_asset")"
+
+  curl -fsSLo "$TMP_DIR/$darwin_amd64_asset" "https://github.com/${repository}/releases/download/v${latest_version}/${darwin_amd64_asset}"
+  darwin_amd64_sha="$(compute_sha256 "$TMP_DIR/$darwin_amd64_asset")"
+
+  curl -fsSLo "$TMP_DIR/$darwin_arm64_asset" "https://github.com/${repository}/releases/download/v${latest_version}/${darwin_arm64_asset}"
+  darwin_arm64_sha="$(compute_sha256 "$TMP_DIR/$darwin_arm64_asset")"
 
   replace_variable_assignment "$install_script" "$version_variable" "$latest_version"
-  replace_ordered_single_quoted_values "$install_script" "${sha_variable}='" "$asset_sha"
+  replace_ordered_single_quoted_values "$install_script" "${sha_variable}='" "$linux_sha" "$darwin_amd64_sha" "$darwin_arm64_sha"
 
   local body_file="${RUNNER_TEMP:-$TMP_DIR}/${dependency_name}-update-pr.md"
   prepare_pr_body \
@@ -513,7 +540,7 @@ prepare_release_security_binary_update() {
     "$latest_version" \
     'used by release security tooling bootstrap' \
     'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nrelease archive downloaded for Linux/x86_64 runner target\nSHA256 pin refreshed in scripts/release/install_release_security_tools.sh'
+    $'selected from published, non-draft, non-prerelease releases\nrelease archives downloaded for Linux + macOS targets\nSHA256 pins refreshed in scripts/release/install_release_security_tools.sh'
 
   emit_update_outputs \
     "chore/update-${dependency_name}-${latest_version}" \
@@ -545,7 +572,11 @@ prepare_composer_image_update() {
     return
   fi
 
-  perl -0pi -e "s/^WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:[0-9a-f]{64}'\$/WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@${latest_digest}'/m" "$tooling_script"
+  WP_PLUGIN_BASE_COMPOSER_DIGEST="$latest_digest" \
+    perl -0pi -e '
+      my $latest_digest = $ENV{"WP_PLUGIN_BASE_COMPOSER_DIGEST"};
+      s{^WP_PLUGIN_BASE_COMPOSER_IMAGE=\x27composer\@sha256:[0-9a-f]{64}\x27$}{"WP_PLUGIN_BASE_COMPOSER_IMAGE=\x27composer\@" . $latest_digest . "\x27"}em;
+    ' "$tooling_script"
 
   local body_file="${RUNNER_TEMP:-$TMP_DIR}/composer-docker-image-update-pr.md"
   prepare_pr_body \
@@ -621,7 +652,9 @@ case "$DEPENDENCY_ID" in
       'anchore/syft' \
       'SYFT_VERSION' \
       'syft_sha256' \
-      'syft_{version}_linux_amd64.tar.gz'
+      'syft_{version}_linux_amd64.tar.gz' \
+      'syft_{version}_darwin_amd64.tar.gz' \
+      'syft_{version}_darwin_arm64.tar.gz'
     ;;
   cosign-binary)
     prepare_release_security_binary_update \
@@ -629,7 +662,9 @@ case "$DEPENDENCY_ID" in
       'sigstore/cosign' \
       'COSIGN_VERSION' \
       'cosign_sha256' \
-      'cosign-linux-amd64'
+      'cosign-linux-amd64' \
+      'cosign-darwin-amd64' \
+      'cosign-darwin-arm64'
     ;;
   composer-docker-image)
     prepare_composer_image_update

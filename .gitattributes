@@ -1,0 +1,15 @@
+/.github export-ignore
+/.wp-plugin-base export-ignore
+/.wp-plugin-base.env export-ignore
+/.wp-plugin-base-quality-pack export-ignore
+/.wp-plugin-base-security-pack export-ignore
+/.phpcs-security.xml.dist export-ignore
+/__WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE__ export-ignore
+/bin export-ignore
+/dist export-ignore
+/node_modules export-ignore
+/tests export-ignore
+/AGENTS.md export-ignore
+/CONTRIBUTING.md export-ignore
+/SECURITY.md export-ignore
+/uninstall.php.example export-ignore
