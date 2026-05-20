@@ -66,14 +66,27 @@ sha256_check() {
   exit 1
 }
 
-curl -fsSLo "$TMP_DIR/$syft_archive" \
-  "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/${syft_archive}"
+download_release_tool() {
+  local url="$1"
+  local output="$2"
+
+  curl -fsSLo "$output" \
+    --retry 3 \
+    --retry-delay 2 \
+    --retry-connrefused \
+    "$url"
+}
+
+download_release_tool \
+  "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/${syft_archive}" \
+  "$TMP_DIR/$syft_archive"
 sha256_check "$syft_sha256" "$TMP_DIR/$syft_archive"
 tar -xzf "$TMP_DIR/$syft_archive" -C "$TMP_DIR"
 install "$TMP_DIR/syft" "$DEST_DIR/syft"
 
-curl -fsSLo "$TMP_DIR/$cosign_asset" \
-  "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/${cosign_asset}"
+download_release_tool \
+  "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/${cosign_asset}" \
+  "$TMP_DIR/$cosign_asset"
 sha256_check "$cosign_sha256" "$TMP_DIR/$cosign_asset"
 install "$TMP_DIR/$cosign_asset" "$DEST_DIR/cosign"
 
