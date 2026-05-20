@@ -284,8 +284,11 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$deploy_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_ORG_DEPLOY_ENABLED=true
 export WP_ORG_DEPLOY_ENABLED
-if ! env -u GITHUB_ACTIONS -u GITHUB_REPOSITORY -u GH_TOKEN -u GITHUB_TOKEN \
-  WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" >/dev/null 2>&1; then
+if ! deploy_readiness_output="$(
+  env -u GITHUB_ACTIONS -u GITHUB_REPOSITORY -u GH_TOKEN -u GITHUB_TOKEN \
+    WP_PLUGIN_BASE_ROOT="$deploy_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0" 2>&1
+)"; then
+  printf '%s\n' "$deploy_readiness_output" >&2
   echo "Readiness unexpectedly failed locally for a deploy-enabled project." >&2
   exit 1
 fi
