@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.14
+
+* Add admin UI header end marker (#176)
+
 ## v1.7.13
 
 * Resolve remaining dependency alerts
