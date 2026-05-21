@@ -74,6 +74,26 @@ EOF_PHP
 cat > "$FIXTURE_DIR/.wp-plugin-base-quality-pack/vendor/bin/phpunit" <<'EOF_PHP'
 <?php
 declare(strict_types=1);
+
+$configPath = null;
+foreach ($argv as $arg) {
+    if (0 === strpos($arg, '--configuration=')) {
+        $configPath = substr($arg, strlen('--configuration='));
+        break;
+    }
+}
+
+if (! $configPath || ! file_exists($configPath)) {
+    fwrite(STDERR, "PHPUnit fallback test did not receive a readable configuration file.\n");
+    exit(1);
+}
+
+$configContents = (string) file_get_contents($configPath);
+if (false === strpos($configContents, '<directory suffix="Test.php">tests</directory>')) {
+    fwrite(STDERR, "PHPUnit config should discover child-owned tests/php/*Test.php files through the tests/ suite.\n");
+    exit(1);
+}
+
 file_put_contents((string) getenv('WP_PLUGIN_BASE_TEST_LOG'), "phpunit\n", FILE_APPEND);
 EOF_PHP
 

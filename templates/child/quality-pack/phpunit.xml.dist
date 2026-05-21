@@ -2,7 +2,7 @@
 <phpunit bootstrap="tests/bootstrap.php" colors="true" cacheResult="false">
   <testsuites>
     <testsuite name="wp-plugin-base-quality-pack">
-      <directory>tests/wp-plugin-base</directory>
+      <directory suffix="Test.php">tests</directory>
     </testsuite>
   </testsuites>
 </phpunit>

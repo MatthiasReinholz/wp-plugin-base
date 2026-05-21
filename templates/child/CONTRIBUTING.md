@@ -74,7 +74,7 @@ When `WORDPRESS_SECURITY_PACK_ENABLED=true`, readiness validation also runs a fo
 
 If `PHP_RUNTIME_MATRIX` is set, CI also runs a lightweight runtime smoke job across the listed PHP versions. That job reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each interpreter version so syntax-, include-, and interpreter-level issues surface before release. Set `PHP_RUNTIME_MATRIX_MODE=strict` to additionally run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present, including bridge-only mode when `WORDPRESS_QUALITY_PACK_ENABLED=false`.
 
-When that PHPUnit bridge path is enabled, `tests/bootstrap.php` is managed by foundation sync. Keep child-specific PHPUnit preloads and support-class requires in `tests/wp-plugin-base/bootstrap-child.php`, which is seeded as child-owned.
+When that PHPUnit bridge path is enabled, `tests/bootstrap.php` is managed by foundation sync. Keep child-specific PHPUnit preloads and support-class requires in `tests/wp-plugin-base/bootstrap-child.php`, which is seeded as child-owned. The managed `phpunit.xml.dist` discovers `*Test.php` files under `tests/`, so project test cases can live in a child-owned path such as `tests/php`.
 
 When the full quality pack is enabled, `phpstan.neon.dist` is managed and `phpstan.neon` is seeded as child-owned. Keep project-specific PHPStan paths, excludes, bootstrap files, and scan files in `phpstan.neon`; set `PHPSTAN_MEMORY_LIMIT` in `.wp-plugin-base.env` when local PHP memory limits need tuning.
 
