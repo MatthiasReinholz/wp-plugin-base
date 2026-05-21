@@ -27,6 +27,11 @@ cat > "$fixture_dir/.wp-plugin-base-quality-pack/vendor/squizlabs/php_codesniffe
 /** No docblock close tag. Must be last test without new line.
 EOF
 
+mkdir -p "$fixture_dir/vendor/squizlabs/php_codesniffer/src/Standards/Generic/Tests/Commenting"
+cat > "$fixture_dir/vendor/squizlabs/php_codesniffer/src/Standards/Generic/Tests/Commenting/DocCommentUnitTest.2.js" <<'EOF'
+/** No docblock close tag. Must be last test without new line.
+EOF
+
 mkdir -p "$fixture_dir/.wp-plugin-base-security-pack/vendor/example"
 cat > "$fixture_dir/.wp-plugin-base-security-pack/vendor/example/InvalidFixture.php" <<'EOF'
 <?php

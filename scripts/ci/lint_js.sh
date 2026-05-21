@@ -23,4 +23,5 @@ done < <(find "$ROOT_DIR" \
   -path "$ROOT_DIR/.wp-plugin-base-admin-ui/node_modules" -prune -o \
   -path "$ROOT_DIR/dist" -prune -o \
   -path "$ROOT_DIR/node_modules" -prune -o \
+  -path "$ROOT_DIR/vendor" -prune -o \
   -name '*.js' -print | sort)
