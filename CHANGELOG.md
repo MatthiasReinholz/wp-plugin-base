@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.7.13
+
+* Resolve remaining dependency alerts
+* chore(deps): bump idna from 3.11 to 3.15 in /tools/python-semgrep (#173)
+* chore(deps-dev): bump @wordpress/element (#166)
+* chore(deps-dev): bump @wordpress/api-fetch (#165)
+* chore(deps-dev): bump @wordpress/data (#161)
+* chore(deps): bump semgrep in /tools/python-semgrep (#159)
+* chore(deps-dev): bump @wordpress/i18n (#158)
+* chore(deps-dev): bump @wordpress/env in /tools/wordpress-env (#157)
+* chore(deps-dev): bump phpstan/phpstan (#156)
+* chore(deps-dev): bump dealerdirect/phpcodesniffer-composer-installer (#152)
+* chore(deps-dev): bump dealerdirect/phpcodesniffer-composer-installer (#150)
+* chore(deps): bump urllib3 from 2.6.3 to 2.7.0 in /tools/python-semgrep (#149)
+* chore(deps-dev): bump @babel/plugin-transform-modules-systemjs (#147)
+* chore(deps-dev): bump fast-uri (#146)
+* chore(deps-dev): bump fast-uri (#145)
+* chore(deps-dev): bump fast-xml-builder in /tools/wordpress-env (#144)
+* Harden release and workflow maintenance checks (#172)
+* chore(deps-dev): bump axios (#143)
+* chore(deps-dev): bump ip-address (#142)
+* chore(deps): bump python-multipart in /tools/python-semgrep (#140)
+* chore(deps-dev): bump axios (#139)
+* chore(deps-dev): bump simple-git in /tools/wordpress-env (#137)
+* chore(deps-dev): bump ip-address (#138)
+* chore(deps-dev): bump phpstan/phpstan (#122)
+* chore(deps-dev): bump @wordpress/env in /tools/wordpress-env (#124)
+* chore(deps-dev): bump @wordpress/data (#126)
+* chore(deps-dev): bump @wordpress/api-fetch (#127)
+* chore(deps-dev): bump @wordpress/element (#129)
+* chore(deps-dev): bump @wordpress/i18n (#133)
+* chore(deps-dev): bump @wordpress/scripts (#134)
+* chore(deps-dev): bump @wordpress/components (#135)
+
 ## v1.7.12
 
 * Guard foundation changelog hygiene (#119)
