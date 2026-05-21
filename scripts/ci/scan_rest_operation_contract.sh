@@ -235,6 +235,21 @@ if ! jq -e \
     (
       ($operation.ability // null) == null or
       ($operation.ability | type == "object")
+    ) and
+    (
+      ($operation.error_response // null) == null or
+      (
+        ($operation.error_response | type == "object") and
+        ($operation.error_response | keys | all(. as $key | ["mode", "message"] | index($key) != null)) and
+        ($operation.error_response.mode == "envelope") and
+        (
+          ($operation.error_response.message // null) == null or
+          (
+            ($operation.error_response.message | type == "string") and
+            (($operation.error_response.message | gsub("^[[:space:]]+|[[:space:]]+$"; "") | length) > 0)
+          )
+        )
+      )
     )
   )
 ' <<<"$operations_json" >/dev/null; then

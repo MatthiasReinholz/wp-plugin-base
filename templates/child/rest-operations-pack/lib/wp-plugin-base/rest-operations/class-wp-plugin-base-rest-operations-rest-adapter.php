@@ -55,7 +55,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 				array(
 					'methods'             => $operation['methods'],
 					'callback'            => function ( WP_REST_Request $request ) use ( $operation ) {
-						return WP_Plugin_Base_REST_Operations_Executor::execute( $operation, $request );
+						return WP_Plugin_Base_REST_Operations_Responses::prepare_rest_result(
+							WP_Plugin_Base_REST_Operations_Executor::execute( $operation, $request ),
+							$operation,
+							$request
+						);
 					},
 					'permission_callback' => function ( WP_REST_Request $request ) use ( $plugin_slug, $operation ) {
 						return WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );

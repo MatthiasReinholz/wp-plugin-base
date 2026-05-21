@@ -6,8 +6,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PERMISSIONS_CLASS_PATH="$ROOT_DIR/templates/child/rest-operations-pack/lib/wp-plugin-base/rest-operations/class-wp-plugin-base-rest-operations-permissions.php"
 ERROR_LOG_PATH="$(mktemp)"
+SCAN_FIXTURE="$(mktemp -d)"
 
-trap 'rm -f "$ERROR_LOG_PATH"' EXIT
+trap 'rm -f "$ERROR_LOG_PATH"; rm -rf "$SCAN_FIXTURE"' EXIT
+
+cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$SCAN_FIXTURE/"
+mkdir -p "$SCAN_FIXTURE/.wp-plugin-base"
+rsync -a --exclude '.git' "$ROOT_DIR/" "$SCAN_FIXTURE/.wp-plugin-base/"
+WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" >/dev/null
+perl -0pi -e "s/'output_schema'\\s*=>\\s*array\\(/'error_response' => array( 'mode' => 'envelope', 'message' => __( 'Settings failed.', 'runtime-pack-ready' ) ),\\n\\t\\t'output_schema'   => array(/" "$SCAN_FIXTURE/includes/rest-operations/settings-operations.php"
+WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" "" >/dev/null
+perl -0pi -e "s/'message' => __\\( 'Settings failed\\.', 'runtime-pack-ready' \\)/'message' => __( 'Settings failed.', 'runtime-pack-ready' ), 'raw_body' => 'nope'/" "$SCAN_FIXTURE/includes/rest-operations/settings-operations.php"
+if WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" "" >/dev/null 2>&1; then
+  echo "REST operation contract unexpectedly accepted an unknown error_response key." >&2
+  exit 1
+fi
+perl -0pi -e "s/'error_response' => array\\( 'mode' => 'envelope', 'message' => __\\( 'Settings failed\\.', 'runtime-pack-ready' \\), 'raw_body' => 'nope' \\)/'error_response' => array( 'mode' => 'envelope', 'message' => '   ' )/" "$SCAN_FIXTURE/includes/rest-operations/settings-operations.php"
+if WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" "" >/dev/null 2>&1; then
+  echo "REST operation contract unexpectedly accepted a blank error_response message." >&2
+  exit 1
+fi
 
 PERMISSIONS_CLASS_PATH="$PERMISSIONS_CLASS_PATH" ERROR_LOG_PATH="$ERROR_LOG_PATH" php <<'PHP'
 <?php

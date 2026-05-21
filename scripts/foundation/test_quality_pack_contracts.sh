@@ -58,6 +58,11 @@ grep -Fq "bootstrap-child.php" "$full_fixture/tests/bootstrap.php" || {
   exit 1
 }
 
+grep -Fq '<directory suffix="Test.php">tests</directory>' "$full_fixture/phpunit.xml.dist" || {
+  echo "Managed phpunit.xml.dist should discover foundation and child-owned *Test.php files under tests/." >&2
+  exit 1
+}
+
 wp_tests_dir="$full_fixture/wp-tests"
 mkdir -p "$wp_tests_dir/includes"
 
@@ -133,6 +138,11 @@ assert_regular_file "$bridge_fixture/.wp-plugin-base-quality-pack/composer.lock"
 assert_not_present "$bridge_fixture/.phpcs.xml.dist" "Strict runtime matrix should not force PHPCS config without the full quality pack."
 assert_not_present "$bridge_fixture/phpstan.neon.dist" "Strict runtime matrix should not force PHPStan config without the full quality pack."
 assert_not_present "$bridge_fixture/phpstan.neon" "Strict runtime matrix should not seed phpstan.neon without the full quality pack."
+
+grep -Fq '<directory suffix="Test.php">tests</directory>' "$bridge_fixture/phpunit.xml.dist" || {
+  echo "Strict runtime matrix phpunit.xml.dist should discover child-owned tests/php/*Test.php files." >&2
+  exit 1
+}
 
 cat > "$bridge_fixture/tests/bootstrap.php" <<'EOF_CUSTOM_BOOTSTRAP'
 <?php

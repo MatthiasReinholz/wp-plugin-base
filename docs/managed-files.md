@@ -48,6 +48,8 @@ These files are created or maintained so the project can customize them safely:
 - `tests/wp-plugin-base/bootstrap-child.php`: seeded when the PHPUnit bridge is enabled, then project-owned. Use it for project-specific PHPUnit preloads and support-class bootstrapping.
 - REST operations and admin UI pack seed files, which remain project-owned after first creation.
 
+The managed `phpunit.xml.dist` discovers `*Test.php` files under `tests/`. Keep foundation-managed baseline tests in `tests/wp-plugin-base/`, and place project-owned PHPUnit tests in a child-owned subtree such as `tests/php/`.
+
 The managed distignore file excludes common development-only paths (`/docs`, `/scripts`, `/tests`, `/packages`, and `/routes`) by default so build-only workspaces stay out of the install ZIP and translation scan. If one of those directories belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
 
 ## Local Generated State

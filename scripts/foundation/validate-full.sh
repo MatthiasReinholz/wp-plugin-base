@@ -343,6 +343,10 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$runtime_pack_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 grep -Fq 'settings.read' "$runtime_pack_fixture/includes/rest-operations/settings-operations.php"
 test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package-lock.json"
+test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/index.js"
+test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/app.js"
+grep -Fq '"build": "wp-scripts build src/index.js --output-path=../assets/admin-ui"' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package.json"
+grep -Fq 'import App from "./app";' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/index.js"
 if grep -Fq '@wordpress/dataviews' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package.json"; then
   echo "Default admin UI starter unexpectedly included the DataViews dependency surface." >&2
   exit 1

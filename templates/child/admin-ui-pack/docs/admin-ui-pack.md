@@ -39,6 +39,8 @@ The initial pack targets WordPress-native admin apps:
 
 `ADMIN_UI_STARTER=basic|dataviews` selects which child-owned admin starter is seeded when the pack is enabled. `basic` is the normalized default lighter component-only starter when the key is omitted. `dataviews` seeds the DataForm/DataViews starter.
 
+The package build script targets `src/index.js`. That entrypoint is seeded by the shared admin UI seed and imports the selected starter's `src/app.js`, so fresh projects synced through `sync_child_repo.sh` receive both files.
+
 `ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` remains supported as a backward-compatible alias for `ADMIN_UI_STARTER=dataviews`.
 
 The shared API client intentionally separates registry-backed operations from direct REST paths: use `fetchOperation()` for registered operation ids and `fetchPath()` only for explicit raw-path calls.
