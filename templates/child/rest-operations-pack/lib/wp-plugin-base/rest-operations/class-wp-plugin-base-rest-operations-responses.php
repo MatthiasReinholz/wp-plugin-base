@@ -53,10 +53,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 			$response   = new WP_REST_Response(
 				array(
 					'error' => array(
-						'code'       => self::get_error_code( $result ),
-						'message'    => self::get_public_error_message( $operation ),
-						'status'     => $status,
-						'request_id' => $request_id,
+						'code'           => self::get_error_code( $result ),
+						'message'        => self::get_public_error_message( $operation ),
+						'status'         => $status,
+						'request_id'     => $request_id,
+						'correlation_id' => $request_id,
 					),
 				),
 				$status
@@ -149,7 +150,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 			}
 
 			if ( function_exists( 'wp_generate_uuid4' ) ) {
-				return self::sanitize_request_id( (string) wp_generate_uuid4() );
+				$generated_request_id = self::sanitize_request_id( (string) wp_generate_uuid4() );
+
+				if ( '' !== $generated_request_id ) {
+					return $generated_request_id;
+				}
 			}
 
 			try {

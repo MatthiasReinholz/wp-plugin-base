@@ -202,10 +202,11 @@ if (
   || 'Settings request failed.' !== ( $enveloped_payload['error']['message'] ?? '' )
   || 502 !== ( $enveloped_payload['error']['status'] ?? null )
   || 'trace123script' !== $request_id
+  || 'trace123script' !== ( $enveloped_payload['error']['correlation_id'] ?? '' )
   || 'trace123script' !== ( $headers['X-Request-ID'] ?? '' )
   || 'trace123script' !== ( $headers['X-Correlation-ID'] ?? '' )
 ) {
-  fwrite( STDERR, "Expected opted-in error envelopes to include only code, safe message, status, and sanitized request id data/headers.\n" );
+  fwrite( STDERR, "Expected opted-in error envelopes to include only code, safe message, status, and sanitized request/correlation id data/headers.\n" );
   exit( 1 );
 }
 

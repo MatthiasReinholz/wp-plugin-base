@@ -51,7 +51,7 @@ If you need to keep a project-owned direct `register_rest_route()` during migrat
 
 ## Error Responses
 
-By default, managed REST operations preserve WordPress `WP_Error` compatibility. Operations that need a stable client-facing error shape can opt in per operation:
+By default, managed REST operations preserve WordPress `WP_Error` compatibility. Operations that need a stable client-facing shape for callback and execution errors can opt in per operation:
 
 ```php
 'error_response' => array(
@@ -60,9 +60,11 @@ By default, managed REST operations preserve WordPress `WP_Error` compatibility.
 ),
 ```
 
-Opted-in REST responses use an `error` envelope with the WordPress error code, a safe public message, the HTTP status, and a generated or forwarded request id. The request id is also sent in `X-Request-ID` and `X-Correlation-ID` headers when the REST response object supports headers.
+Opted-in callback error responses use an `error` envelope with the WordPress error code, a safe public message, the HTTP status, and generated or forwarded `request_id` / `correlation_id` values. The same id is also sent in `X-Request-ID` and `X-Correlation-ID` headers when the REST response object supports headers.
 
 The envelope intentionally does not expose raw exception messages, provider credentials, authorization headers, or upstream response bodies. If `message` is omitted, the managed generic error message is used.
+
+Authorization, capability, and scope failures still flow through WordPress' native REST permission pipeline so permission-check ordering and default `WP_Error` compatibility remain unchanged.
 
 ## Scope Resolution
 
