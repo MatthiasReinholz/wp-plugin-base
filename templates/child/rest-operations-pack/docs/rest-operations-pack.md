@@ -34,6 +34,7 @@ Each operation manifest should declare:
 - optional `output_schema`
 - optional `annotations`
 - optional `ability`
+- optional `error_response`
 - optional `source_file` (the seed bootstrap sets this automatically for review and suppressions)
 
 ## Visibility
@@ -47,6 +48,21 @@ Supported `visibility` values:
 Public operations must also declare a justified `rest_public_operation` suppression in the configured security suppressions file.
 
 If you need to keep a project-owned direct `register_rest_route()` during migration, add a justified `rest_route_bypass` suppression keyed to that file path. The managed contract remains registry-first, but coexistence is explicit and auditable.
+
+## Error Responses
+
+By default, managed REST operations preserve WordPress `WP_Error` compatibility. Operations that need a stable client-facing error shape can opt in per operation:
+
+```php
+'error_response' => array(
+	'mode'    => 'envelope',
+	'message' => __( 'The request could not be completed.', '__PLUGIN_SLUG__' ),
+),
+```
+
+Opted-in REST responses use an `error` envelope with the WordPress error code, a safe public message, the HTTP status, and a generated or forwarded request id. The request id is also sent in `X-Request-ID` and `X-Correlation-ID` headers when the REST response object supports headers.
+
+The envelope intentionally does not expose raw exception messages, provider credentials, authorization headers, or upstream response bodies. If `message` is omitted, the managed generic error message is used.
 
 ## Scope Resolution
 
