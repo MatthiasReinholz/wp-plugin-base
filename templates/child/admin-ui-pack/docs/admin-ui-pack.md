@@ -43,6 +43,8 @@ The package build script targets `src/index.js`. That entrypoint is seeded by th
 
 `ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` remains supported as a backward-compatible alias for `ADMIN_UI_STARTER=dataviews`.
 
+The managed admin page shell emits WordPress' `.wp-header-end` notice marker before the React root so dynamic admin notices are anchored outside the app-rendered header.
+
 The shared API client intentionally separates registry-backed operations from direct REST paths: use `fetchOperation()` for registered operation ids and `fetchPath()` only for explicit raw-path calls.
 
 ## Audit And Update Strategy
