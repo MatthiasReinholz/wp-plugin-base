@@ -80,6 +80,7 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 		 */
 		private static function render_root( array $config ) {
 			echo '<div class="wrap">';
+			echo '<hr class="wp-header-end">';
 			echo '<div id="' . esc_attr( $config['root_id'] ) . '"></div>';
 			echo '</div>';
 		}

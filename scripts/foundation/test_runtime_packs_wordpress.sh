@@ -207,8 +207,14 @@ if ( function_exists( 'set_current_screen' ) ) {
 ob_start();
 do_action( \$hook );
 \$rendered_markup = ob_get_clean();
-if ( false === strpos( \$rendered_markup, 'runtime-pack-ready-admin-ui-root' ) ) {
+\$root_position = strpos( \$rendered_markup, 'runtime-pack-ready-admin-ui-root' );
+if ( false === \$root_position ) {
   wp_plugin_base_runtime_pack_smoke_fail( 'Expected admin page render output to include the managed root element.' );
+}
+
+\$header_end_position = strpos( \$rendered_markup, 'class="wp-header-end"' );
+if ( false === \$header_end_position || \$header_end_position > \$root_position ) {
+  wp_plugin_base_runtime_pack_smoke_fail( 'Expected admin page render output to include the WordPress header end marker before the managed root element.' );
 }
 
 remove_action( 'admin_enqueue_scripts', 'wp_enqueue_command_palette_assets' );

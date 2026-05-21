@@ -107,6 +107,7 @@ assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" '--req
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" 'npm ci --ignore-scripts --no-audit --no-fund' "Foundation lint tool bootstrap must install markdownlint from the committed npm lockfile."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_validate_config_scope.sh' "Foundation policy checks must include config scope validation tests."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_validate_config_runtime_pack_contracts.sh' "Foundation policy checks must include runtime-pack config contract tests."
+assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_admin_ui_loader_shell.sh' "Foundation policy checks must include the admin UI loader shell contract test."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_admin_ui_api_client.sh' "Foundation policy checks must include the shared admin UI API client contract test."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/validate_config.sh" 'config-schema.json' "Config validator must read the machine-readable config schema."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/validate_config_contract.sh" 'README required key list and config schema project-required keys drifted' "Config contract parity validator must check README required keys against schema."
