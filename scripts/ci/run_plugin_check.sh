@@ -221,12 +221,31 @@ warning_count="$(printf '%s\n' "$json_payload" | jq '[ .[] | select(.type == "WA
 
 printf 'Plugin Check: %s errors, %s warnings.\n' "$error_count" "$warning_count"
 
+print_plugin_check_findings() {
+  local finding_type="$1"
+  local finding_count="$2"
+  local limit="${3:-10}"
+
+  if [ "$finding_count" -le 0 ]; then
+    return
+  fi
+
+  printf 'Plugin Check %s details (showing up to %s):\n' "$finding_type" "$limit" >&2
+  printf '%s\n' "$json_payload" | bash "$SCRIPT_DIR/format_plugin_check_findings.sh" "$finding_type" "$limit" >&2
+
+  if [ "$finding_count" -gt "$limit" ]; then
+    printf 'Plugin Check %s details truncated: %s additional findings not shown.\n' "$finding_type" "$((finding_count - limit))" >&2
+  fi
+}
+
 if [ "$error_count" -gt 0 ]; then
+  print_plugin_check_findings "ERROR" "$error_count"
   echo "Plugin Check reported errors. See dist/plugin-check.json." >&2
   exit 1
 fi
 
 if wp_plugin_base_is_true "${WP_PLUGIN_BASE_PLUGIN_CHECK_STRICT_WARNINGS:-false}" && [ "$warning_count" -gt 0 ]; then
+  print_plugin_check_findings "WARNING" "$warning_count"
   echo "Plugin Check reported warnings and strict warnings mode is enabled. See dist/plugin-check.json." >&2
   exit 1
 fi
