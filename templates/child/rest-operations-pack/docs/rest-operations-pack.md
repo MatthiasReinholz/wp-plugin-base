@@ -55,8 +55,8 @@ By default, managed REST operations preserve WordPress `WP_Error` compatibility.
 
 ```php
 'error_response' => array(
-	'mode'    => 'envelope',
-	'message' => __( 'The request could not be completed.', '__PLUGIN_SLUG__' ),
+    'mode'    => 'envelope',
+    'message' => __( 'The request could not be completed.', '__PLUGIN_SLUG__' ),
 ),
 ```
 
