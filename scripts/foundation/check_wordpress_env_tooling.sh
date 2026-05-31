@@ -64,6 +64,7 @@ fi
 cp "$NPMRC" "$PACKAGE_JSON" "$PACKAGE_LOCK" "$INSTALL_DIR/"
 (
   cd "$INSTALL_DIR"
+  NPM_CONFIG_CACHE="$CACHE_DIR" npm audit --package-lock-only --audit-level=high >/dev/null
   NPM_CONFIG_CACHE="$CACHE_DIR" npm ci --no-audit --no-fund >/dev/null
   NPM_CONFIG_CACHE="$CACHE_DIR" npm audit signatures >/dev/null
 )

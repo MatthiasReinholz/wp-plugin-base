@@ -105,6 +105,7 @@ assert_file_contains_literal "$ROOT_DIR/scripts/release/publish_github_release.s
 assert_file_contains_literal "$ROOT_DIR/scripts/release/publish_github_release.sh" '--draft=false' "GitHub release repair must clear draft state after assets are present."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" '--require-hashes' "Foundation lint tool bootstrap must install Python tools from hash-pinned requirements."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" 'npm ci --ignore-scripts --no-audit --no-fund' "Foundation lint tool bootstrap must install markdownlint from the committed npm lockfile."
+assert_file_contains_literal "$ROOT_DIR/scripts/foundation/check_wordpress_env_tooling.sh" 'npm audit --package-lock-only --audit-level=high' "WordPress env tooling check must fail on high-severity committed lockfile advisories."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_validate_config_scope.sh' "Foundation policy checks must include config scope validation tests."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_validate_config_runtime_pack_contracts.sh' "Foundation policy checks must include runtime-pack config contract tests."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_admin_ui_loader_shell.sh' "Foundation policy checks must include the admin UI loader shell contract test."
@@ -135,6 +136,10 @@ assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" '
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' "Security documentation must not carry a stale upload-artifact SHA."
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Security documentation must not carry a stale upload-sarif SHA."
 assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Workflow audit allowlist must not accept stale upload-sarif SHAs."
+assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Child CI workflow must not carry the superseded upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Root CI workflow must not carry the superseded upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Security documentation must not carry a superseded upload-sarif SHA."
+assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Workflow audit allowlist must not accept superseded upload-sarif SHAs."
 
 managed_semgrep_gate_pattern="$(cat <<'EOF_PATTERN'
 if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}

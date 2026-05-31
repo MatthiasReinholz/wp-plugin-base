@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/provider.sh
+. "$SCRIPT_DIR/../lib/provider.sh"
 
 wp_plugin_base_require_commands "workflow audit" git ruby perl
 
@@ -667,6 +669,10 @@ if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
     [ -n "$host" ] || continue
     if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
       echo "Invalid host in EXTRA_ALLOWED_HOSTS: $host" >&2
+      exit 1
+    fi
+    if wp_plugin_base_host_is_local_or_private "$host"; then
+      echo "EXTRA_ALLOWED_HOSTS host must not use localhost, private-network, link-local, or *.internal hosts: $host" >&2
       exit 1
     fi
     extra_allowed_hosts+=("$host")

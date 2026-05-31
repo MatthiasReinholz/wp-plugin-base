@@ -356,6 +356,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   if [ -n "${EXTRA_ALLOWED_HOSTS:-}" ]; then
     while IFS= read -r host; do
       validate_regex "$host" '^[A-Za-z0-9.-]+$' 'EXTRA_ALLOWED_HOSTS host'
+      if wp_plugin_base_host_is_local_or_private "$host"; then
+        echo "EXTRA_ALLOWED_HOSTS host must not use localhost, private-network, link-local, or *.internal hosts: ${host}" >&2
+        exit 1
+      fi
     done < <(wp_plugin_base_csv_to_lines "$EXTRA_ALLOWED_HOSTS")
   fi
 
