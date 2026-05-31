@@ -86,7 +86,7 @@ The hardened baseline audits literal workflow and repo-local-script references t
 - `registry-1.docker.io`
 - `token.actions.githubusercontent.com`
 
-Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only and keep this list minimal.
+Projects can extend this allowlist with `EXTRA_ALLOWED_HOSTS` in `.wp-plugin-base.env` when additional trusted hosts are required. Use hostnames only; localhost, private-network, link-local, single-label, and `*.internal` hosts are rejected.
 For self-managed GitLab or GitHub Enterprise automation, that workflow-audit allowlist is separate from `TRUSTED_GIT_HOSTS`, which controls config-level trust for release APIs and Sigstore issuer hosts.
 
 Dynamic URL construction inside workflow or local-action `run:` bodies is intentionally out of contract. Those contexts must use literal auditable hosts or delegate the network call to a reviewed repo-local script.

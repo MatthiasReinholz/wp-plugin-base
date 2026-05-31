@@ -6,6 +6,12 @@
     "npm": ">=8.19.2"
   },
   "devDependencies": {
-    "@wordpress/env": "11.6.0"
+    "@wordpress/env": "11.7.0"
+  },
+  "overrides": {
+    "ajv": "8.18.0",
+    "qs": "6.15.2",
+    "tmp": "0.2.7",
+    "ws": "8.20.1"
   }
 }

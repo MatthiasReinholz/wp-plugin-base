@@ -437,7 +437,7 @@ The admin starter files are child-owned and seeded once. Changing `ADMIN_UI_STAR
 
 Disabling `ADMIN_UI_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but you must remove the child-owned `require_once __DIR__ . '/lib/wp-plugin-base/admin-ui/bootstrap.php';` include, clear `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`, and delete any stale `assets/admin-ui/` build outputs before validation or packaging will pass. Deleting the seeded `.wp-plugin-base-admin-ui/` sources is optional but recommended once the pack is intentionally removed.
 
-`EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Keep this list minimal.
+`EXTRA_ALLOWED_HOSTS` allows additional outbound URL hosts for workflow/script audit policy (comma-separated hostnames only). Localhost, private-network, link-local, single-label, and `*.internal` hosts are rejected; keep this list minimal.
 
 Local `validate.sh` defaults to `fast-local` mode. That mode proves the release tooling wiring and reports any checks that were skipped when local prerequisites are unavailable. Use `--mode strict-local` after `bootstrap_strict_local.sh` for CI-like tool enforcement on a contributor machine. GitHub `foundation-ci` runs `validate.sh --mode ci` and is the authoritative strict execution path for GitHub Actions OIDC-sensitive Sigstore signing checks.
 

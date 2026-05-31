@@ -113,6 +113,54 @@ if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope
   exit 1
 fi
 
+cat > "$fixture/.scope-project-extra-allowed-host.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.3.0
+PLUGIN_NAME="Standard Plugin"
+PLUGIN_SLUG=standard-plugin
+MAIN_PLUGIN_FILE=standard-plugin.php
+README_FILE=readme.txt
+ZIP_FILE=standard-plugin.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+EXTRA_ALLOWED_HOSTS=raw.githubusercontent.com
+EOF_CONFIG
+WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-extra-allowed-host.env >/dev/null
+
+cat > "$fixture/.scope-project-localhost-extra-allowed-host.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.3.0
+PLUGIN_NAME="Standard Plugin"
+PLUGIN_SLUG=standard-plugin
+MAIN_PLUGIN_FILE=standard-plugin.php
+README_FILE=readme.txt
+ZIP_FILE=standard-plugin.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+EXTRA_ALLOWED_HOSTS=raw.githubusercontent.com,localhost
+EOF_CONFIG
+if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-localhost-extra-allowed-host.env >/dev/null 2>&1; then
+  echo "Project scope unexpectedly passed with localhost in EXTRA_ALLOWED_HOSTS." >&2
+  exit 1
+fi
+
+cat > "$fixture/.scope-project-private-extra-allowed-host.env" <<'EOF_CONFIG'
+FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
+FOUNDATION_VERSION=v1.3.0
+PLUGIN_NAME="Standard Plugin"
+PLUGIN_SLUG=standard-plugin
+MAIN_PLUGIN_FILE=standard-plugin.php
+README_FILE=readme.txt
+ZIP_FILE=standard-plugin.zip
+PHP_VERSION=8.1
+NODE_VERSION=20
+EXTRA_ALLOWED_HOSTS=10.0.0.5,raw.githubusercontent.com
+EOF_CONFIG
+if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-private-extra-allowed-host.env >/dev/null 2>&1; then
+  echo "Project scope unexpectedly passed with a private-network host in EXTRA_ALLOWED_HOSTS." >&2
+  exit 1
+fi
+
 cat > "$fixture/.scope-project-mixed-runtime-host.env" <<'EOF_CONFIG'
 FOUNDATION_REPOSITORY=MatthiasReinholz/wp-plugin-base
 FOUNDATION_VERSION=v1.3.0

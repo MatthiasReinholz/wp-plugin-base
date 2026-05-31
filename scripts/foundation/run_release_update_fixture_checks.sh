@@ -1099,6 +1099,16 @@ if ! EXTRA_ALLOWED_HOSTS='raw.githubusercontent.com' bash "$ROOT_DIR/scripts/ci/
   exit 1
 fi
 
+if EXTRA_ALLOWED_HOSTS='raw.githubusercontent.com,localhost' bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture" >/dev/null 2>&1; then
+  echo "Audit unexpectedly passed when EXTRA_ALLOWED_HOSTS included localhost." >&2
+  exit 1
+fi
+
+if EXTRA_ALLOWED_HOSTS='10.0.0.5,raw.githubusercontent.com' bash "$ROOT_DIR/scripts/ci/audit_workflows.sh" "$audit_fixture" >/dev/null 2>&1; then
+  echo "Audit unexpectedly passed when EXTRA_ALLOWED_HOSTS included a private-network host." >&2
+  exit 1
+fi
+
 authorization_fixture="$(mktemp -d)"
 mkdir -p "$authorization_fixture/includes"
 cat > "$authorization_fixture/.wp-plugin-base.env" <<'EOF'
