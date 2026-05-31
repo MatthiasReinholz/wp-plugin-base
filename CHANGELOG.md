@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.7.15
+
+* docs: record future enhancements
+* docs: record future enhancements
+* Harden tooling dependency and host audit policy (#181)
+* chore(deps): bump github/codeql-action from 4.35.5 to 4.36.0 (#178)
+* chore(deps-dev): bump tmp from 0.2.5 to 0.2.7 in /tools/wordpress-env (#180)
+* chore(deps): bump yamllint in /tools/python-lint-tools (#179)
+
 ## v1.7.14
 
 * Add admin UI header end marker (#176)
