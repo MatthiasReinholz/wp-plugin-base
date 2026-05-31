@@ -480,6 +480,7 @@ Repair flows skip WordPress.org redeploy by default so an existing `tags/<versio
 - [Security model](docs/security-model.md)
 - [Secure plugin coding contract](docs/secure-plugin-coding-contract.md)
 - [Compatibility and public contract](docs/compatibility.md)
+- [Future enhancements](docs/future-enhancements.md)
 - [Foundation release process](docs/foundation-release-process.md)
 - [Changelog policy](docs/changelog-policy.md)
 - [PR-based changelog notes](docs/pr-changelog.md)
