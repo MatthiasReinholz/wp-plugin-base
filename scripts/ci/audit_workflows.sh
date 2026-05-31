@@ -534,7 +534,7 @@ declare -a allowed_actions=(
   "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
   "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
   "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
-  "github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba"
+  "github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa"
   "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
   "shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc"
 )
