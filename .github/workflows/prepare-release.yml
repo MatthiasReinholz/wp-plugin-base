@@ -64,7 +64,7 @@ jobs:
           fi
 
       - name: Checkout base ref
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ inputs.base_ref }}
           fetch-depth: 0
@@ -101,7 +101,7 @@ jobs:
             "$GITHUB_OUTPUT"
 
       - name: Checkout source ref
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ steps.source.outputs.ref }}
           fetch-depth: 0
