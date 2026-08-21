@@ -136,7 +136,7 @@ PLUGIN_SLUG=contract-test
 MAIN_PLUGIN_FILE=contract-test.php
 ZIP_FILE=contract-test.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 
 WP_PLUGIN_BASE_ROOT="$contract_fixture" wp_plugin_base_load_config ""

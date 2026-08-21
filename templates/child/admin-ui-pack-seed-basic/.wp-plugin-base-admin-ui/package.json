@@ -2,8 +2,8 @@
   "name": "__PLUGIN_SLUG__-admin-ui",
   "private": true,
   "engines": {
-    "node": ">=18.12.0",
-    "npm": ">=8.19.2"
+    "node": ">=22.12.0",
+    "npm": ">=10.2.3"
   },
   "scripts": {
     "build": "wp-scripts build src/index.js --output-path=../assets/admin-ui",
@@ -15,14 +15,18 @@
     "@wordpress/data": "10.46.0",
     "@wordpress/element": "6.46.0",
     "@wordpress/i18n": "6.19.0",
-    "@wordpress/scripts": "32.2.0"
+    "@wordpress/scripts": "32.6.0"
   },
   "overrides": {
-    "basic-ftp": "5.3.1",
+    "@puppeteer/browsers": "3.2.1",
+    "adm-zip": "0.6.0",
+    "basic-ftp": "6.0.1",
+    "linkify-it": "6.1.0",
     "minimatch": "3.1.5",
+    "puppeteer-core": "25.8.0",
     "serialize-javascript": "7.0.5",
     "uuid": "14.0.0",
-    "webpack-dev-server": "5.2.4",
-    "ws": "8.20.1"
+    "webpack-dev-server": "5.2.6",
+    "ws": "8.21.3"
   }
 }

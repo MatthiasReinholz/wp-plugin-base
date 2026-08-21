@@ -280,6 +280,8 @@ Required keys in `.wp-plugin-base.env`:
 - `PHP_VERSION`
 - `NODE_VERSION`
 
+New child projects default to Node.js 22. Current admin UI tooling requires Node.js 22.12 or newer; keep `NODE_VERSION=22` unless the project's complete JavaScript dependency graph explicitly supports another runtime.
+
 Legacy compatibility alias: `FOUNDATION_REPOSITORY` remains accepted for GitHub-hosted foundations.
 
 Optional keys:

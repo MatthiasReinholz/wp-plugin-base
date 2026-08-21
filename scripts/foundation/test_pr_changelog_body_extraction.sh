@@ -26,7 +26,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 CHANGELOG_SOURCE=change_request_titles
 EOF_CONFIG
 
@@ -36,6 +36,7 @@ EOF_CONFIG
   git checkout -b main >/dev/null
   git config user.name tester
   git config user.email tester@example.invalid
+  git config gc.auto 0
   git add .
   git commit -m "Initial commit" >/dev/null
   git tag 1.2.2

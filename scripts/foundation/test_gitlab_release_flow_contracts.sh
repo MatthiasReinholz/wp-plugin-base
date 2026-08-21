@@ -31,7 +31,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 PRODUCTION_ENVIRONMENT=production
 CODEOWNERS_REVIEWERS=@example/platform
 EOF
