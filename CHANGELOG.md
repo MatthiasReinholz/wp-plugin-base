@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.8.0
 
 * Changed the managed foundation, child-project default, fixtures, and admin UI tooling contract from Node.js 20 to Node.js 22.
 
