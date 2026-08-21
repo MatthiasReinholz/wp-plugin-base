@@ -3,6 +3,7 @@
 ## v1.8.2
 
 * Preserve release formatting and update Markdown tooling (#327)
+* Correct the release branch metadata used to finalize v1.8.2.
 
 ## v1.8.1
 
