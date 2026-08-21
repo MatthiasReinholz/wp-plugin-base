@@ -14,6 +14,27 @@ function esc_attr( $value ) {
     return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' );
 }
 
+$actions       = array();
+$menu_calls    = array();
+$submenu_calls = array();
+
+function add_action( $hook, $callback ) {
+    global $actions;
+    $actions[$hook][] = $callback;
+}
+
+function add_menu_page( ...$args ) {
+    global $menu_calls;
+    $menu_calls[] = $args;
+    return 'toplevel_page_fixture';
+}
+
+function add_submenu_page( ...$args ) {
+    global $submenu_calls;
+    $submenu_calls[] = $args;
+    return 'settings_page_fixture';
+}
+
 require getenv( 'WP_PLUGIN_BASE_ADMIN_UI_LOADER_PATH' );
 
 $method = new ReflectionMethod( 'WP_Plugin_Base_Admin_UI_Loader', 'render_root' );
@@ -45,6 +66,26 @@ if ( false === $root_position ) {
 
 if ( $header_end_position > $root_position ) {
     fwrite( STDERR, 'Expected admin UI loader shell to emit wp-header-end before the React root.' . PHP_EOL );
+    exit( 1 );
+}
+
+WP_Plugin_Base_Admin_UI_Loader::register_page(
+    array(
+        'page_title'  => 'Fixture',
+        'menu_title'  => 'Fixture',
+        'capability'  => 'manage_options',
+        'menu_slug'   => 'fixture',
+        'parent_slug' => 'options-general.php',
+    )
+);
+
+$actions['admin_menu'][0]();
+if ( 1 !== count( $submenu_calls ) || 'options-general.php' !== $submenu_calls[0][0] ) {
+    fwrite( STDERR, 'Expected parent_slug to register the admin UI as a submenu.' . PHP_EOL );
+    exit( 1 );
+}
+if ( array() !== $menu_calls ) {
+    fwrite( STDERR, 'Expected parent_slug to avoid top-level menu registration.' . PHP_EOL );
     exit( 1 );
 }
 

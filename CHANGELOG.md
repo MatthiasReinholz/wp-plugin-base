@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.8.1
+
+* Preserve child-project `parent_slug` settings when registering managed admin UI pages.
+
 ## v1.8.0
 
 * Changed the managed foundation, child-project default, fixtures, and admin UI tooling contract from Node.js 20 to Node.js 22.
