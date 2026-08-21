@@ -32,7 +32,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 
 WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project >/dev/null
@@ -58,7 +58,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope deploy .scope-deploy-missing-slug.env >/dev/null 2>&1; then
   echo "Deploy scope unexpectedly passed without WORDPRESS_ORG_SLUG." >&2
@@ -73,7 +73,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-missing-name.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed without PLUGIN_NAME." >&2
@@ -89,7 +89,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-invalid-name.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with an empty PLUGIN_NAME." >&2
@@ -105,7 +105,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 CODEOWNERS_REVIEWERS=example/platform
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-invalid-codeowners.env >/dev/null 2>&1; then
@@ -122,7 +122,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EXTRA_ALLOWED_HOSTS=raw.githubusercontent.com
 EOF_CONFIG
 WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-extra-allowed-host.env >/dev/null
@@ -136,7 +136,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EXTRA_ALLOWED_HOSTS=raw.githubusercontent.com,localhost
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-localhost-extra-allowed-host.env >/dev/null 2>&1; then
@@ -153,7 +153,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EXTRA_ALLOWED_HOSTS=10.0.0.5,raw.githubusercontent.com
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-private-extra-allowed-host.env >/dev/null 2>&1; then
@@ -170,7 +170,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 AUTOMATION_PROVIDER=github
 PLUGIN_RUNTIME_UPDATE_PROVIDER=gitlab-release
 PLUGIN_RUNTIME_UPDATE_SOURCE_URL=https://gitlab.com/example/standard-plugin
@@ -194,7 +194,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-self-managed-gitlab-missing-issuer.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed for self-managed GitLab without FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER." >&2
@@ -214,7 +214,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-untrusted-foundation-host.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with an untrusted FOUNDATION_RELEASE_SOURCE_API_BASE host." >&2
@@ -232,7 +232,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-untrusted-automation-host.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with an untrusted AUTOMATION_API_BASE host." >&2
@@ -254,7 +254,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-localhost-trusted-host.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with localhost in TRUSTED_GIT_HOSTS." >&2
@@ -276,7 +276,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-private-trusted-host.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with a private-network host in TRUSTED_GIT_HOSTS." >&2
@@ -298,7 +298,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-internal-trusted-host.env >/dev/null 2>&1; then
   echo "Project scope unexpectedly passed with an internal host in TRUSTED_GIT_HOSTS." >&2
@@ -320,7 +320,7 @@ MAIN_PLUGIN_FILE=standard-plugin.php
 README_FILE=readme.txt
 ZIP_FILE=standard-plugin.zip
 PHP_VERSION=8.1
-NODE_VERSION=20
+NODE_VERSION=22
 EOF_CONFIG
 WP_PLUGIN_BASE_ROOT="$fixture" bash "$VALIDATE_CONFIG" --scope project .scope-project-self-managed-gitlab.env >/dev/null
 
