@@ -683,6 +683,7 @@ CHANGELOG_MD_SYNC_ENABLED=true
 EOF
 WP_PLUGIN_BASE_ROOT="$release_features_fixture" bash "$ROOT_DIR/scripts/release/bump_version.sh" "1.0.1"
 WP_PLUGIN_BASE_ROOT="$release_features_fixture" bash "$ROOT_DIR/scripts/ci/check_versions.sh" "1.0.1"
+grep -Fq "define( 'BUILD_READY_PLUGIN_VERSION', '1.0.1' );" "$release_features_fixture/build-ready-plugin.php"
 grep -Fq '"version": "1.0.1"' "$release_features_fixture/package.json"
 grep -Fq '"version": "1.0.1"' "$release_features_fixture/package-lock.json"
 grep -Fq '## v1.0.1' "$release_features_fixture/CHANGELOG.md"
