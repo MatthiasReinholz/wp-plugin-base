@@ -43,7 +43,7 @@ if grep -q "^Stable tag: " "$README_PATH"; then
 fi
 
 if [ -n "${VERSION_CONSTANT_NAME:-}" ]; then
-  perl -0pi -e "s/define\\(\\s*['\\\"]${VERSION_CONSTANT_NAME}['\\\"]\\s*,\\s*['\\\"][^'\\\"]+['\\\"]\\s*\\);/define('${VERSION_CONSTANT_NAME}', '${VERSION}');/m" "$PLUGIN_FILE"
+  perl -0pi -e "s/(define\\(\\s*['\\\"]${VERSION_CONSTANT_NAME}['\\\"]\\s*,\\s*['\\\"])[^'\\\"]+(['\\\"]\\s*\\);)/\${1}${VERSION}\${2}/m" "$PLUGIN_FILE"
 fi
 
 PACKAGE_JSON="$(wp_plugin_base_resolve_path "package.json")"
