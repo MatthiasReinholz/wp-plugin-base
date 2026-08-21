@@ -36,21 +36,34 @@ if ( ! class_exists( 'WP_Plugin_Base_Admin_UI_Loader' ) ) {
 			add_action(
 				'admin_menu',
 				static function () use ( $config ) {
-					$hook_suffix = add_menu_page(
-						$config['page_title'],
-						$config['menu_title'],
-						$config['capability'],
-						$config['menu_slug'],
-						static function () use ( $config ) {
-							if ( ! current_user_can( $config['capability'] ) ) {
-								return;
-							}
+					$render_page = static function () use ( $config ) {
+						if ( ! current_user_can( $config['capability'] ) ) {
+							return;
+						}
 
-							self::render_root( $config );
-						},
-						'dashicons-admin-generic',
-						58
-					);
+						self::render_root( $config );
+					};
+
+					if ( ! empty( $config['parent_slug'] ) ) {
+						$hook_suffix = add_submenu_page(
+							$config['parent_slug'],
+							$config['page_title'],
+							$config['menu_title'],
+							$config['capability'],
+							$config['menu_slug'],
+							$render_page
+						);
+					} else {
+						$hook_suffix = add_menu_page(
+							$config['page_title'],
+							$config['menu_title'],
+							$config['capability'],
+							$config['menu_slug'],
+							$render_page,
+							'dashicons-admin-generic',
+							58
+						);
+					}
 
 					if ( is_string( $hook_suffix ) && '' !== $hook_suffix ) {
 						self::$pages[ $hook_suffix ] = $config;
