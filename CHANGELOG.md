@@ -5,6 +5,7 @@
 * Changed the managed foundation, child-project default, fixtures, and admin UI tooling contract from Node.js 20 to Node.js 22.
 * Updated WordPress validation fixtures for WordPress 7.1 compatibility checks.
 * Updated the managed PHP quality pack to security-fixed coding-standard dependencies.
+* Stabilized changelog extraction fixtures by disabling asynchronous Git maintenance in temporary repositories.
 
 ## v1.7.15
 
