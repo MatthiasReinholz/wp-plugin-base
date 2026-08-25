@@ -532,13 +532,13 @@ if [ "${#action_files[@]}" -gt 0 ]; then
 fi
 
 declare -a allowed_actions=(
-  "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+  "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+  "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
   "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-  "actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
-  "github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa"
-  "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
-  "shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc"
+  "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
+  "github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
+  "ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc"
+  "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240"
 )
 
 declare -a uses_entries=()
