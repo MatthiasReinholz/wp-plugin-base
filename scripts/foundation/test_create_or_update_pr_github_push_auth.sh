@@ -13,7 +13,7 @@ auth_marker="$(mktemp)"
 expected_auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' 'fixture-token' | base64 | tr -d '\n')"
 
 cleanup() {
-  rm -rf "$fixture_repo" "$fixture_origin" "$helper_dir" "$pr_output" "$auth_marker"
+  rm -rf "$fixture_repo" "$fixture_origin" "$helper_dir" "$pr_output" "$auth_marker" || true
 }
 trap cleanup EXIT
 
