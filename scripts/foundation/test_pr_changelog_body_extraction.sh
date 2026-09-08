@@ -9,15 +9,32 @@ fixture="$(mktemp -d)"
 fake_bin="$(mktemp -d)"
 github_output="$(mktemp)"
 gitlab_output="$(mktemp)"
+github_error="$(mktemp)"
+gitlab_error="$(mktemp)"
 
 cleanup() {
-  rm -rf "$fixture" "$fake_bin" "$github_output" "$gitlab_output"
+  rm -rf "$fixture" "$fake_bin" "$github_output" "$gitlab_output" "$github_error" "$gitlab_error"
 }
 trap cleanup EXIT
+echo "Starting PR changelog body extraction tests."
+
+assert_output_contains() {
+  local output_file="$1"
+  local expected="$2"
+  local provider="$3"
+
+  if ! grep -Fq "$expected" "$output_file"; then
+    echo "${provider} release notes did not contain expected entry: ${expected}" >&2
+    echo "Actual ${provider} release notes:" >&2
+    cat "$output_file" >&2
+    exit 1
+  fi
+}
 
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$fixture/"
 mkdir -p "$fixture/.wp-plugin-base"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$fixture/.wp-plugin-base/"
+echo "Prepared PR changelog fixture."
 
 cat > "$fixture/.wp-plugin-base.env" <<'EOF_CONFIG'
 PLUGIN_NAME="Standard Plugin"
@@ -73,6 +90,7 @@ cat <<'JSON'
 JSON
 EOF_GH
 chmod +x "$fake_bin/gh"
+echo "Prepared GitHub provider fixture."
 
 http_client_name='cu'"rl"
 cat > "$fake_bin/$http_client_name" <<EOF_CURL
@@ -90,16 +108,22 @@ cat <<'JSON'
 JSON
 EOF_CURL
 chmod +x "$fake_bin/$http_client_name"
+echo "Prepared GitLab provider fixture."
 
-PATH="$fake_bin:$PATH" \
+if ! PATH="$fake_bin:$PATH" \
   AUTOMATION_PROVIDER=github \
   GITHUB_REPOSITORY=example/standard-plugin \
   WP_PLUGIN_BASE_ROOT="$fixture" \
-  bash "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$github_output"
+  bash -x "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$github_output" 2> "$github_error"; then
+  echo "GitHub release-note generator failed:" >&2
+  cat "$github_error" >&2
+  exit 1
+fi
+echo "Generated GitHub release-note fixture output."
 
-grep -Fq '* Add - Add opt-out toggle in admin settings.' "$github_output"
-grep -Fq '* Fix - Fix nonce verification edge case.' "$github_output"
-grep -Fq '* Tweak - Tweak fallback title path.' "$github_output"
+assert_output_contains "$github_output" '* Add - Add opt-out toggle in admin settings.' "GitHub"
+assert_output_contains "$github_output" '* Fix - Fix nonce verification edge case.' "GitHub"
+assert_output_contains "$github_output" '* Tweak - Tweak fallback title path.' "GitHub"
 if grep -Fq 'Update internal build metadata' "$github_output"; then
   echo "Generator unexpectedly fell back to title despite a changelog body section." >&2
   exit 1
@@ -109,16 +133,21 @@ if grep -Fq 'deferred checklist item' "$github_output"; then
   exit 1
 fi
 
-PATH="$fake_bin:$PATH" \
+if ! PATH="$fake_bin:$PATH" \
   AUTOMATION_PROVIDER=gitlab \
   CI_PROJECT_PATH=example-group/standard-plugin \
   GITLAB_TOKEN=test-token \
   AUTOMATION_API_BASE=https://gitlab.com/api/v4 \
   WP_PLUGIN_BASE_ROOT="$fixture" \
-  bash "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$gitlab_output"
+  bash -x "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$gitlab_output" 2> "$gitlab_error"; then
+  echo "GitLab release-note generator failed:" >&2
+  cat "$gitlab_error" >&2
+  exit 1
+fi
+echo "Generated GitLab release-note fixture output."
 
-grep -Fq '* Tweak - Tweak runtime guard defaults.' "$gitlab_output"
-grep -Fq '* Dev - Dev docs cleanup for runtime guidance.' "$gitlab_output"
+assert_output_contains "$gitlab_output" '* Tweak - Tweak runtime guard defaults.' "GitLab"
+assert_output_contains "$gitlab_output" '* Dev - Dev docs cleanup for runtime guidance.' "GitLab"
 if grep -Fq 'Update automation defaults' "$gitlab_output"; then
   echo "GitLab generator unexpectedly fell back to title despite a release notes section." >&2
   exit 1
