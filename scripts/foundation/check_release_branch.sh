@@ -12,6 +12,10 @@ if [ -z "$BRANCH_NAME" ]; then
 fi
 
 if [[ ! "$BRANCH_NAME" =~ ^(release|hotfix)/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  if [[ "$BRANCH_NAME" =~ ^(release|hotfix)/ ]]; then
+    echo "Invalid foundation release branch: ${BRANCH_NAME}. Expected release/vX.Y.Z or hotfix/vX.Y.Z." >&2
+    exit 1
+  fi
   echo "Skipping foundation release branch validation for $BRANCH_NAME."
   exit 0
 fi

@@ -142,7 +142,8 @@ fi
 
 bash "$ROOT_DIR/scripts/foundation/check_version.sh"
 bash "$ROOT_DIR/scripts/foundation/test_changelog_policy.sh"
-bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "release/$(tr -d '\n' < "$ROOT_DIR/VERSION")"
+current_branch="${GITHUB_HEAD_REF:-$(git -C "$ROOT_DIR" branch --show-current)}"
+bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "${current_branch:-detached-head}"
 
 # Keep fixture validation hermetic even if the runner exports repository-level config vars.
 unset FOUNDATION_REPOSITORY FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE

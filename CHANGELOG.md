@@ -2,6 +2,7 @@
 
 ## v1.8.3
 
+* Validate the actual release branch and reject malformed release or hotfix branch names (#340)
 * Remediate admin UI build-tool advisories and require Node.js 22.19 for the secured Lighthouse toolchain (#339)
 * Refresh WordPress environment tooling dependencies and stabilize fixture cleanup (#339)
 * Refresh admin UI security lockfiles (#338)

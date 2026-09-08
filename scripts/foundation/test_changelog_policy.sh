@@ -52,4 +52,12 @@ EOF
 
 WP_PLUGIN_BASE_ROOT="$FIXTURE" bash "$ROOT_DIR/scripts/foundation/check_version.sh" "v9.9.9" >/dev/null
 
+if bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "release/1.8.3" >/dev/null 2>&1; then
+  echo "Foundation release branch validation unexpectedly accepted a version without the required v prefix." >&2
+  exit 1
+fi
+
+bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "hotfix/v1.8.3" >/dev/null
+bash "$ROOT_DIR/scripts/foundation/check_release_branch.sh" "chore/foundation-maintenance" >/dev/null
+
 echo "Validated foundation changelog policy."
