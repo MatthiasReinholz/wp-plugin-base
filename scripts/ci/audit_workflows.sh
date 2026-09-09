@@ -176,6 +176,7 @@ expected_job_permissions = {
   },
   "ci.yml" => {
     "wordpress-readiness" => {
+      "actions" => "read",
       "contents" => "read",
       "security-events" => "write"
     }
