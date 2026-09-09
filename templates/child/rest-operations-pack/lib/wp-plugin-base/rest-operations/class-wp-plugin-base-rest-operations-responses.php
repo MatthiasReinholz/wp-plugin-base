@@ -64,10 +64,8 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 				$status
 			);
 
-			if ( method_exists( $response, 'header' ) ) {
-				$response->header( 'X-Request-ID', $request_id );
-				$response->header( 'X-Correlation-ID', $request_id );
-			}
+			$response->header( 'X-Request-ID', $request_id );
+			$response->header( 'X-Correlation-ID', $request_id );
 
 			return $response;
 		}
@@ -134,14 +132,10 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 		 * @return string
 		 */
 		private static function resolve_request_id( WP_REST_Request $request ) {
-			$request_id = '';
+			$request_id = (string) $request->get_header( 'x-correlation-id' );
 
-			if ( method_exists( $request, 'get_header' ) ) {
-				$request_id = (string) $request->get_header( 'x-correlation-id' );
-
-				if ( '' === $request_id ) {
-					$request_id = (string) $request->get_header( 'x-request-id' );
-				}
+			if ( '' === $request_id ) {
+				$request_id = (string) $request->get_header( 'x-request-id' );
 			}
 
 			$request_id = self::sanitize_request_id( $request_id );
@@ -190,7 +184,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 		 * @return int
 		 */
 		private static function get_error_status( WP_Error $error ) {
-			$data = method_exists( $error, 'get_error_data' ) ? $error->get_error_data() : ( isset( $error->data ) ? $error->data : array() );
+			$data = $error->get_error_data();
 
 			if ( is_array( $data ) && isset( $data['status'] ) && is_numeric( $data['status'] ) ) {
 				$status = (int) $data['status'];
@@ -212,11 +206,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Responses' ) ) {
 		 * @return string
 		 */
 		private static function get_error_code( WP_Error $error ) {
-			if ( method_exists( $error, 'get_error_code' ) ) {
-				return (string) $error->get_error_code();
-			}
-
-			return isset( $error->code ) ? (string) $error->code : 'wp_plugin_base_rest_error';
+			return (string) $error->get_error_code();
 		}
 	}
 }

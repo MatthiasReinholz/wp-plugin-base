@@ -35,6 +35,8 @@ ini_set( 'log_errors', '1' );
 ini_set( 'error_log', getenv( 'ERROR_LOG_PATH' ) );
 
 class WP_Error {
+  public function get_error_code() { return $this->code; }
+  public function get_error_data() { return $this->data; }
   public $code;
   public $message;
   public $data;
@@ -47,9 +49,10 @@ class WP_Error {
 }
 
 class WP_REST_Request {
+  public function get_header( $key ) { return ''; }
   private $params = array();
 
-  public function set_params( $params ) {
+  public function set_body_params( $params ) {
     $this->params = $params;
   }
 
