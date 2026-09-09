@@ -129,6 +129,10 @@
       "default": "false",
       "pattern": "^(true|false)$"
     },
+    "GITHUB_CODE_SCANNING_UPLOAD_ENABLED": {
+      "default": "true",
+      "pattern": "^(true|false)$"
+    },
     "RELEASE_READINESS_MODE": {
       "description": "Optional fail-closed readiness profile. Use security-sensitive for plugins that must not release with reduced WordPress readiness, quality, security, Plugin Check, or audit coverage.",
       "default": "standard",
