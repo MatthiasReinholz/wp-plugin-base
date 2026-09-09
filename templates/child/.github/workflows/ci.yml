@@ -34,6 +34,7 @@ jobs:
       node_version: ${{ steps.config.outputs.node_version }}
       wordpress_readiness_enabled: ${{ steps.config.outputs.wordpress_readiness_enabled }}
       wordpress_security_pack_enabled: ${{ steps.config.outputs.wordpress_security_pack_enabled }}
+      github_code_scanning_upload_enabled: ${{ steps.config.outputs.github_code_scanning_upload_enabled }}
 
     steps:
       - name: Checkout
@@ -106,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: read
       security-events: write
 
@@ -147,14 +149,22 @@ jobs:
         if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
         run: test -s dist/semgrep-security.sarif
 
-      - name: Upload Semgrep SARIF
+      - name: Upload Semgrep report artifact
         if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: semgrep-security-report
+          path: dist/semgrep-security.sarif
+          if-no-files-found: error
+
+      - name: Upload Semgrep SARIF
+        if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' && needs.validate.outputs.github_code_scanning_upload_enabled == 'true' }}
         uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
         with:
           sarif_file: dist/semgrep-security.sarif
 
       - name: Fail when Semgrep reports findings
-        if: ${{ needs.validate.outputs.wordpress_security_pack_enabled == 'true' && steps.semgrep.outcome != 'success' }}
+        if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' && steps.semgrep.outcome != 'success' }}
         run: |
           echo "Semgrep reported security findings. Review uploaded SARIF results." >&2
           exit 1

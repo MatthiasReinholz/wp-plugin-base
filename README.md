@@ -304,6 +304,7 @@ Optional keys:
 - `WORDPRESS_READINESS_ENABLED`
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
+- `GITHUB_CODE_SCANNING_UPLOAD_ENABLED`
 - `RELEASE_READINESS_MODE`
 - `WOOCOMMERCE_QIT_ENABLED`
 - `WOOCOMMERCE_COM_PRODUCT_ID`
@@ -378,6 +379,8 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. Full quality-pack mode manages PHPCS/PHPStan/PHPUnit support files, and seeds a child-owned `phpstan.neon` overlay for project-specific paths, excludes, bootstrap files, and scan files.
 
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
+
+`GITHUB_CODE_SCANNING_UPLOAD_ENABLED` defaults to `true`. Set it to `false` when GitHub code-scanning ingestion is unavailable. This controls only dashboard upload: Semgrep execution, failure enforcement, and the downloadable SARIF artifact remain enabled.
 
 `RELEASE_READINESS_MODE=security-sensitive` is an opt-in fail-closed release profile for plugins with elevated security requirements. It requires `WORDPRESS_READINESS_ENABLED=true`, `WORDPRESS_QUALITY_PACK_ENABLED=true`, `WORDPRESS_SECURITY_PACK_ENABLED=true`, strict Plugin Check warnings, full Plugin Check coverage without check/category/ignore/severity filters, and the default high admin UI npm audit threshold.
 
