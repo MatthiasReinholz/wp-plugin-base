@@ -15,6 +15,7 @@ INPUT_CLASS_PATH="$INPUT_CLASS_PATH" PERMISSIONS_CLASS_PATH="$PERMISSIONS_CLASS_
 define( 'ABSPATH', '/' );
 
 class WP_REST_Request {
+  public function get_header( $key ) { return ''; }
   public $method;
   public $route;
   public $params = array();
@@ -24,7 +25,7 @@ class WP_REST_Request {
     $this->route  = $route;
   }
 
-  public function set_params( $params ) {
+  public function set_body_params( $params ) {
     $this->params = $params;
   }
 
@@ -34,6 +35,7 @@ class WP_REST_Request {
 }
 
 class WP_REST_Response {
+  public function header( $key, $value ) {}
   private $data;
 
   public function __construct( $data ) {
@@ -46,6 +48,8 @@ class WP_REST_Response {
 }
 
 class WP_Error {
+  public function get_error_code() { return $this->code; }
+  public function get_error_data() { return $this->data; }
   public $code;
   public $message;
   public $data;
