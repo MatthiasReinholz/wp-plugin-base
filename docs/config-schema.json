@@ -154,6 +154,11 @@
       "default": "",
       "pattern": "^$|^https://github[.]com/[^/]+/[^/]+/?$"
     },
+    "RUNTIME_CLASS_PREFIX": {
+      "description": "Optional plugin-specific prefix for generated REST/admin runtime classes and seed callback functions. Empty retains legacy identifiers.",
+      "default": "",
+      "pattern": "^$|^[A-Za-z][A-Za-z0-9_]{0,62}_$"
+    },
     "REST_OPERATIONS_PACK_ENABLED": {
       "default": "false",
       "pattern": "^(true|false)$"

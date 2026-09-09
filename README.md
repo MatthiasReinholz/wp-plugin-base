@@ -310,6 +310,7 @@ Optional keys:
 - `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`
 - `GITHUB_RELEASE_UPDATER_ENABLED`
 - `GITHUB_RELEASE_UPDATER_REPO_URL`
+- `RUNTIME_CLASS_PREFIX`
 - `REST_OPERATIONS_PACK_ENABLED`
 - `REST_API_NAMESPACE`
 - `REST_ABILITIES_ENABLED`
@@ -422,6 +423,10 @@ When the PHPUnit bridge is active, treat `tests/bootstrap.php` as managed and ke
 `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS` controls WooCommerce.com API request timeouts for deploy and status checks (default `30` seconds).
 
 `PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-runtime-updater.php`. Set `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` to the matching repository or JSON metadata URL and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';` to the plugin main file. `github-release` requires `AUTOMATION_PROVIDER=github`. `gitlab-release` requires `AUTOMATION_PROVIDER=gitlab`. `generic-json` is host-agnostic, but it is a runtime updater transport only, not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation. Systems such as `wp-core-base` should keep consuming the authoritative Git host release surface. Runtime update URLs must be public HTTPS URLs without credentials, query strings, fragments, localhost/private-network hosts, or token-like material. `GITHUB_RELEASE_UPDATER_ENABLED` and `GITHUB_RELEASE_UPDATER_REPO_URL` remain accepted as GitHub-only compatibility aliases.
+
+`RUNTIME_CLASS_PREFIX` defaults to an empty string for backward compatibility. Set a unique prefix such as `Example_Plugin_` before generating REST/admin packs to isolate their PHP classes and seed callbacks from other plugins. This creates identifiers such as `Example_Plugin_WP_Plugin_Base_Admin_UI_Loader` and `example_plugin_wp_plugin_base_example_rest_operation_get_settings`. The prefix must start with a letter, end with an underscore, and contain only letters, digits, and underscores (at most 64 characters). PHP identifiers are case-insensitive: prefixes differing only in case are not distinct. This setting does not change hooks, error codes, filenames, REST namespaces, or upstream update-library identifiers.
+
+Changing the prefix in an existing project requires updating project-owned bootstrap/class references and seeded callback functions manually; synchronization preserves existing child-owned files. Choose a stable prefix before first enabling the packs. Each plugin installed together must use a different nonempty prefix, apart from at most one legacy unprefixed consumer. Managed pack files must be regenerated from the foundation, never patched directly.
 
 `REST_OPERATIONS_PACK_ENABLED=true` enables an opt-in runtime pack that manages a shared REST operation registry and adapters in `lib/wp-plugin-base/rest-operations/` while seeding child-owned examples in `includes/rest-operations/`. Set `REST_API_NAMESPACE=<plugin-slug>/v1` to override the default namespace and add `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` to the plugin main file.
 

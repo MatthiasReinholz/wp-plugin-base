@@ -48,6 +48,7 @@ case "$OUTPUT_SCOPE" in
       echo "wordpress_quality_pack_enabled=${WORDPRESS_QUALITY_PACK_ENABLED}"
       echo "wordpress_security_pack_enabled=${WORDPRESS_SECURITY_PACK_ENABLED}"
       echo "woocommerce_com_product_id=${WOOCOMMERCE_COM_PRODUCT_ID}"
+      echo "runtime_class_prefix=${RUNTIME_CLASS_PREFIX}"
       echo "plugin_runtime_update_provider=${PLUGIN_RUNTIME_UPDATE_PROVIDER}"
       echo "plugin_runtime_update_source_url=${PLUGIN_RUNTIME_UPDATE_SOURCE_URL}"
       echo "github_release_updater_enabled=${GITHUB_RELEASE_UPDATER_ENABLED}"
