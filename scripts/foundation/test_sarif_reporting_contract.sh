@@ -13,7 +13,7 @@ printf '\nGITHUB_CODE_SCANNING_UPLOAD_ENABLED=false\n' >> "$config"
 WP_PLUGIN_BASE_ROOT="$fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" --scope project "$config"
 WP_PLUGIN_BASE_ROOT="$fixture" bash "$ROOT_DIR/scripts/ci/write_config_outputs.sh" project "$config" "$fixture/disabled"
 grep -Fxq 'github_code_scanning_upload_enabled=false' "$fixture/disabled"
-printf '\nGITHUB_CODE_SCANNING_UPLOAD_ENABLED=invalid\n' >> "$config"
+perl -pi -e 's/^GITHUB_CODE_SCANNING_UPLOAD_ENABLED=false$/GITHUB_CODE_SCANNING_UPLOAD_ENABLED=invalid/' "$config"
 if WP_PLUGIN_BASE_ROOT="$fixture" bash "$ROOT_DIR/scripts/ci/validate_config.sh" --scope project "$config" >/dev/null 2>&1; then
   echo 'Invalid reporting configuration must be rejected.' >&2
   exit 1
