@@ -379,6 +379,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" '^[1-9][0-9]*$' 'WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS'
   validate_regex "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" '^(none|github-release|gitlab-release|generic-json)$' 'PLUGIN_RUNTIME_UPDATE_PROVIDER'
   validate_regex "${GITHUB_RELEASE_UPDATER_ENABLED:-false}" '^(true|false)$' 'GITHUB_RELEASE_UPDATER_ENABLED'
+  validate_regex "${RUNTIME_CLASS_PREFIX:-}" '^$|^[A-Za-z][A-Za-z0-9_]{0,62}_$' 'RUNTIME_CLASS_PREFIX'
   validate_regex "${REST_OPERATIONS_PACK_ENABLED:-false}" '^(true|false)$' 'REST_OPERATIONS_PACK_ENABLED'
   validate_regex "${REST_API_NAMESPACE:-}" '^$|^[a-z0-9][a-z0-9-]*/v[0-9]+$' 'REST_API_NAMESPACE'
   validate_regex "${REST_ABILITIES_ENABLED:-false}" '^(true|false)$' 'REST_ABILITIES_ENABLED'
