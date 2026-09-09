@@ -44,6 +44,10 @@ trap 'rm -rf "$full_fixture" "$bridge_fixture" "$mode_only_fixture"' EXIT
 WP_PLUGIN_BASE_ROOT="$full_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 
 assert_regular_file "$full_fixture/.phpcs.xml.dist" "Full quality pack should manage .phpcs.xml.dist."
+if ! grep -Fq '<exclude-pattern>*/assets/admin-ui/*.asset.php</exclude-pattern>' "$full_fixture/.phpcs.xml.dist"; then
+  echo "Generated admin dependency metadata must have a narrowly scoped coding-style exclusion." >&2
+  exit 1
+fi
 assert_regular_file "$full_fixture/phpstan.neon.dist" "Full quality pack should manage phpstan.neon.dist."
 assert_regular_file "$full_fixture/phpunit.xml.dist" "Full quality pack should manage phpunit.xml.dist."
 assert_regular_file "$full_fixture/phpstan.neon" "Full quality pack should seed phpstan.neon."
