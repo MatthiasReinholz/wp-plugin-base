@@ -372,6 +372,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
 
   validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
+  validate_regex "$GITHUB_CODE_SCANNING_UPLOAD_ENABLED" '^(true|false)$' 'GITHUB_CODE_SCANNING_UPLOAD_ENABLED'
   validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
   validate_regex "$RELEASE_READINESS_MODE" '^(standard|security-sensitive)$' 'RELEASE_READINESS_MODE'
   validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
