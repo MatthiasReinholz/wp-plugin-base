@@ -33,7 +33,7 @@ add_action(
 	}
 );
 
-if ( 'true' === '__REST_ABILITIES_ENABLED__' ) {
+if ( filter_var( '__REST_ABILITIES_ENABLED__', FILTER_VALIDATE_BOOLEAN ) ) {
 	add_action(
 		'wp_abilities_api_categories_init',
 		static function () {

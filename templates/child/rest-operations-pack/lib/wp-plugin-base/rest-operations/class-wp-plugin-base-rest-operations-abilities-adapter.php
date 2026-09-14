@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Runtime class prefixes vary by consumer; managed filenames remain stable.
 /**
  * Abilities adapter for REST operations.
  *
@@ -104,8 +104,9 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 						return $prepared_input;
 					}
 
-					if ( is_array( $prepared_input ) ) {
-						$request->set_params( $prepared_input );
+					// GET/HEAD do not expose body params through get_param().
+					foreach ( $prepared_input as $key => $value ) {
+						$request->set_param( $key, $value );
 					}
 
 					$permission = WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );

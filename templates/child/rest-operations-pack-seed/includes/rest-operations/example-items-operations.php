@@ -38,7 +38,7 @@ if ( ! function_exists( 'wp_plugin_base_example_rest_operation_list_example_item
 					'id'          => 'dataviews',
 					'name'        => __( 'Data Views', '__PLUGIN_SLUG__' ),
 					'description' => __( 'Reserved for a richer DataViews/DataForm experience when enabled.', '__PLUGIN_SLUG__' ),
-					'status'      => 'true' === '__ADMIN_UI_EXPERIMENTAL_DATAVIEWS__'
+					'status'      => filter_var( '__ADMIN_UI_EXPERIMENTAL_DATAVIEWS__', FILTER_VALIDATE_BOOLEAN )
 						? __( 'enabled', '__PLUGIN_SLUG__' )
 						: __( 'disabled', '__PLUGIN_SLUG__' ),
 				),

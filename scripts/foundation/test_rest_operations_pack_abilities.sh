@@ -14,26 +14,40 @@ INPUT_CLASS_PATH="$INPUT_CLASS_PATH" PERMISSIONS_CLASS_PATH="$PERMISSIONS_CLASS_
 <?php
 define( 'ABSPATH', '/' );
 
-class WP_REST_Request {
-  public $method;
-  public $route;
-  public $params = array();
+// A real WordPress request class can be supplied for integration verification.
+if ( getenv( 'WP_PLUGIN_BASE_TEST_REST_REQUEST_CLASS' ) ) {
+  require getenv( 'WP_PLUGIN_BASE_TEST_REST_REQUEST_CLASS' );
+} else {
+  class WP_REST_Request {
+    public function get_header( $key ) { return ''; }
+    public $method;
+    public $route;
+    private $params = array();
+    private $body_params = array();
 
-  public function __construct( $method = '', $route = '' ) {
-    $this->method = $method;
-    $this->route  = $route;
-  }
+    public function __construct( $method = '', $route = '' ) {
+      $this->method = $method;
+      $this->route = $route;
+    }
 
-  public function set_params( $params ) {
-    $this->params = $params;
-  }
+    public function set_body_params( $params ) {
+      $this->body_params = $params;
+    }
 
-  public function get_param( $key ) {
-    return $this->params[ $key ] ?? null;
+    public function set_param( $key, $value ) {
+      $this->params[ $key ] = $value;
+    }
+
+    public function get_param( $key ) {
+      $body = in_array( $this->method, array( 'POST', 'PUT', 'PATCH', 'DELETE' ), true )
+        ? $this->body_params : array();
+      return $this->params[ $key ] ?? $body[ $key ] ?? null;
+    }
   }
 }
 
 class WP_REST_Response {
+  public function header( $key, $value ) {}
   private $data;
 
   public function __construct( $data ) {
@@ -46,6 +60,8 @@ class WP_REST_Response {
 }
 
 class WP_Error {
+  public function get_error_code() { return $this->code; }
+  public function get_error_data() { return $this->data; }
   public $code;
   public $message;
   public $data;
@@ -199,6 +215,17 @@ $invalid_result = $ability['execute_callback']( array() );
 if ( ! is_wp_error( $invalid_result ) || 'rest_invalid_param' !== $invalid_result->code ) {
   fwrite( STDERR, "Expected execute callback to reject input that violates the declared input schema.\n" );
   exit( 1 );
+}
+
+foreach ( array( 'GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE' ) as $method ) {
+  $operation[0]['methods'] = $method;
+  WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operations( 'example-plugin', 'example-plugin', $operation );
+  $ability = $GLOBALS['wp_plugin_base_registered_abilities']['example/settings-read'];
+  $result = $ability['execute_callback']( array( 'message' => $method . ' input' ) );
+  if ( ! is_array( $result ) || $method . ' input' !== $result['message'] ) {
+    fwrite( STDERR, "Ability lost input for {$method}.\n" );
+    exit( 1 );
+  }
 }
 
 echo "REST operations abilities adapter tests passed.\n";
