@@ -348,6 +348,11 @@ Optional keys:
 - `PRODUCTION_ENVIRONMENT`
 - `CODEOWNERS_REVIEWERS`
 
+Ability inputs are assigned through WordPress request parameters for every HTTP
+method, including GET and HEAD; body-only parameters are not a substitute. The
+abilities contract test can also load a real WordPress request class using
+`WP_PLUGIN_BASE_TEST_REST_REQUEST_CLASS` for integration verification.
+
 Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example `PLUGIN_NAME="Example Plugin"`. `ZIP_FILE` must be a simple `.zip` filename, not a path.
 
 `.wp-plugin-base.env` is a file committed in your project repository. It is not a CI variable on GitHub or GitLab.
