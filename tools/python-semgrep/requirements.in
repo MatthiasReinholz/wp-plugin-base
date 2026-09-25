@@ -5,4 +5,4 @@ pip==26.2
 # Revisit this bound when intentionally raising the supported Python floor.
 rpds-py<2026
 # Python 3.10/3.11 venvs also seed setuptools; replace vulnerable bundled copies.
-setuptools==83.0.0
+setuptools==84.0.0
