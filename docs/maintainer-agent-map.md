@@ -159,7 +159,9 @@ qualification suite or equivalent application-owned browser evidence.
 
 - `scripts/lib/automation_ownership.rb`: records and validates exact managed hosted-file hashes; profile transitions must reject modifications before sync mutates project files.
 - `scripts/update/capture_automation_ownership.sh`: captures a legacy project's current trusted template generation before replacing its vendored foundation, without synchronizing application files.
-- `scripts/update/recover_automation_ownership.py`: reconstructs a pre-receipt generation from tracked Git `HEAD` templates/config with the current trusted renderer; it never executes historical scripts.
+- `scripts/update/recover_automation_ownership.py`: reconstructs a pre-receipt generation from tracked Git `HEAD` templates/config with current trusted code; it never executes historical scripts.
+- `scripts/lib/render_legacy_automation.php`: reconstructs published v1.8.3 raw placeholders as inert ownership comparison data. Capture accepts this candidate only with a v1.8.3 config pin, the complete reviewed hosted-template digest set, and exact existing hosted-file byte equality; normal sync retains current escaping and action-catalog rendering.
+- `tests/fixtures/legacy-v183-automation.json` and `tests/fixtures/legacy-automation-templates.json`: qualify actual published v1.8.3 and v1.9 migration formats, pinned to their exact source commits.
 - `scripts/foundation/test_local_conformance.py`: qualifies local/managed transitions, ownership conflicts, published-template migration, clean-checkout outputs, stale artifacts and experimental metadata.
 
 Keep unknown application-owned workflows outside managed cleanup. Add hosted template

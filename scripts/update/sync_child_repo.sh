@@ -67,6 +67,8 @@ fi
 render_template() {
   local source_file="$1"
   local destination_file="$2"
+  local legacy_ownership_path="${3:-}"
+  local legacy_candidate_status
   local runtime_template=false
   local rendered_output
   case "$source_file" in
@@ -94,6 +96,25 @@ render_template() {
   export PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION VERSION_CONSTANT_NAME DISTIGNORE_FILE
   export WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE GITHUB_RELEASE_UPDATER_REPO_URL PLUGIN_RUNTIME_UPDATE_PROVIDER PLUGIN_RUNTIME_UPDATE_SOURCE_URL AUTOMATION_PROVIDER REST_API_NAMESPACE REST_ABILITIES_ENABLED ADMIN_UI_EXPERIMENTAL_DATAVIEWS
   rendered_output="$(mktemp "$(dirname "$destination_file")/.wp-plugin-base-render.XXXXXX")"
+  # Legacy renderers used raw substitutions and a static Dependabot policy.
+  # Reconstruct only inert comparison bytes, and only for capture's hosted-file
+  # inventory pinned to the qualified v1.8.3 release. Never select this format
+  # for modern captures or normal managed output generation.
+  if [ -n "$legacy_ownership_path" ] && [ -f "$legacy_ownership_path" ] && [ ! -L "$legacy_ownership_path" ]; then
+    if php "$SCRIPT_DIR/../lib/render_legacy_automation.php" "$source_file" "$TEMPLATE_DIR" > "$rendered_output"; then
+      if cmp -s "$rendered_output" "$legacy_ownership_path"; then
+        chmod 644 "$rendered_output"
+        mv "$rendered_output" "$destination_file"
+        return 0
+      fi
+    else
+      legacy_candidate_status=$?
+      if [ "$legacy_candidate_status" -ne 2 ]; then
+        rm -f "$rendered_output"
+        return 1
+      fi
+    fi
+  fi
   if [ "$source_file" = "$TEMPLATE_DIR/.github/dependabot.yml" ]; then
     if ! wp_plugin_base_render_dependabot "$source_file" > "$rendered_output"; then
       rm -f "$rendered_output"
@@ -291,6 +312,15 @@ automation_scratch="$(mktemp -d)"
 trap 'rm -rf "$automation_scratch"' EXIT
 : > "$automation_scratch/desired"
 : > "$automation_scratch/legacy"
+legacy_capture_qualified=false
+if [ "$SYNC_MODE" = capture-automation-ownership ] && [ "$FOUNDATION_VERSION" = v1.8.3 ]; then
+  if php "$SCRIPT_DIR/../lib/render_legacy_automation.php" --qualify "$TEMPLATE_DIR"; then
+    legacy_capture_qualified=true
+  else
+    legacy_qualification_status=$?
+    if [ "$legacy_qualification_status" -ne 2 ]; then exit 1; fi
+  fi
+fi
 for inventory in desired legacy; do
   template_pairs="$managed_template_pairs"
   if [ "$inventory" = legacy ]; then template_pairs="$all_template_pairs"; fi
@@ -298,7 +328,11 @@ for inventory in desired legacy; do
     case "$destination_path" in
       .github/*|.gitlab/*|.gitlab-ci.yml)
         if [ "$inventory" = legacy ] && [ ! -e "$ROOT_DIR/$destination_path" ]; then continue; fi
-        render_template "$source_file" "$automation_scratch/rendered"
+        legacy_ownership_path=""
+        if [ "$legacy_capture_qualified" = true ]; then
+          legacy_ownership_path="$ROOT_DIR/$destination_path"
+        fi
+        render_template "$source_file" "$automation_scratch/rendered" "$legacy_ownership_path"
         digest="$(ruby -rdigest -e 'puts Digest::SHA256.file(ARGV[0]).hexdigest' "$automation_scratch/rendered")"
         printf '%s\t%s\n' "$digest" "$destination_path" >> "$automation_scratch/$inventory"
         ;;

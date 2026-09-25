@@ -41,9 +41,16 @@ the helper never claims ownership from filenames alone.
 
 For the first update after a pre-receipt release, sync can reconstruct the prior tracked
 vendor templates/config from the application's Git `HEAD` and render them with the
-current trusted renderer. Only exact matches establish ownership; historical scripts
-are never executed. If that evidence is unavailable or outputs were customized, restore
-the prior verified vendor/config and reconcile those files before capturing ownership.
+current trusted renderer. Published v1.8.3 and v1.9 formatting are qualified: a
+trusted data-only reconstruction recognizes raw placeholders and the static Dependabot
+policy only when the captured configuration pins v1.8.3 and all reviewed hosted-template
+SHA-256 values match that published tree. Modern or modified template generations cannot
+use this legacy format to claim customized files. Only exact matches establish ownership; historical scripts are never
+executed. Normal sync always emits current escaping and the current action catalog.
+Other historical generator formats or changed action catalogs can require explicit
+reconciliation; approximate matches never establish ownership. If that evidence is
+unavailable or outputs were customized, restore the prior verified vendor/config and
+reconcile those files before capturing ownership.
 
 For pre-receipt repositories, byte-identical rendered templates can establish ownership;
 other hosted files remain application-owned and are preserved. Review existing workflows

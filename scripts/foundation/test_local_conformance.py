@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Local profile ownership and real clean-checkout package contracts."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -168,6 +169,155 @@ class LocalConformance(unittest.TestCase):
         self.assertEqual(json.loads((self.root / ".wp-plugin-base-automation.json").read_text())["profile"], "managed")
         self.assertIn("v1.9.1", (self.root / "CONTRIBUTING.md").read_text())
         self.assertIn("steps.package.outputs.zip_path", (self.root / ".github/workflows/ci.yml").read_text())
+
+    def v183_fixture(self, *, commit=False, qit=False):
+        fixture = json.loads((FOUNDATION / "tests/fixtures/legacy-v183-automation.json").read_text())
+        self.assertEqual(fixture["source_commit"], "58a1aa68acababb303eea6760923c60cbf648f10")
+        self.config.write_text(fixture["config"])
+        templates = self.root / ".wp-plugin-base/templates/child"
+        for name, content in fixture["templates"].items():
+            target = templates / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        generated = dict(fixture["generated"])
+        expected = dict(fixture["sha256"])
+        if qit:
+            self.configure(WOOCOMMERCE_QIT_ENABLED="true")
+            generated[".github/workflows/woocommerce-qit.yml"] = fixture["qit_generated"]
+            expected[".github/workflows/woocommerce-qit.yml"] = fixture["qit_sha256"]
+        for name, content in generated.items():
+            self.assertEqual(hashlib.sha256(content.encode()).hexdigest(), expected[name])
+            target = self.root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        application = self.root / ".github/workflows/application.yml"
+        application.write_text("name: Application\non: workflow_dispatch\njobs: {}\n")
+        if commit:
+            subprocess.run(["git", "-C", str(self.root), "add", "-f", ".wp-plugin-base/templates", ".wp-plugin-base.env", ".github"], check=True)
+            subprocess.run(["git", "-C", str(self.root), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "Record actual v1.8.3 template generation"], check=True)
+        return generated
+
+    def replace_v183_vendor(self, profile):
+        templates = self.root / ".wp-plugin-base/templates"
+        shutil.rmtree(templates)
+        shutil.copytree(FOUNDATION / "templates", templates)
+        self.configure(FOUNDATION_VERSION="v1.9.1", AUTOMATION_PROFILE=profile)
+
+    def assert_v183_local_transition(self, generated):
+        self.assertEqual(json.loads((self.root / ".wp-plugin-base-automation.json").read_text())["files"], {})
+        for name in generated:
+            self.assertFalse((self.root / name).exists(), name)
+        self.assertEqual((self.root / ".github/workflows/application.yml").read_text(), "name: Application\non: workflow_dispatch\njobs: {}\n")
+
+    def test_v183_capture_then_local_preserves_application_workflows(self):
+        generated = self.v183_fixture(qit=True)
+        config_before = self.config.read_bytes()
+        self.run_script("update/capture_automation_ownership.sh")
+        self.assertEqual(self.config.read_bytes(), config_before)
+        for name, content in generated.items():
+            self.assertEqual((self.root / name).read_text(), content)
+        self.assertEqual(set(json.loads((self.root / ".wp-plugin-base-automation.json").read_text())["files"]), set(generated))
+        self.replace_v183_vendor("local")
+        self.run_script("update/sync_child_repo.sh")
+        self.assert_v183_local_transition(generated)
+
+    def test_v183_capture_then_managed_uses_current_rendering(self):
+        self.v183_fixture()
+        self.run_script("update/capture_automation_ownership.sh")
+        self.replace_v183_vendor("managed")
+        self.run_script("update/sync_child_repo.sh")
+        receipt = json.loads((self.root / ".wp-plugin-base-automation.json").read_text())
+        self.assertEqual(receipt["profile"], "managed")
+        self.assertIn("dependency-name: actions/checkout", (self.root / ".github/dependabot.yml").read_text())
+        self.assertIn('environment: "production"', (self.root / ".github/workflows/finalize-release.yml").read_text())
+        self.assertNotIn(".github/workflows/application.yml", receipt["files"])
+        self.assertEqual((self.root / ".github/workflows/application.yml").read_text(), "name: Application\non: workflow_dispatch\njobs: {}\n")
+
+    def test_v183_historical_managed_upgrade_uses_current_rendering(self):
+        self.v183_fixture(commit=True)
+        self.replace_v183_vendor("managed")
+        self.run_script("update/sync_child_repo.sh")
+        receipt = json.loads((self.root / ".wp-plugin-base-automation.json").read_text())
+        self.assertEqual(receipt["profile"], "managed")
+        self.assertIn("dependency-name: actions/checkout", (self.root / ".github/dependabot.yml").read_text())
+        self.assertIn('environment: "production"', (self.root / ".github/workflows/finalize-release.yml").read_text())
+        self.assertNotIn(".github/workflows/application.yml", receipt["files"])
+        self.assertEqual((self.root / ".github/workflows/application.yml").read_text(), "name: Application\non: workflow_dispatch\njobs: {}\n")
+
+    def test_v183_historical_local_upgrade_removes_verified_old_automation(self):
+        generated = self.v183_fixture(commit=True, qit=True)
+        self.replace_v183_vendor("local")
+        self.run_script("update/sync_child_repo.sh")
+        self.assert_v183_local_transition(generated)
+
+    def test_v183_customized_capture_rejects_before_mutation(self):
+        generated = self.v183_fixture()
+        sentinel = self.root / ".editorconfig"
+        sentinel.write_text("application source sentinel\n")
+        for name in (".github/dependabot.yml", ".github/workflows/finalize-release.yml"):
+            with self.subTest(name=name):
+                target = self.root / name
+                customized = generated[name] + "\n# Preserve this customization.\n"
+                target.write_text(customized)
+                self.assertIn("Application-owned automation conflicts", self.run_script("update/capture_automation_ownership.sh", success=False))
+                self.assertFalse((self.root / ".wp-plugin-base-automation.json").exists())
+                self.assertEqual(target.read_text(), customized)
+                self.assertEqual(sentinel.read_text(), "application source sentinel\n")
+                target.write_text(generated[name])
+
+    def test_v183_customized_historical_upgrade_rejects_before_mutation(self):
+        generated = self.v183_fixture(commit=True)
+        self.replace_v183_vendor("managed")
+        sentinel = self.root / ".editorconfig"
+        sentinel.write_text("application source sentinel\n")
+        for name in (".github/dependabot.yml", ".github/workflows/finalize-release.yml"):
+            with self.subTest(name=name):
+                target = self.root / name
+                customized = generated[name] + "\n# Preserve this customization.\n"
+                target.write_text(customized)
+                self.assertIn("Application-owned automation conflicts", self.run_script("update/sync_child_repo.sh", success=False))
+                self.assertFalse((self.root / ".wp-plugin-base-automation.json").exists())
+                self.assertEqual(target.read_text(), customized)
+                self.assertEqual(sentinel.read_text(), "application source sentinel\n")
+                target.write_text(generated[name])
+
+    def check_modern_capture_rejects_raw_edits(self, version):
+        self.configure(FOUNDATION_VERSION=version, AUTOMATION_PROFILE="managed")
+        self.run_script("update/sync_child_repo.sh")
+        (self.root / ".wp-plugin-base-automation.json").unlink()
+        sentinel = self.root / ".editorconfig"
+        sentinel.write_text("application source sentinel\n")
+        for name in (".github/dependabot.yml", ".github/workflows/finalize-release.yml"):
+            with self.subTest(name=name):
+                target = self.root / name
+                original = target.read_bytes()
+                template = self.root / ".wp-plugin-base/templates/child" / name
+                raw = template.read_text().replace("__DEFAULT_BRANCH__", "main").replace("__PRODUCTION_ENVIRONMENT__", "production").encode()
+                self.assertNotEqual(raw, original)
+                target.write_bytes(raw)
+                self.assertIn("Application-owned automation conflicts", self.run_script("update/capture_automation_ownership.sh", success=False))
+                self.assertEqual(target.read_bytes(), raw)
+                self.assertEqual(sentinel.read_text(), "application source sentinel\n")
+                self.assertFalse((self.root / ".wp-plugin-base-automation.json").exists())
+                target.write_bytes(original)
+
+    def test_modern_capture_does_not_claim_legacy_shaped_edits(self):
+        self.check_modern_capture_rejects_raw_edits("v1.9.0")
+
+    def test_stale_version_cannot_qualify_current_templates_as_legacy(self):
+        self.check_modern_capture_rejects_raw_edits("v1.8.3")
+
+    def test_unknown_legacy_template_generation_cannot_establish_ownership(self):
+        generated = self.v183_fixture()
+        name = ".github/workflows/finalize-release.yml"
+        template = self.root / ".wp-plugin-base/templates/child" / name
+        target = self.root / name
+        template.write_text(template.read_text() + "\n# Unqualified template customization.\n")
+        customized = generated[name] + "\n# Unqualified template customization.\n"
+        target.write_text(customized)
+        self.assertIn("Application-owned automation conflicts", self.run_script("update/capture_automation_ownership.sh", success=False))
+        self.assertEqual(target.read_text(), customized)
+        self.assertFalse((self.root / ".wp-plugin-base-automation.json").exists())
 
     def test_profile_change_requires_reconciliation(self):
         self.configure(AUTOMATION_PROFILE="managed")
