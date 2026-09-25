@@ -5,5 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cd "$SCRIPT_DIR"
-npm ci --no-audit --no-fund
+# Enforce the child-owned manifest and every transitive package engine contract.
+npm ci --engine-strict --no-audit --no-fund
 npm run build

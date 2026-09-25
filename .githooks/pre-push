@@ -4,6 +4,13 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# Git exports repository-local paths to hooks. Validation creates separate Git
+# fixtures, so inherited paths must not redirect their writes into this repository.
+repository_environment="$(git rev-parse --local-env-vars)"
+while IFS= read -r variable; do
+  unset "$variable"
+done <<< "$repository_environment"
+
 if [ -d "$repo_root/.wp-plugin-base-tools" ]; then
   export PATH="$repo_root/.wp-plugin-base-tools:$PATH"
 fi
@@ -17,6 +24,6 @@ echo "Running local push gate: validate.sh --mode fast-local"
 bash scripts/foundation/validate.sh --mode fast-local
 
 echo "Running local push gate: validate-full.sh --mode fast-local"
-bash scripts/foundation/validate-full.sh --mode fast-local
+WP_PLUGIN_BASE_SKIP_FAST_VALIDATE=true bash scripts/foundation/validate-full.sh --mode fast-local
 
 echo "Local push gate passed."

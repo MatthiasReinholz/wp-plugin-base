@@ -10,8 +10,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CONFIG_OVERRIDE="${1:-}"
 
-wp_plugin_base_require_commands "admin UI pack validation" gzip unzip
+wp_plugin_base_require_commands "admin UI pack validation" gzip unzip php
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+
+# DataViews 19 uses public WordPress theme APIs introduced in WordPress 7.1.
+# Require honest installation metadata before accepting its built artifacts.
+if [ "${ADMIN_UI_STARTER:-basic}" = dataviews ]; then
+  for metadata_path in "$MAIN_PLUGIN_FILE" "$README_FILE"; do
+    minimum_core="$(wp_plugin_base_read_header_value "$(wp_plugin_base_resolve_path "$metadata_path")" 'Requires at least')"
+    if [[ ! "$minimum_core" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] ||
+      ! php -r 'exit(version_compare($argv[1], "7.1", ">=") ? 0 : 1);' "$minimum_core"; then
+      echo "DataViews starter requires Requires at least: 7.1 or newer in $metadata_path (found: ${minimum_core:-missing})." >&2
+      exit 1
+    fi
+  done
+fi
 
 if [ -z "${BUILD_SCRIPT:-}" ]; then
   echo "ADMIN_UI_PACK_ENABLED=true requires BUILD_SCRIPT to point at the seeded admin UI build wrapper." >&2
@@ -24,12 +37,29 @@ INDEX_ASSET_PATH="$(wp_plugin_base_resolve_path "assets/admin-ui/index.asset.php
 INDEX_STYLE_PATH="$(wp_plugin_base_resolve_path "assets/admin-ui/style-index.css")"
 ADMIN_UI_ASSETS_DIR="$(wp_plugin_base_resolve_path "assets/admin-ui")"
 ZIP_PATH="$(wp_plugin_base_resolve_path "dist/$ZIP_FILE")"
-MAX_SCRIPT_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_BYTES:-393216}"
-MAX_STYLE_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_BYTES:-65536}"
-MAX_TOTAL_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_BYTES:-524288}"
-MAX_SCRIPT_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_GZIP_BYTES:-131072}"
-MAX_STYLE_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_GZIP_BYTES:-32768}"
-MAX_TOTAL_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_GZIP_BYTES:-196608}"
+# DataViews bundles its public UI implementation and styles. Keep its measured
+# opt-in budget separate from the lightweight basic starter.
+if [ "${ADMIN_UI_STARTER:-basic}" = dataviews ]; then
+  default_script_bytes=1048576
+  default_style_bytes=131072
+  default_total_bytes=1310720
+  default_script_gzip_bytes=262144
+  default_style_gzip_bytes=49152
+  default_total_gzip_bytes=327680
+else
+  default_script_bytes=393216
+  default_style_bytes=65536
+  default_total_bytes=524288
+  default_script_gzip_bytes=131072
+  default_style_gzip_bytes=32768
+  default_total_gzip_bytes=196608
+fi
+MAX_SCRIPT_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_BYTES:-$default_script_bytes}"
+MAX_STYLE_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_BYTES:-$default_style_bytes}"
+MAX_TOTAL_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_BYTES:-$default_total_bytes}"
+MAX_SCRIPT_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_SCRIPT_GZIP_BYTES:-$default_script_gzip_bytes}"
+MAX_STYLE_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_STYLE_GZIP_BYTES:-$default_style_gzip_bytes}"
+MAX_TOTAL_GZIP_BYTES="${WP_PLUGIN_BASE_ADMIN_UI_MAX_TOTAL_GZIP_BYTES:-$default_total_gzip_bytes}"
 
 file_size_bytes() {
   wc -c < "$1" | tr -d '[:space:]'
@@ -85,6 +115,11 @@ fi
 
 assert_asset_size_within_budget "$INDEX_SCRIPT_PATH" "Admin UI index.js" "$MAX_SCRIPT_BYTES" "$MAX_SCRIPT_GZIP_BYTES"
 assert_asset_size_within_budget "$INDEX_STYLE_PATH" "Admin UI style-index.css" "$MAX_STYLE_BYTES" "$MAX_STYLE_GZIP_BYTES"
+while IFS= read -r style_file; do
+  [ "$style_file" != "$INDEX_STYLE_PATH" ] || continue
+  assert_asset_size_within_budget "$style_file" "Admin UI $(basename "$style_file")" "$MAX_STYLE_BYTES" "$MAX_STYLE_GZIP_BYTES"
+done < <(find "$ADMIN_UI_ASSETS_DIR" -type f -name '*.css' | sort)
+
 
 total_asset_bytes="$(
   find "$ADMIN_UI_ASSETS_DIR" -type f -print0 \

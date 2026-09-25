@@ -57,8 +57,8 @@ hash_file() {
 
 gh release view "$VERSION" --repo "$REPOSITORY" --json isDraft,isPrerelease,assets > "$release_json"
 
-if [ "$(jq -r '.isDraft' "$release_json")" = "true" ]; then
-  echo "Release $VERSION is still a draft." >&2
+if [ "$(jq -r '.isDraft' "$release_json")" != "false" ]; then
+  echo "Release $VERSION must explicitly be a published, non-draft release." >&2
   exit 1
 fi
 

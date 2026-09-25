@@ -79,6 +79,8 @@ if [ "${WP_PLUGIN_BASE_SKIP_FAST_VALIDATE:-false}" != "true" ]; then
   bash "$ROOT_DIR/scripts/foundation/validate.sh" --mode "$ASSURANCE_MODE"
 fi
 
+bash "$ROOT_DIR/scripts/foundation/test_quality_pack_platform.sh"
+
 quality_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$quality_fixture/"
 mkdir -p "$quality_fixture/.wp-plugin-base"
@@ -92,7 +94,7 @@ mkdir -p "$default_environment_fixture/.wp-plugin-base"
 perl -0pi -e 's/^PRODUCTION_ENVIRONMENT=.*\n//m' "$default_environment_fixture/.wp-plugin-base.env"
 rsync -a --exclude '.git' "$ROOT_DIR/" "$default_environment_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$default_environment_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
-grep -Fq 'environment: production' "$default_environment_fixture/.github/workflows/release.yml"
+grep -Fq 'environment: "production"' "$default_environment_fixture/.github/workflows/release.yml"
 
 strict_plugin_check_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/quality-ready/." "$strict_plugin_check_fixture/"
@@ -346,7 +348,7 @@ test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package-lock.json"
 test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/index.js"
 test -f "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/app.js"
 grep -Fq '"build": "wp-scripts build src/index.js --output-path=../assets/admin-ui"' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package.json"
-grep -Fq 'import App from "./app";' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/index.js"
+grep -Eq "import App from ['\"]\\./app['\"];" "$runtime_pack_fixture/.wp-plugin-base-admin-ui/src/index.js"
 if grep -Fq '@wordpress/dataviews' "$runtime_pack_fixture/.wp-plugin-base-admin-ui/package.json"; then
   echo "Default admin UI starter unexpectedly included the DataViews dependency surface." >&2
   exit 1
@@ -425,6 +427,8 @@ cat >> "$runtime_pack_abilities_fixture/.wp-plugin-base.env" <<'EOF'
 ADMIN_UI_STARTER=dataviews
 EOF
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
+perl -0pi -e 's/Plugin Name: Runtime Pack Ready/Plugin Name: Runtime Pack Ready\n * Requires at least: 7.1/' "$runtime_pack_abilities_fixture/runtime-pack-ready.php"
+perl -0pi -e 's/^Stable tag:/Requires at least: 7.1\nStable tag:/m' "$runtime_pack_abilities_fixture/readme.txt"
 grep -Fq '@wordpress/dataviews' "$runtime_pack_abilities_fixture/.wp-plugin-base-admin-ui/package.json"
 WP_PLUGIN_BASE_ROOT="$runtime_pack_abilities_fixture" bash "$ROOT_DIR/scripts/ci/validate_project.sh" ""
 bash "$ROOT_DIR/scripts/foundation/test_wordpress_env_retry.sh"

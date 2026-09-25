@@ -31,7 +31,8 @@ assert_file_omits_literal() {
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '/plugin-check/cli.php' "Plugin Check runner must bootstrap cli.php from the installed plugin."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" '--require="$plugin_check_cli_bootstrap"' "Plugin Check runner must require the resolved cli bootstrap path."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_plugin_check.sh" 'normalize_plugin_check_output.sh' "Plugin Check runner must normalize CLI output through the shared parser."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'prepare_external_dependency_update.sh' "update-plugin-check workflow must route dependency updates through the shared preparation helper."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" './.github/workflows/update-external-dependency.yml' "External dependency dispatcher must delegate each candidate to the isolated reusable workflow."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" 'prepare_external_dependency_update.sh' "Reusable dependency workflow must route updates through the shared preparation helper."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'cron: '\''17 5 * * 1'\''' "update-plugin-check workflow must remain scheduled."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'dependency_id:' "update-plugin-check workflow must define explicit dependency matrix coverage."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'plugin-update-checker-runtime' "update-plugin-check workflow must include plugin-update-checker-runtime updates."
@@ -43,10 +44,10 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.ym
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'gitleaks-binary' "update-plugin-check workflow must include gitleaks updates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'syft-binary' "update-plugin-check workflow must include syft updates."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'cosign-binary' "update-plugin-check workflow must include cosign updates."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'scripts/update/create_or_update_pr.sh' "update-plugin-check workflow must continue opening reviewable update PRs."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'scripts/foundation/validate.sh --mode ci' "update-plugin-check workflow must validate dependency updates before opening PRs."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'persist-credentials: false' "update-plugin-check workflow must disable checkout credential persistence so explicit PR tokens can authenticate git pushes."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" "secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token" "update-plugin-check workflow must prefer the explicit PR token override when it is configured."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" 'scripts/update/create_or_update_pr.sh' "Reusable external dependency workflow must continue opening reviewable update PRs."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" 'scripts/foundation/validate.sh --mode ci' "Reusable external dependency workflow must validate dependency updates before opening PRs."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" 'persist-credentials: false' "Reusable external dependency workflow must disable checkout credential persistence so explicit PR tokens can authenticate git pushes."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" "secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token" "Reusable external dependency workflow must prefer the explicit PR token override when it is configured."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'resolve_latest_foundation_version.sh' "update-foundation workflow must resolve candidate foundation releases."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'install_release_security_tools.sh' "Root update-foundation workflow must install release security tooling before provenance verification."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'wp-plugin-base-release-tools' "Root update-foundation workflow must add release security tools to PATH via GITHUB_PATH."
@@ -72,9 +73,9 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/prepare-foundation-rel
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/prepare-release.yml" 'resolve_release_branch_source.sh' "Managed prepare-release workflow must resolve the source ref through the shared helper."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/prepare-release.yml" 'Release base ref $BASE_REF must be main or a protected branch.' "Managed prepare-release workflow must reject untrusted base refs before checkout."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/prepare-release.yml" 'persist-credentials: false' "Managed prepare-release workflow must disable checkout credential persistence so explicit git auth does not add duplicate Authorization headers."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'GIT_ADD_PATHS: ${{ steps.prepare.outputs.git_add_paths }}' "update-plugin-check workflow must stage helper-provided dependency paths."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'publish_github_release.sh --repair' "release-foundation workflow must publish in explicit repair mode."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/release.yml" 'ref: refs/tags/${{ steps.resolved.outputs.version }}' "Reusable manual release workflow must check out the exact existing tag ref."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-external-dependency.yml" 'GIT_ADD_PATHS: ${{ steps.candidate.outputs.git_add_paths }}' "External dependency publication must stage paths validated by the candidate decoder."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'publish_github_release.sh" --repair' "release-foundation workflow must publish in explicit repair mode."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/release.yml" 'ref: refs/tags/${{ steps.version.outputs.value }}' "Reusable manual release workflow must check out the exact existing tag ref."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml" 'ref: refs/tags/${{ inputs.version }}' "Foundation manual release workflow must check out the exact existing tag ref."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/release.yml" 'ref: refs/tags/${{ steps.version.outputs.value }}' "Managed manual release workflow must check out the exact existing tag ref."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/release.yml" 'Verify release tag is annotated' "Reusable manual release workflow must reject lightweight stable tags."
@@ -83,7 +84,7 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/release-foundation.yml
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/publish-tag-release.yml" 'Stable tag $tag is handled by the release PR/finalize flow' "Managed tag-push workflow must skip stable tags so finalize-release owns stable publication."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/publish-tag-release.yml" 'Verify tag comes from trusted history' "Managed tag-push workflow must verify prerelease tag provenance before publishing."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/publish-tag-release.yml" 'environment: __PRODUCTION_ENVIRONMENT__' "Managed tag-push workflow must use the protected production environment gate."
-assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/publish-tag-release.yml" '--draft=false' "Managed tag-push workflow repair must clear draft state after assets are present."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/publish-tag-release.yml" 'publish_github_release.sh" --repair --prerelease' "Managed tag-push workflow repair must use the shared publisher to enforce payload and release-state policy."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-foundation-release.yml" 'Verify GitHub release' "Foundation finalizer must verify the published GitHub release and assets."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-foundation-release.yml" '--mark-latest' "Foundation finalizer must explicitly mark the current release as latest."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-release.yml" '--mark-latest' "Reusable finalizer must explicitly mark the current release as latest."
@@ -127,7 +128,24 @@ assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Root CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Child CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Security documentation must advertise the reviewed upload-sarif SHA."
-assert_file_contains_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Workflow audit allowlist must include the reviewed upload-sarif SHA."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'ruby "$SCRIPT_DIR/../lib/action_pins.rb" "${audit_yaml_files[@]}"' "Workflow audit must use the shared action catalog."
+ruby - "$ROOT_DIR" <<'RUBY'
+require File.join(ARGV.fetch(0), 'scripts/lib/action_pins')
+policy = WPPluginBaseActionPins.catalog
+name = 'github/codeql-action/upload-sarif'
+expected = 'db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28'
+abort 'Action catalog must approve the reviewed upload-sarif SHA.' unless policy.fetch(name).fetch('current') == expected
+WPPluginBaseActionPins.replacement("#{name}@#{expected}", policy)
+rejected = ['38697555549f1db7851b81482ff19f1fa5c4fedc', '9e0d7b8d25671d64c341c19c0152d693099fb5ba'] + policy.fetch(name).fetch('predecessors')
+rejected.each do |pin|
+  begin
+    WPPluginBaseActionPins.replacement("#{name}@#{pin}", policy)
+  rescue StandardError
+    next
+  end
+  abort "Workflow audit must reject stale, superseded, and predecessor upload-sarif pins: #{pin}"
+end
+RUBY
 assert_file_contains_literal "$ROOT_DIR/docs/update-model.md" 'WP_PLUGIN_BASE_PR_TOKEN' "Update model documentation must explain the explicit PR token override for workflow-changing updates."
 assert_file_contains_literal "$ROOT_DIR/docs/troubleshooting.md" 'WP_PLUGIN_BASE_PR_TOKEN' "Troubleshooting documentation must explain how to recover from workflow permission push failures."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'workflow-changing update automation' "Security model documentation must document the narrow exception for workflow-writing PR tokens."
@@ -135,11 +153,9 @@ assert_file_contains_literal "$ROOT_DIR/templates/child/CONTRIBUTING.md" 'WP_PLU
 assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Child CI workflow must not carry the stale upload-sarif SHA."
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' "Security documentation must not carry a stale upload-artifact SHA."
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Security documentation must not carry a stale upload-sarif SHA."
-assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc' "Workflow audit allowlist must not accept stale upload-sarif SHAs."
 assert_file_omits_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Child CI workflow must not carry the superseded upload-sarif SHA."
 assert_file_omits_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Root CI workflow must not carry the superseded upload-sarif SHA."
 assert_file_omits_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Security documentation must not carry a superseded upload-sarif SHA."
-assert_file_omits_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba' "Workflow audit allowlist must not accept superseded upload-sarif SHAs."
 
 managed_semgrep_gate_pattern="$(cat <<'EOF_PATTERN'
 if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}

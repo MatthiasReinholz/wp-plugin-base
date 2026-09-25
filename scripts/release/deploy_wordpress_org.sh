@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "WordPress.org deployment" git python3 rsync svn
+wp_plugin_base_require_commands "WordPress.org deployment" git python3 jq rsync svn
 
 VERSION="${1:-}"
 CONFIG_OVERRIDE="${2:-}"
@@ -64,19 +64,36 @@ svn update "${SVN_ARGS[@]}" --set-depth infinity "$SVN_DIR/trunk" "$SVN_DIR/tags
 
 tag_dir="$SVN_DIR/tags/$VERSION"
 tag_exists=false
-tag_diff=''
-latest_repo_version=''
-
-latest_repo_version="$(git -C "$ROOT_DIR" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 || true)"
+# Version ordering is independent of permission to repair immutable tags.
+# Compare all local release tags and the freshly checked out SVN tags so a stale
+# workflow checkout cannot lower trunk after a newer channel deployment.
+known_versions="$(git -C "$ROOT_DIR" tag --list '[0-9]*.[0-9]*.[0-9]*')"
+for existing_tag in "$SVN_DIR"/tags/*; do
+  [ -d "$existing_tag" ] || continue
+  known_versions+=$'\n'"${existing_tag##*/}"
+done
+newer_versions="$(printf '%s\n' "$known_versions" | jq -Rsr --arg candidate "$VERSION" '
+  ($candidate | split(".") | map(tonumber)) as $candidate_version
+  | split("\n")[]
+  | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
+  | select((split(".") | map(tonumber)) > $candidate_version)
+')"
+if [ -n "$newer_versions" ]; then
+  echo "Refusing to overwrite WordPress.org trunk with older version ${VERSION}; newer release(s): ${newer_versions}." >&2
+  exit 1
+fi
 
 if svn info "${SVN_ARGS[@]}" "$tag_dir" >/dev/null 2>&1; then
   tag_exists=true
-  tag_diff="$(rsync -ani --delete --exclude '.svn' "$SOURCE_DIR/" "$tag_dir/" || true)"
-  if [ "$ALLOW_TAG_REDEPLOY" = "true" ] && [ -n "$latest_repo_version" ] && [ "$VERSION" != "$latest_repo_version" ]; then
-    echo "WordPress.org repair deploy is only allowed for the latest repository release tag (${latest_repo_version}). Refusing to redeploy older version ${VERSION} to trunk." >&2
+  # SVN checkout timestamps differ from package timestamps. Compare the tree's
+  # contents, including symlink targets, without treating metadata as payload.
+  comparison_status=0
+  python3 "$SCRIPT_DIR/compare_package_trees.py" "$SOURCE_DIR" "$tag_dir" || comparison_status=$?
+  if [ "$comparison_status" -gt 1 ]; then
+    echo "Unable to compare WordPress.org tag ${VERSION} with the release package." >&2
     exit 1
   fi
-  if [ -n "$tag_diff" ] && [ "$ALLOW_TAG_REDEPLOY" != "true" ]; then
+  if [ "$comparison_status" -eq 1 ] && [ "$ALLOW_TAG_REDEPLOY" != "true" ]; then
     echo "WordPress.org tag ${VERSION} already exists and differs from the release package. Refusing to mutate an existing release tag." >&2
     exit 1
   fi
@@ -84,31 +101,42 @@ else
   mkdir -p "$tag_dir"
 fi
 
-rsync -a --delete --exclude '.svn' "$SOURCE_DIR/" "$SVN_DIR/trunk/"
+rsync -ac --delete --exclude '.svn' "$SOURCE_DIR/" "$SVN_DIR/trunk/"
 if [ "$tag_exists" != "true" ] || [ "$ALLOW_TAG_REDEPLOY" = "true" ]; then
-  rsync -a --delete --exclude '.svn' "$SOURCE_DIR/" "$tag_dir/"
+  rsync -ac --delete --exclude '.svn' "$SOURCE_DIR/" "$tag_dir/"
 fi
 
 if [ -d "$ASSETS_DIR" ]; then
-  rsync -a --delete --exclude '.svn' "$ASSETS_DIR/" "$SVN_DIR/assets/"
+  rsync -ac --delete --exclude '.svn' "$ASSETS_DIR/" "$SVN_DIR/assets/"
 fi
 
-while IFS= read -r status_line; do
-  [ -n "$status_line" ] || continue
-  status="${status_line:0:1}"
-  path="${status_line:8}"
+if ! svn_status="$(cd "$SVN_DIR" && svn status)"; then
+  echo "Unable to read WordPress.org working copy status." >&2
+  exit 1
+fi
+(
+  cd "$SVN_DIR"
+  while IFS= read -r status_line; do
+    [ -n "$status_line" ] || continue
+    status="${status_line:0:1}"
+    path="${status_line:8}"
 
-  case "$status" in
-    \?)
-      svn add --parents "${SVN_ARGS[@]}" "$path" >/dev/null
-      ;;
-    !)
-      svn delete --force "${SVN_ARGS[@]}" "$path" >/dev/null
-      ;;
-  esac
-done < <(cd "$SVN_DIR" && svn status)
+    case "$status" in
+      \?)
+        svn add --parents "${SVN_ARGS[@]}" -- "$path@" >/dev/null
+        ;;
+      !)
+        svn delete --force "${SVN_ARGS[@]}" -- "$path@" >/dev/null
+        ;;
+    esac
+  done <<< "$svn_status"
+)
 
-if [ -z "$(cd "$SVN_DIR" && svn status)" ]; then
+if ! svn_status="$(cd "$SVN_DIR" && svn status)"; then
+  echo "Unable to read WordPress.org working copy status after staging changes." >&2
+  exit 1
+fi
+if [ -z "$svn_status" ]; then
   echo "No WordPress.org changes to commit for ${VERSION}."
   exit 0
 fi

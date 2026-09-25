@@ -83,50 +83,83 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 			$name    = ! empty( $ability['name'] ) ? $ability['name'] : $plugin_slug . '/' . str_replace( '.', '-', $operation['id'] );
 			$label   = ! empty( $ability['label'] ) ? $ability['label'] : ucwords( str_replace( array( '.', '-' ), ' ', $operation['id'] ) );
 			$args    = array(
-				'label'            => $label,
-				'description'      => ! empty( $ability['description'] ) ? $ability['description'] : sprintf(
+				'label'               => $label,
+				'description'         => ! empty( $ability['description'] ) ? $ability['description'] : sprintf(
 					/* translators: %s: operation id. */
 					__( 'Executes the %s operation.', '__PLUGIN_SLUG__' ),
 					$operation['id']
 				),
-				'category'         => $category_slug,
-				'output_schema'    => ! empty( $operation['output_schema'] ) ? $operation['output_schema'] : array(
+				'category'            => $category_slug,
+				'output_schema'       => ! empty( $operation['output_schema'] ) ? $operation['output_schema'] : array(
 					'type'       => 'object',
 					'properties' => array(),
 				),
-				'execute_callback' => function ( $input = null ) use ( $plugin_slug, $operation ) {
-					$request = new WP_REST_Request(
-						is_array( $operation['methods'] ) ? reset( $operation['methods'] ) : $operation['methods'],
-						$operation['route']
-					);
-					$prepared_input = WP_Plugin_Base_REST_Operations_Input::prepare_input( $operation, $input );
-					if ( is_wp_error( $prepared_input ) ) {
-						return $prepared_input;
+				'permission_callback' => function ( $input = null ) use ( $plugin_slug, $operation ) {
+					$request = self::prepare_request( $operation, $input );
+					if ( is_wp_error( $request ) ) {
+						return $request;
 					}
 
-					// GET/HEAD do not expose body params through get_param().
-					foreach ( $prepared_input as $key => $value ) {
-						$request->set_param( $key, $value );
-					}
-
-					$permission = WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );
-					if ( is_wp_error( $permission ) ) {
-						return $permission;
+					return WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );
+				},
+				'execute_callback'    => function ( $input = null ) use ( $operation ) {
+					$request = self::prepare_request( $operation, $input );
+					if ( is_wp_error( $request ) ) {
+						return $request;
 					}
 
 					return WP_Plugin_Base_REST_Operations_Responses::unwrap(
 						WP_Plugin_Base_REST_Operations_Executor::execute( $operation, $request )
 					);
 				},
-				'show_in_rest'     => ! empty( $ability['show_in_rest'] ),
-				'annotations'      => ! empty( $operation['annotations'] ) && is_array( $operation['annotations'] ) ? $operation['annotations'] : array(),
+				'meta'                => array(
+					'show_in_rest' => ! empty( $ability['show_in_rest'] ),
+					'annotations'  => ! empty( $operation['annotations'] ) && is_array( $operation['annotations'] ) ? $operation['annotations'] : array(),
+				),
 			);
 
 			if ( ! empty( $operation['input_schema'] ) ) {
 				$args['input_schema'] = $operation['input_schema'];
 			}
 
-			wp_register_ability( $name, $args );
+			$registered = wp_register_ability( $name, $args );
+			if ( ( null === $registered || false === $registered || is_wp_error( $registered ) ) && function_exists( '_doing_it_wrong' ) ) {
+				_doing_it_wrong(
+					__METHOD__,
+					sprintf(
+						/* translators: %s: ability name. */
+						esc_html__( 'Could not register operation ability %s. Check its manifest and category.', '__PLUGIN_SLUG__' ),
+						esc_html( $name )
+					),
+					'1.9.0'
+				);
+			}
+		}
+		/**
+		 * Builds the same sanitized request for permission checks and execution.
+		 *
+		 * @since NEXT
+		 *
+		 * @param array<string,mixed> $operation Operation manifest.
+		 * @param mixed               $input Ability input.
+		 * @return WP_REST_Request|WP_Error
+		 */
+		private static function prepare_request( array $operation, $input ) {
+			$prepared_input = WP_Plugin_Base_REST_Operations_Input::prepare_input( $operation, $input );
+			if ( is_wp_error( $prepared_input ) ) {
+				return $prepared_input;
+			}
+
+			$request = new WP_REST_Request(
+				is_array( $operation['methods'] ) ? reset( $operation['methods'] ) : $operation['methods'],
+				$operation['route']
+			);
+			// GET/HEAD do not expose body params through get_param().
+			foreach ( $prepared_input as $key => $value ) {
+				$request->set_param( $key, $value );
+			}
+
+			return $request;
 		}
 	}
 }

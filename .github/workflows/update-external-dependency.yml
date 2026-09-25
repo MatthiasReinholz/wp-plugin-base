@@ -1,0 +1,158 @@
+name: update-external-dependency
+
+on:
+  workflow_call:
+    inputs:
+      dependency_id:
+        required: true
+        type: string
+    secrets:
+      WP_PLUGIN_BASE_PR_TOKEN:
+        required: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  prepare:
+    name: Prepare dependency (${{ inputs.dependency_id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      update_needed: ${{ steps.prepare.outputs.update_needed }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      candidate_sha256: ${{ steps.prepare.outputs.candidate_sha256 }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout trusted workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install reviewed signature verifier
+        if: ${{ inputs.dependency_id == 'cosign-binary' || inputs.dependency_id == 'syft-binary' }}
+        run: |
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/reviewed-tools"
+          echo "$RUNNER_TEMP/reviewed-tools" >> "$GITHUB_PATH"
+      - name: Prepare dependency without executing candidate code
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPENDENCY_ID: ${{ inputs.dependency_id }}
+        run: |
+          bash scripts/update/prepare_external_dependency_update.sh \
+            "$DEPENDENCY_ID" "$RUNNER_TEMP/dependency-outputs"
+          python3 scripts/update/external_dependency_candidate.py bundle \
+            "$PWD" "$RUNNER_TEMP/dependency-outputs" \
+            "$RUNNER_TEMP/dependency-candidate/candidate.json" "$DEPENDENCY_ID"
+          cat "$RUNNER_TEMP/dependency-outputs" >> "$GITHUB_OUTPUT"
+          candidate_sha256="$(sha256sum "$RUNNER_TEMP/dependency-candidate/candidate.json" | awk '{print $1}')"
+          printf 'candidate_sha256=%s\n' "$candidate_sha256" >> "$GITHUB_OUTPUT"
+      - name: Preserve candidate before any candidate execution
+        id: upload
+        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: dependency-${{ inputs.dependency_id }}
+          path: ${{ runner.temp }}/dependency-candidate/candidate.json
+          retention-days: 7
+          if-no-files-found: error
+
+  validate:
+    if: ${{ needs.prepare.outputs.update_needed == 'true' }}
+    name: Validate dependency (${{ inputs.dependency_id }})
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout trusted workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: '8.3'
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - name: Download prepared candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/dependency-candidate
+      - name: Apply candidate as data
+        id: candidate
+        env:
+          DEPENDENCY_ID: ${{ inputs.dependency_id }}
+          EXPECTED_DIGEST: ${{ needs.prepare.outputs.candidate_sha256 }}
+        run: |
+          python3 scripts/update/external_dependency_candidate.py apply \
+            "$PWD" "$RUNNER_TEMP/dependency-candidate/candidate.json" \
+            "$DEPENDENCY_ID" "$GITHUB_OUTPUT" "$EXPECTED_DIGEST"
+      - name: Install and validate candidate in an unprivileged job
+        if: ${{ steps.candidate.outputs.update_needed == 'true' }}
+        run: |
+          bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/candidate-tools"
+          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/candidate-tools"
+          PATH="$RUNNER_TEMP/candidate-tools:$PATH" bash scripts/foundation/validate.sh --mode ci
+
+  publish:
+    name: Propose dependency (${{ inputs.dependency_id }})
+    needs: [prepare, validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout trusted workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download prepared candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/dependency-candidate
+      - name: Apply candidate as data
+        id: candidate
+        env:
+          DEPENDENCY_ID: ${{ inputs.dependency_id }}
+          EXPECTED_DIGEST: ${{ needs.prepare.outputs.candidate_sha256 }}
+        run: |
+          python3 scripts/update/external_dependency_candidate.py apply \
+            "$PWD" "$RUNNER_TEMP/dependency-candidate/candidate.json" \
+            "$DEPENDENCY_ID" "$GITHUB_OUTPUT" "$EXPECTED_DIGEST"
+      - name: Create dependency update PR with trusted publication code
+        if: ${{ steps.candidate.outputs.update_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
+          GIT_ADD_PATHS: ${{ steps.candidate.outputs.git_add_paths }}
+          UPDATE_BRANCH: ${{ steps.candidate.outputs.branch_name }}
+          UPDATE_TITLE: ${{ steps.candidate.outputs.pr_title }}
+          UPDATE_COMMIT: ${{ steps.candidate.outputs.commit_message }}
+          UPDATE_BODY: ${{ steps.candidate.outputs.pr_body_file }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash scripts/update/create_or_update_pr.sh \
+            "$UPDATE_BRANCH" "main" "$UPDATE_TITLE" "$UPDATE_COMMIT" "$UPDATE_BODY"

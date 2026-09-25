@@ -15,7 +15,7 @@ if [ -z "$DEPENDENCY_ID" ]; then
   exit 1
 fi
 
-wp_plugin_base_require_commands "external dependency update preparation" curl jq perl awk sed tar mktemp
+wp_plugin_base_require_commands "external dependency update preparation" curl jq perl awk sed python3 mktemp
 
 if command -v sha256sum >/dev/null 2>&1; then
   SHA256_BIN='sha256sum'
@@ -26,7 +26,13 @@ else
   exit 1
 fi
 
+SOURCE_ROOT_DIR="$ROOT_DIR"
+CANDIDATE_HELPER="$SCRIPT_DIR/external_dependency_candidate.py"
 TMP_DIR="$(mktemp -d)"
+ROOT_DIR="$TMP_DIR/candidate"
+python3 "$CANDIDATE_HELPER" stage "$SOURCE_ROOT_DIR" "$ROOT_DIR" "$DEPENDENCY_ID"
+BODY_DIR="${RUNNER_TEMP:-$(dirname "${OUTPUT_PATH:-$SOURCE_ROOT_DIR/.dependency-output}")}"
+mkdir -p "$BODY_DIR"
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -54,6 +60,26 @@ emit_defaults() {
   emit_output "to_version" ""
 }
 
+extract_candidate_archive() {
+  python3 "$CANDIDATE_HELPER" extract "$1" "$TMP_DIR" "$2"
+}
+
+update_platform_hashes() {
+  python3 "$CANDIDATE_HELPER" hashes "$@"
+}
+
+decode_publisher_certificate() {
+  python3 - "$1" <<'PY_CERT'
+import base64
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+content = path.read_bytes()
+if not content.startswith(b"-----BEGIN CERTIFICATE-----"):
+    path.write_bytes(base64.b64decode(content.strip(), validate=True))
+PY_CERT
+}
+
 compute_sha256() {
   local file="$1"
   if [ "$SHA256_BIN" = "sha256sum" ]; then
@@ -72,7 +98,7 @@ github_api_get() {
       --connect-timeout 10 \
       --max-time 60 \
       -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      --config <(printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN") \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "$url"
     return
@@ -93,7 +119,7 @@ github_fetch_release_list() {
 
   while :; do
     local page_json
-    page_json="$(wp_plugin_base_run_with_retry 3 2 "Fetch releases for ${repository} page ${page}" github_api_get "https://api.github.com/repos/${repository}/releases?per_page=100&page=${page}")"
+    page_json="$(wp_plugin_base_run_with_retry 3 2 "Fetch releases for ${repository} page ${page}" github_api_get "https://api.github.com/repos/${repository}/releases?per_page=100&page=${page}")" || return 1
 
     releases_json="$(
       jq -s '.[0] + .[1]' \
@@ -101,12 +127,20 @@ github_fetch_release_list() {
         <(printf '%s\n' "$page_json")
     )"
 
+    if ! printf '%s\n' "$page_json" | jq -e 'type == "array"' >/dev/null; then
+      echo "Unexpected release metadata for $repository" >&2
+      return 1
+    fi
     local page_count
     page_count="$(printf '%s\n' "$page_json" | jq 'length')"
     if [ "$page_count" -lt 100 ]; then
       break
     fi
 
+    if [ "$page" -ge 100 ]; then
+      echo "Release pagination exceeded the supported limit for $repository" >&2
+      return 1
+    fi
     page=$((page + 1))
   done
 
@@ -118,7 +152,7 @@ github_latest_semver() {
   local major_filter="${2:-}"
   local releases_json
 
-  releases_json="$(github_fetch_release_list "$repository")"
+  releases_json="$(github_fetch_release_list "$repository")" || return 1
   printf '%s\n' "$releases_json" | jq -r --arg major_filter "$major_filter" '
     def semver_parts:
       capture("^(?:v)?(?<major>[0-9]+)\\.(?<minor>[0-9]+)(?:\\.(?<patch>[0-9]+))?$")
@@ -179,50 +213,6 @@ replace_variable_assignment() {
     ' "$file"
 }
 
-replace_ordered_single_quoted_values() {
-  local file="$1"
-  local needle="$2"
-  shift 2
-  local values=("$@")
-  local serialized
-
-  if [ "${#values[@]}" -eq 0 ]; then
-    echo "No replacement values provided for $needle" >&2
-    exit 1
-  fi
-
-  serialized="$(printf '%s\n' "${values[@]}")"
-
-  awk -v needle="$needle" -v values="$serialized" '
-    BEGIN {
-      count = split(values, replacements, "\n")
-      idx = 1
-    }
-    {
-      if (index($0, needle) > 0) {
-        if (idx > count) {
-          printf "Too many matches for %s in %s\n", needle, FILENAME > "/dev/stderr"
-          exit 2
-        }
-        if (match($0, /\047[^\047]*\047/) == 0) {
-          printf "Unable to replace value for %s in %s\n", needle, FILENAME > "/dev/stderr"
-          exit 2
-        }
-        $0 = substr($0, 1, RSTART - 1) "\047" replacements[idx] "\047" substr($0, RSTART + RLENGTH)
-        idx++
-      }
-      print
-    }
-    END {
-      if (idx - 1 != count) {
-        printf "Expected %d matches for %s in %s, saw %d\n", count, needle, FILENAME, idx - 1 > "/dev/stderr"
-        exit 2
-      }
-    }
-  ' "$file" > "$file.tmp"
-
-  mv "$file.tmp" "$file"
-}
 
 prepare_pr_body() {
   local body_file="$1"
@@ -256,7 +246,7 @@ dockerhub_composer_v2_digest() {
   digest="$(curl -fsSI \
     --connect-timeout 10 \
     --max-time 60 \
-    -H "Authorization: Bearer ${token}" \
+    --config <(printf 'header = "Authorization: Bearer %s"\n' "$token") \
     -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json' \
     'https://registry-1.docker.io/v2/library/composer/manifests/2' \
     | tr -d '\r' \
@@ -278,6 +268,13 @@ emit_update_outputs() {
   local git_add_paths="$5"
   local from_version="$6"
   local to_version="$7"
+
+  python3 "$CANDIDATE_HELPER" inventory "$ROOT_DIR" "$DEPENDENCY_ID" "$from_version" "$to_version"
+  python3 "$CANDIDATE_HELPER" commit "$SOURCE_ROOT_DIR" "$ROOT_DIR" "$DEPENDENCY_ID"
+  case ",$git_add_paths," in
+    *,docs/dependency-inventory.json,*) ;;
+    *) git_add_paths="$git_add_paths,docs/dependency-inventory.json" ;;
+  esac
 
   emit_output "update_needed" "true"
   emit_output "dependency_id" "$DEPENDENCY_ID"
@@ -320,7 +317,7 @@ prepare_plugin_check_update() {
 
   replace_variable_assignment "$ROOT_DIR/scripts/lib/wordpress_tooling.sh" 'WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION' "$latest_version"
 
-  local body_file="${RUNNER_TEMP:-$TMP_DIR}/plugin-check-update-pr.md"
+  local body_file="${BODY_DIR}/plugin-check-update-pr.md"
   prepare_pr_body \
     "$body_file" \
     'plugin-check' \
@@ -365,7 +362,7 @@ prepare_puc_runtime_update() {
   local tarball_sha
   tarball_sha="$(compute_sha256 "$tarball_path")"
 
-  tar -xzf "$tarball_path" -C "$TMP_DIR"
+  extract_candidate_archive "$tarball_path" "plugin-update-checker-${latest_version}"
 
   local extracted_dir="$TMP_DIR/plugin-update-checker-${latest_version}"
   if [ ! -d "$extracted_dir" ]; then
@@ -405,7 +402,7 @@ prepare_puc_runtime_update() {
     exit 1
   fi
 
-  local body_file="${RUNNER_TEMP:-$TMP_DIR}/plugin-update-checker-runtime-update-pr.md"
+  local body_file="${BODY_DIR}/plugin-update-checker-runtime-update-pr.md"
   prepare_pr_body \
     "$body_file" \
     'plugin-update-checker-runtime' \
@@ -466,9 +463,9 @@ prepare_lint_binary_update() {
   darwin_arm64_sha="$(compute_sha256 "$TMP_DIR/$darwin_arm64_asset")"
 
   replace_variable_assignment "$install_script" "$version_variable" "$latest_version"
-  replace_ordered_single_quoted_values "$install_script" "${sha_variable}='" "$linux_sha" "$darwin_amd64_sha" "$darwin_arm64_sha"
+  update_platform_hashes "$install_script" "$sha_variable" "$linux_sha" "$darwin_amd64_sha" "$darwin_arm64_sha"
 
-  local body_file="${RUNNER_TEMP:-$TMP_DIR}/${dependency_name}-update-pr.md"
+  local body_file="${BODY_DIR}/${dependency_name}-update-pr.md"
   prepare_pr_body \
     "$body_file" \
     "$dependency_name" \
@@ -487,6 +484,49 @@ prepare_lint_binary_update() {
     'scripts/ci/install_lint_tools.sh' \
     "$current_version" \
     "$latest_version"
+}
+
+verify_release_security_assets() {
+  local repository="$1"
+  local version="$2"
+  shift 2
+  wp_plugin_base_require_commands "publisher signature verification" cosign
+
+  if [ "$repository" = 'sigstore/cosign' ]; then
+    local asset
+    for asset in "$@"; do
+      curl -fsSLo "$TMP_DIR/$asset.sigstore.json" \
+        "https://github.com/sigstore/cosign/releases/download/v${version}/${asset}.sigstore.json"
+      cosign verify-blob "$TMP_DIR/$asset" \
+        --bundle "$TMP_DIR/$asset.sigstore.json" \
+        --certificate-identity 'keyless@projectsigstore.iam.gserviceaccount.com' \
+        --certificate-oidc-issuer 'https://accounts.google.com'
+    done
+    return
+  fi
+
+  local checksums="syft_${version}_checksums.txt"
+  local suffix
+  for suffix in '' '.pem' '.sig'; do
+    curl -fsSLo "$TMP_DIR/$checksums$suffix" \
+      "https://github.com/anchore/syft/releases/download/v${version}/${checksums}${suffix}"
+  done
+  decode_publisher_certificate "$TMP_DIR/$checksums.pem"
+  cosign verify-blob "$TMP_DIR/$checksums" \
+    --certificate "$TMP_DIR/$checksums.pem" \
+    --signature "$TMP_DIR/$checksums.sig" \
+    --certificate-identity 'https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main' \
+    --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+
+  local asset expected actual
+  for asset in "$@"; do
+    expected="$(awk -v asset="$asset" '$2 == asset {print $1}' "$TMP_DIR/$checksums")"
+    actual="$(compute_sha256 "$TMP_DIR/$asset")"
+    if [ "$expected" != "$actual" ]; then
+      echo "Publisher checksum mismatch for $asset" >&2
+      exit 1
+    fi
+  done
 }
 
 prepare_release_security_binary_update() {
@@ -528,10 +568,12 @@ prepare_release_security_binary_update() {
   curl -fsSLo "$TMP_DIR/$darwin_arm64_asset" "https://github.com/${repository}/releases/download/v${latest_version}/${darwin_arm64_asset}"
   darwin_arm64_sha="$(compute_sha256 "$TMP_DIR/$darwin_arm64_asset")"
 
-  replace_variable_assignment "$install_script" "$version_variable" "$latest_version"
-  replace_ordered_single_quoted_values "$install_script" "${sha_variable}='" "$linux_sha" "$darwin_amd64_sha" "$darwin_arm64_sha"
+  verify_release_security_assets "$repository" "$latest_version" "$linux_asset" "$darwin_amd64_asset" "$darwin_arm64_asset"
 
-  local body_file="${RUNNER_TEMP:-$TMP_DIR}/${dependency_name}-update-pr.md"
+  replace_variable_assignment "$install_script" "$version_variable" "$latest_version"
+  update_platform_hashes "$install_script" "$sha_variable" "$linux_sha" "$darwin_amd64_sha" "$darwin_arm64_sha"
+
+  local body_file="${BODY_DIR}/${dependency_name}-update-pr.md"
   prepare_pr_body \
     "$body_file" \
     "$dependency_name" \
@@ -539,8 +581,8 @@ prepare_release_security_binary_update() {
     "$current_version" \
     "$latest_version" \
     'used by release security tooling bootstrap' \
-    'metadata-only' \
-    $'selected from published, non-draft, non-prerelease releases\nrelease archives downloaded for Linux + macOS targets\nSHA256 pins refreshed in scripts/release/install_release_security_tools.sh'
+    'verified-provenance' \
+    $'selected from published, non-draft, non-prerelease releases\npublisher signatures verified using the previously reviewed Cosign pin and exact issuer/identity\nrelease archives downloaded for Linux + macOS targets\nSHA256 pins refreshed in scripts/release/install_release_security_tools.sh'
 
   emit_update_outputs \
     "chore/update-${dependency_name}-${latest_version}" \
@@ -578,7 +620,7 @@ prepare_composer_image_update() {
       s{^WP_PLUGIN_BASE_COMPOSER_IMAGE=\x27composer\@sha256:[0-9a-f]{64}\x27$}{"WP_PLUGIN_BASE_COMPOSER_IMAGE=\x27composer\@" . $latest_digest . "\x27"}em;
     ' "$tooling_script"
 
-  local body_file="${RUNNER_TEMP:-$TMP_DIR}/composer-docker-image-update-pr.md"
+  local body_file="${BODY_DIR}/composer-docker-image-update-pr.md"
   prepare_pr_body \
     "$body_file" \
     'composer-docker-image' \

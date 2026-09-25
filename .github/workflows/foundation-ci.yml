@@ -14,7 +14,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 concurrency:
-  group: foundation-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}
+  group: foundation-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -29,13 +29,13 @@ jobs:
       fail-fast: false
       matrix:
         php-version:
-          - '8.1'
           - '8.2'
-          - '8.3'
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
@@ -60,12 +60,31 @@ jobs:
 
   validate-strict-local-bootstrap:
     name: Validate strict-local bootstrap
+    needs: [validate, validate-full, runtime-wordpress, bootstrap-strict-local]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every prerequisite to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          jq -e '
+            keys == ["bootstrap-strict-local", "runtime-wordpress", "validate", "validate-full"]
+            and all(.[]; .result == "success")
+          ' <<< "$NEEDS_JSON"
+
+  bootstrap-strict-local:
+    name: Validate clean strict-local environment
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
@@ -95,13 +114,13 @@ jobs:
       fail-fast: false
       matrix:
         php-version:
-          - '8.1'
           - '8.2'
-          - '8.3'
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
@@ -123,7 +142,45 @@ jobs:
         env:
           WP_PLUGIN_BASE_STRICT_LINTERS: 'true'
           WP_PLUGIN_BASE_SKIP_FAST_VALIDATE: 'true'
+          WP_PLUGIN_BASE_TEST_WP_CORE: WordPress/WordPress#7.1.2
+          WP_PLUGIN_BASE_TEST_PHP_VERSION: '8.2'
         run: bash scripts/foundation/validate-full.sh --mode ci
+
+  runtime-wordpress:
+    name: WordPress ${{ matrix.core }} runtime (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {core: '7.1.2', php: '8.2'}
+          - {core: '7.1.2', php: '8.3'}
+          - {core: '7.1.2', php: '8.4'}
+          - {core: '7.1.2', php: '8.5'}
+          - {core: '6.9', php: '8.3'}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: ${{ matrix.php }}
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - name: Run language and real WordPress contracts
+        env:
+          WP_PLUGIN_BASE_TEST_WP_CORE: WordPress/WordPress#${{ matrix.core }}
+          WP_PLUGIN_BASE_TEST_PHP_VERSION: ${{ matrix.php }}
+          WP_PLUGIN_BASE_TEST_ADMIN_VARIANT: basic
+        run: |
+          bash scripts/foundation/test_rest_operations_pack_contracts.sh
+          bash scripts/foundation/test_runtime_class_isolation.sh
+          bash scripts/foundation/test_runtime_packs_wordpress.sh
 
   release-security-smoke:
     name: Release security smoke
@@ -136,11 +193,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
         with:
-          php-version: '8.1'
+          php-version: '8.2'
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020

@@ -48,7 +48,9 @@ case "$MODE" in
     wp_plugin_base_print_managed_paths
     ;;
   stage)
-    wp_plugin_base_print_managed_paths
+    # Stage whole vendored trees so files retired upstream are also deleted.
+    printf '%s\n' 'lib/wp-plugin-base/plugin-update-checker'
+    wp_plugin_base_print_all_managed_paths
     wp_plugin_base_print_required_seed_paths
     ;;
 esac | awk '!seen[$0]++'

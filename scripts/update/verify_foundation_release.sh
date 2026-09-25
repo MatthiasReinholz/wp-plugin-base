@@ -36,11 +36,11 @@ github_api_get() {
   fi
 
   wp_plugin_base_run_with_retry 3 2 "Foundation API request: ${url}" \
-    curl -fsSL \
+    curl -fsS \
     --connect-timeout 10 \
     --max-time 60 \
     -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer ${token}" \
+    -H "@$WORK_DIR/auth-header" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "$url"
 }
@@ -48,6 +48,10 @@ github_api_get() {
 github_asset_download() {
   local url="$1"
   local destination_path="$2"
+  case "$url" in
+    "${SOURCE_API_BASE}/"*) ;;
+    *) echo 'GitHub release asset URL is outside the configured API.' >&2; exit 1 ;;
+  esac
   local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 
   if [ -z "$token" ]; then
@@ -60,7 +64,7 @@ github_asset_download() {
     --connect-timeout 10 \
     --max-time 60 \
     -H "Accept: application/octet-stream" \
-    -H "Authorization: Bearer ${token}" \
+    -H "@$WORK_DIR/auth-header" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "$url" \
     -o "$destination_path"
@@ -69,15 +73,10 @@ github_asset_download() {
 gitlab_api_get() {
   local url="$1"
   local token="${GITLAB_TOKEN:-${CI_JOB_TOKEN:-}}"
-  local header_name="PRIVATE-TOKEN"
-
-  if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
-    header_name="JOB-TOKEN"
-  fi
 
   if [ -z "$token" ]; then
     wp_plugin_base_run_with_retry 3 2 "Foundation API request: ${url}" \
-      curl -fsSL \
+      curl -fsS \
       --connect-timeout 10 \
       --max-time 60 \
       "$url"
@@ -85,26 +84,22 @@ gitlab_api_get() {
   fi
 
   wp_plugin_base_run_with_retry 3 2 "Foundation API request: ${url}" \
-    curl -fsSL \
+    curl -fsS \
     --connect-timeout 10 \
     --max-time 60 \
-    --header "${header_name}: ${token}" \
+    --header "@$WORK_DIR/auth-header" \
     "$url"
 }
 
 gitlab_asset_download() {
   local url="$1"
   local destination_path="$2"
+  url="$(wp_plugin_base_provider_gitlab_asset_api_url "$SOURCE_API_BASE" "$REFERENCE" "$url")"
   local token="${GITLAB_TOKEN:-${CI_JOB_TOKEN:-}}"
-  local header_name="PRIVATE-TOKEN"
-
-  if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
-    header_name="JOB-TOKEN"
-  fi
 
   if [ -z "$token" ]; then
     wp_plugin_base_run_with_retry 3 2 "Download foundation asset: ${url}" \
-      curl -fsSL \
+      curl -fsS \
       --connect-timeout 10 \
       --max-time 60 \
       "$url" \
@@ -113,10 +108,10 @@ gitlab_asset_download() {
   fi
 
   wp_plugin_base_run_with_retry 3 2 "Download foundation asset: ${url}" \
-    curl -fsSL \
+    curl -fsS \
     --connect-timeout 10 \
     --max-time 60 \
-    --header "${header_name}: ${token}" \
+    --header "@$WORK_DIR/auth-header" \
     "$url" \
     -o "$destination_path"
 }
@@ -249,6 +244,7 @@ download_release_asset() {
 allowed_authors="${FOUNDATION_ALLOWED_RELEASE_AUTHORS:-github-actions[bot]}"
 verify_sigstore_script="${WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT:-$SCRIPT_DIR/../release/verify_sigstore_bundle.sh}"
 WORK_DIR="$(mktemp -d)"
+wp_plugin_base_provider_write_auth_header "$SOURCE_PROVIDER" "$WORK_DIR/auth-header"
 
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -389,7 +385,8 @@ bash "$verify_sigstore_script" \
   foundation \
   "$SOURCE_PROVIDER" \
   "$SOURCE_API_BASE" \
-  "$SOURCE_SIGSTORE_ISSUER"
+  "$SOURCE_SIGSTORE_ISSUER" \
+  "$VERSION"
 
 metadata_repository="$(jq -r '.repository // empty' "$metadata_path")"
 metadata_version="$(jq -r '.version // empty' "$metadata_path")"

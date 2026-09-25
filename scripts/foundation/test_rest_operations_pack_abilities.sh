@@ -87,10 +87,11 @@ function wp_register_ability_category( $slug, $args ) {
 
 function wp_register_ability( $name, $args ) {
   $GLOBALS['wp_plugin_base_registered_abilities'][ $name ] = $args;
+  return (object) $args;
 }
 
 function is_user_logged_in() {
-  return true;
+  return empty( $GLOBALS['wp_plugin_base_test_anonymous'] );
 }
 
 function current_user_can( $capability ) {
@@ -204,6 +205,18 @@ if ( empty( $ability['execute_callback'] ) || ! is_callable( $ability['execute_c
   fwrite( STDERR, "Expected execute callback to be registered.\n" );
   exit( 1 );
 }
+
+if ( ! is_callable( $ability['permission_callback'] ?? null ) || true !== ( $ability['meta']['show_in_rest'] ?? null ) || isset( $ability['show_in_rest'] ) || isset( $ability['annotations'] ) ) {
+  throw new RuntimeException( 'Expected the core Abilities permission and metadata contract.' );
+}
+if ( true !== $ability['permission_callback']( array( 'message' => 'Hello' ) ) ) {
+  throw new RuntimeException( 'Expected authorized input to pass the separate permission callback.' );
+}
+$GLOBALS['wp_plugin_base_test_anonymous'] = true;
+if ( ! is_wp_error( $ability['permission_callback']( array( 'message' => 'Hello' ) ) ) ) {
+  throw new RuntimeException( 'Expected anonymous ability permission checks to fail closed.' );
+}
+$GLOBALS['wp_plugin_base_test_anonymous'] = false;
 
 $result = $ability['execute_callback']( array( 'message' => 'Hello' ) );
 if ( ! is_array( $result ) || 'Hello' !== $result['message'] ) {

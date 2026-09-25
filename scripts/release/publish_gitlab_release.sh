@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
-wp_plugin_base_require_commands "GitLab release publication" curl jq basename mktemp
+wp_plugin_base_require_commands "GitLab release publication" curl jq basename mktemp cmp
 
 REPAIR_MODE=false
 if [ "${1:-}" = "--repair" ]; then
@@ -61,10 +61,17 @@ gitlab_project_id="$(wp_plugin_base_provider_gitlab_project_id "$GITLAB_PROJECT_
 gitlab_web_base="$(wp_plugin_base_provider_gitlab_web_base "$GITLAB_API_BASE")"
 encoded_version="$(jq -rn --arg value "$VERSION" '$value | @uri')"
 body_content="$(cat "$BODY_PATH")"
-tmp_response="$(mktemp)"
+work_dir="$(mktemp -d)"
+tmp_response="$work_dir/response.json"
+auth_header="$work_dir/auth-header"
+(
+  umask 077
+  printf '%s: %s\n' "$gitlab_auth_header_name" "$gitlab_token" > "$auth_header"
+)
+unset gitlab_token
 
 cleanup() {
-  rm -f "$tmp_response"
+  rm -rf "$work_dir"
 }
 trap cleanup EXIT
 
@@ -73,11 +80,11 @@ gitlab_api_json() {
   local url="$2"
   shift 2
 
-  curl -fsSL \
+  curl -fsS \
     --request "$method" \
     --connect-timeout 10 \
     --max-time 120 \
-    --header "${gitlab_auth_header_name}: ${gitlab_token}" \
+    --header "@$auth_header" \
     "$@" \
     "$url"
 }
@@ -91,7 +98,7 @@ gitlab_api_status() {
     --request "$method" \
     --connect-timeout 10 \
     --max-time 120 \
-    --header "${gitlab_auth_header_name}: ${gitlab_token}" \
+    --header "@$auth_header" \
     "$@" \
     --output "$tmp_response" \
     --write-out '%{http_code}' \
@@ -119,40 +126,49 @@ case "$release_status" in
     ;;
 esac
 
-release_payload="$(
-  jq -n \
-    --arg name "$RELEASE_NAME" \
-    --arg tag_name "$VERSION" \
-    --arg description "$body_content" \
-    '{
-      name: $name,
-      tag_name: $tag_name,
-      description: $description
-    }'
-)"
-
-case "$release_method" in
-  POST)
-    gitlab_api_json \
-      POST \
-      "${GITLAB_API_BASE}/projects/${gitlab_project_id}/releases" \
-      --header 'Content-Type: application/json' \
-      --data "$release_payload" >/dev/null
-    ;;
-  PUT)
-    gitlab_api_json \
-      PUT \
-      "$release_url" \
-      --header 'Content-Type: application/json' \
-      --data "$release_payload" >/dev/null
-    ;;
-esac
+# GitLab chooses its latest release by publication time. Do not create an
+# older stable version after a newer version has already been published.
+if [ "$release_method" = "POST" ]; then
+  page=1
+  while :; do
+    releases="$(gitlab_api_json GET "${GITLAB_API_BASE}/projects/${gitlab_project_id}/releases?per_page=100&page=$page")"
+    newer_versions="$(printf '%s' "$releases" | jq -r --arg candidate "${VERSION#v}" '
+      ($candidate | split(".") | map(tonumber)) as $candidate_version
+      | .[].tag_name | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))
+      | select((ltrimstr("v") | split(".") | map(tonumber)) > $candidate_version)
+    ')"
+    if [ -n "$newer_versions" ]; then
+      echo "Refusing to publish historical version $VERSION as GitLab latest; newer release(s): $newer_versions." >&2
+      exit 1
+    fi
+    [ "$(printf '%s' "$releases" | jq 'length')" -eq 100 ] || break
+    page=$((page + 1))
+  done
+fi
 
 links_url="${GITLAB_API_BASE}/projects/${gitlab_project_id}/releases/${encoded_version}/assets/links"
-existing_links_json="$(gitlab_api_json GET "$links_url")"
+existing_links_json='[]'
+if [ "$release_method" = "PUT" ]; then
+  existing_links_json="$(gitlab_api_json GET "$links_url")"
+fi
+new_links_json='[]'
 
 for asset_path in "${ASSET_PATHS[@]}"; do
   asset_name="$(basename "$asset_path")"
+  # Keep existing payload bytes immutable. Only same-origin upload URLs are
+  # accepted when credentials are sent; a remote link cannot receive the token.
+  if [[ "$asset_name" = *.zip ]]; then
+    existing_asset_url="$(printf '%s' "$existing_links_json" | jq -r --arg name "$asset_name" 'map(select(.name == $name)) | .[0].url // empty')"
+    if [ -n "$existing_asset_url" ]; then
+      existing_asset_url="$(wp_plugin_base_provider_gitlab_asset_api_url "$GITLAB_API_BASE" "$GITLAB_PROJECT_PATH" "$existing_asset_url")"
+      curl --fail --silent --show-error --connect-timeout 10 --max-time 120 \
+        --header "@$auth_header" "$existing_asset_url" --output "$work_dir/existing-payload"
+      if ! cmp -s "$asset_path" "$work_dir/existing-payload"; then
+        echo "Published payload $asset_name differs; publish a new version instead of replacing it." >&2
+        exit 1
+      fi
+    fi
+  fi
   upload_json="$(
     gitlab_api_json \
       POST \
@@ -180,6 +196,14 @@ for asset_path in "${ASSET_PATHS[@]}"; do
       ;;
   esac
 
+  if [ "$release_method" = "POST" ]; then
+    new_links_json="$(printf '%s' "$new_links_json" | jq \
+      --arg name "$asset_name" --arg url "$asset_url" \
+      --arg path "$direct_asset_path" --arg type "$link_type" \
+      '. + [{name: $name, url: $url, direct_asset_path: $path, link_type: $type}]')"
+    continue
+  fi
+
   existing_link_id="$(
     printf '%s' "$existing_links_json" | jq -r --arg name "$asset_name" '
       map(select(.name == $name))
@@ -205,5 +229,15 @@ for asset_path in "${ASSET_PATHS[@]}"; do
       --data-urlencode "link_type=${link_type}" >/dev/null
   fi
 done
+
+release_payload="$(jq -n --arg name "$RELEASE_NAME" --arg tag_name "$VERSION" \
+  --arg description "$body_content" --argjson links "$new_links_json" \
+  '{name: $name, tag_name: $tag_name, description: $description} +
+    (if ($links | length) > 0 then {assets: {links: $links}} else {} end)')"
+if [ "$release_method" = "POST" ]; then
+  release_url="${GITLAB_API_BASE}/projects/${gitlab_project_id}/releases"
+fi
+gitlab_api_json "$release_method" "$release_url" \
+  --header 'Content-Type: application/json' --data "$release_payload" >/dev/null
 
 echo "Published GitLab release ${VERSION} for ${GITLAB_PROJECT_PATH}."

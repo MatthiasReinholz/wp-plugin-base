@@ -297,6 +297,7 @@ wp_plugin_base_provider_sigstore_identity_regex() {
   local api_base="${2:-}"
   local reference="${3:-}"
   local scope="${4:-plugin}"
+  local release_tag="${5:-}"
   local web_base=""
   local escaped_web_base=""
   local escaped_reference=""
@@ -320,7 +321,11 @@ wp_plugin_base_provider_sigstore_identity_regex() {
       esac
       ;;
     gitlab|gitlab-release)
-      printf '^%s/%s/\\.gitlab-ci\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
+      if [[ ! "$release_tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "GitLab Sigstore verification requires an exact stable release tag." >&2
+        return 1
+      fi
+      printf '^%s/%s//\\.gitlab-ci\\.yml@refs/tags/%s$\n' "$escaped_web_base" "$escaped_reference" "$(wp_plugin_base_escape_extended_regex_literal "$release_tag")"
       ;;
     *)
       return 1
@@ -390,4 +395,86 @@ wp_plugin_base_provider_infer_reference_from_remote() {
   esac
 
   return 1
+}
+
+# curl reads headers from this mode-600 file; tokens never become process args.
+# An empty file deliberately represents an unauthenticated public API request.
+wp_plugin_base_provider_write_auth_header() {
+  local provider="$1"
+  local destination="$2"
+  local token=''
+  local header=''
+  case "$provider" in
+    github|github-release)
+      token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+      header='Authorization: Bearer'
+      ;;
+    gitlab|gitlab-release)
+      token="${GITLAB_TOKEN:-${CI_JOB_TOKEN:-}}"
+      header='PRIVATE-TOKEN:'
+      if [ -z "${GITLAB_TOKEN:-}" ]; then header='JOB-TOKEN:'; fi
+      ;;
+    *) echo "Unsupported authentication provider: $provider" >&2; return 1 ;;
+  esac
+  case "$token" in
+    *$'\r'*|*$'\n'*) echo 'Provider token contains an invalid line break.' >&2; return 1 ;;
+  esac
+  (umask 077; : > "$destination"; chmod 600 "$destination"; if [ -n "$token" ]; then printf '%s %s\n' "$header" "$token" > "$destination"; fi)
+}
+
+# Uploaded web URLs have an authenticated API equivalent (GitLab >=17.4).
+# Never send a project credential to a foreign asset origin or follow redirects.
+wp_plugin_base_provider_gitlab_asset_api_url() {
+  local api_base="$1"
+  local reference="$2"
+  local url="$3"
+  local web_base=''
+  web_base="$(wp_plugin_base_provider_gitlab_web_base "$api_base")"
+  case "$url" in
+    "$web_base/"*) ;;
+    *) echo 'Refusing authenticated download from a foreign release asset origin.' >&2; return 1 ;;
+  esac
+  if [[ "$url" =~ /uploads/([a-f0-9]{32})/([^/?#]+)$ ]]; then
+    printf '%s/projects/%s/uploads/%s/%s\n' "$api_base" \
+      "$(wp_plugin_base_provider_gitlab_project_id "$reference")" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  else
+    printf '%s\n' "$url"
+  fi
+}
+
+# Scope HTTP Git credentials to one configured host and one process. This works
+# for private foundation sources without putting tokens in URLs or git config.
+wp_plugin_base_provider_git() {
+  local provider="$1"
+  local api_base="$2"
+  shift 2
+  local token=''
+  local username=''
+  local web_base=''
+  local basic_auth=''
+  case "$provider" in
+    github|github-release) token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"; username='x-access-token' ;;
+    gitlab|gitlab-release)
+      token="${GITLAB_TOKEN:-${CI_JOB_TOKEN:-}}"
+      username='oauth2'
+      if [ -z "${GITLAB_TOKEN:-}" ]; then username='gitlab-ci-token'; fi
+      ;;
+    *) echo "Unsupported Git authentication provider: $provider" >&2; return 1 ;;
+  esac
+  if [ -z "$token" ]; then
+    GIT_TERMINAL_PROMPT=0 git "$@"
+    return
+  fi
+  web_base="$(wp_plugin_base_provider_web_base "$provider" "$api_base")"
+  if [ -z "$(wp_plugin_base_url_host "$web_base")" ]; then
+    echo 'Provider Git authentication requires a configured HTTPS host.' >&2
+    return 1
+  fi
+  basic_auth="$(printf '%s:%s' "$username" "$token" | base64 | tr -d '\n')"
+  GIT_TERMINAL_PROMPT=0 \
+    GIT_CONFIG_COUNT=3 \
+    GIT_CONFIG_KEY_0="http.${web_base}/.extraheader" GIT_CONFIG_VALUE_0='' \
+    GIT_CONFIG_KEY_1="http.${web_base}/.extraheader" GIT_CONFIG_VALUE_1="AUTHORIZATION: basic ${basic_auth}" \
+    GIT_CONFIG_KEY_2='http.followRedirects' GIT_CONFIG_VALUE_2=false \
+    git "$@"
 }

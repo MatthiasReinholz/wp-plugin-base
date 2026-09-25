@@ -86,12 +86,12 @@ The package builder asserts these files are present in `dist` when the feature i
 
 ## Upstream Version Pin
 
-The runtime pack currently vendors `YahnisElsts/plugin-update-checker` `v5.6`.
+The runtime pack currently vendors `YahnisElsts/plugin-update-checker` `v5.7`.
 
 Reference source tarball:
 
-- [v5.6 tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v5.6.tar.gz)
-- SHA256: `589d2c533464227cd69e8d70515fa2210c59ea8052a08dafd42647285dd5012d`
+- [v5.7 tar.gz](https://github.com/YahnisElsts/plugin-update-checker/archive/refs/tags/v5.7.tar.gz)
+- SHA256: `9fdc90b2cbcb45bc946fbba047a76152bfb2c521c2799eedb65a0696724a7a1c`
 
 ## Maintainer Checklist
 

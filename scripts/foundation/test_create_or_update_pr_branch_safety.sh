@@ -81,3 +81,55 @@ if ! grep -Fxq 'pull_request_operation=none' "$pr_output"; then
 fi
 
 echo "create_or_update_pr branch safety test passed."
+
+# A fresh fetch must not authorize replacing reviewer commits with a stale local
+# updater branch. Exercise the actual bare-remote rejection, without mocking Git.
+git -C "$fixture_repo" checkout -q main
+git -C "$fixture_repo" checkout -qb chore/diverged-branch
+printf '%s\n' 'original update' > "$fixture_repo/UPDATE.txt"
+git -C "$fixture_repo" add UPDATE.txt
+git -C "$fixture_repo" commit -qm "original update"
+git -C "$fixture_repo" push -q origin chore/diverged-branch
+reviewer_repo="$helper_dir/reviewer"
+git clone -q --branch chore/diverged-branch "$fixture_origin" "$reviewer_repo"
+git -C "$reviewer_repo" config user.email "reviewer@example.com"
+git -C "$reviewer_repo" config user.name "Reviewer"
+printf '%s\n' 'preserve reviewer work' > "$reviewer_repo/REVIEWER.txt"
+git -C "$reviewer_repo" add REVIEWER.txt
+git -C "$reviewer_repo" commit -qm "reviewer improvement"
+git -C "$reviewer_repo" push -q origin chore/diverged-branch
+remote_before="$(git -C "$fixture_origin" rev-parse refs/heads/chore/diverged-branch)"
+git -C "$fixture_repo" checkout -q main
+printf '%s\n' 'refreshed candidate' >> "$fixture_repo/README.md"
+: > "$pr_output"
+
+if (
+  cd "$fixture_repo"
+  PATH="$helper_dir/bin:$PATH" \
+    GH_TOKEN='' GITHUB_TOKEN='' \
+    GITHUB_REPOSITORY="example/repo" \
+    GITHUB_REPOSITORY_OWNER="example" \
+    GITHUB_OUTPUT="$pr_output" \
+    GIT_ADD_PATHS='README.md' \
+    bash "$ROOT_DIR/scripts/update/create_or_update_pr.sh" \
+      "chore/diverged-branch" "main" \
+      "chore: refreshed candidate" "chore: refreshed candidate" \
+      "$helper_dir/body.md"
+) > "$helper_dir/diverged.log" 2>&1; then
+  echo "create_or_update_pr unexpectedly replaced newer remote reviewer commits." >&2
+  exit 1
+fi
+
+remote_after="$(git -C "$fixture_origin" rev-parse refs/heads/chore/diverged-branch)"
+if [ "$remote_before" != "$remote_after" ]; then
+  echo "A rejected change-request refresh changed the remote branch." >&2
+  exit 1
+fi
+git -C "$fixture_origin" cat-file -e refs/heads/chore/diverged-branch:REVIEWER.txt
+grep -Fq 'Reconcile any remote branch changes before retrying' "$helper_dir/diverged.log"
+if [ -s "$pr_output" ]; then
+  echo "A rejected branch publication unexpectedly reported a change-request operation." >&2
+  exit 1
+fi
+
+echo "create_or_update_pr preserves remote reviewer commits on divergence."

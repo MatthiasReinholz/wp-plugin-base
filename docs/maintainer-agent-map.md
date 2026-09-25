@@ -42,9 +42,10 @@ For any policy/release/dependency updater change, run `validate-full.sh --mode c
 
 ### 1) Add or change a config key
 
-Update all four surfaces together:
+Update all five surfaces together:
 
 - `scripts/lib/load_config.sh`
+- `scripts/ci/validate_config.sh`
 - `docs/config-schema.json`
 - `README.md` config section
 - `templates/child/.wp-plugin-base.env.example`
@@ -84,7 +85,9 @@ Then run:
 Touch all relevant surfaces:
 
 - `.github/workflows/update-plugin-check.yml`
+- `.github/workflows/update-external-dependency.yml`
 - `scripts/update/prepare_external_dependency_update.sh`
+- `scripts/update/external_dependency_candidate.py`
 - `docs/dependency-inventory.json`
 - `docs/update-model.md`
 
@@ -92,7 +95,12 @@ Then run:
 
 - `bash scripts/ci/validate_dependency_inventory.sh`
 - `bash scripts/foundation/test_dependency_inventory.sh`
+- `bash scripts/foundation/test_external_dependency_updates.sh`
 - `bash scripts/ci/audit_workflows.sh`
+
+Keep preparation, candidate execution, and publication in separate jobs. The
+publication job must use trusted helper code and verify the original artifact ID,
+digest, base commit, and allowed paths before proposing an update.
 
 ## Validation Commands
 

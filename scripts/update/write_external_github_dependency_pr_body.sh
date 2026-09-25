@@ -52,7 +52,7 @@ EOF
 
   if [ "$trust_mode" = "metadata-only" ]; then
     printf '\nReviewer warning:\n'
-    printf -- '- This update was selected from GitHub repository and release metadata, but the framework could not automatically verify first-party release authenticity beyond the configured trust checks.\n'
+    printf -- '- This update was selected from upstream repository, release, or registry metadata, but the framework could not automatically verify first-party release authenticity beyond the configured trust checks.\n'
     printf -- '- Before merging, verify that `%s` `%s` is authentic and safe: review the upstream repository, tag, release notes, and release assets.\n' "$source_repository" "$target_version"
   else
     printf '\nTrust level:\n'

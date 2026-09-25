@@ -62,6 +62,11 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_REST_Adapter' ) ) {
 						);
 					},
 					'permission_callback' => function ( WP_REST_Request $request ) use ( $plugin_slug, $operation ) {
+						$prepared_request = WP_Plugin_Base_REST_Operations_Input::prepare_rest_request( $operation, $request );
+						if ( is_wp_error( $prepared_request ) ) {
+							return $prepared_request;
+						}
+
 						return WP_Plugin_Base_REST_Operations_Permissions::check_operation( $plugin_slug, $operation, $request );
 					},
 					'args'                => self::build_args( $operation ),

@@ -31,7 +31,7 @@ These files are regenerated from foundation templates:
 
 Do not hand-edit those files in your project unless you are intentionally diverging from the foundation. If you need a permanent change, make it in `wp-plugin-base` and resync.
 
-`scripts/ci/list_managed_files.sh --mode validate` prints this regenerated managed surface. `--mode stage` also includes required seeded files so foundation-update automation can commit newly created child-owned files without treating them as managed.
+`scripts/ci/list_managed_files.sh --mode validate` prints this regenerated managed surface. `--mode stage` includes the union of managed paths across hosts and packs, so tracked removals are staged, and also includes required seeded files so foundation-update automation can commit newly created child-owned files without treating them as managed.
 
 `bash .wp-plugin-base/scripts/ci/validate_project.sh` treats that managed surface as part of the child-repo contract. If one of those files is missing after sync, or if a required file path has been replaced with a directory or another non-file entry, project validation fails and points back to `sync_child_repo.sh`.
 
@@ -50,6 +50,8 @@ These files are created or maintained so the project can customize them safely:
 
 The managed `phpunit.xml.dist` discovers `*Test.php` files under `tests/`. Keep foundation-managed baseline tests in `tests/wp-plugin-base/`, and place project-owned PHPUnit tests in a child-owned subtree such as `tests/php/`.
 
+Packaging verifies that enabled REST/admin packs retain every managed runtime PHP file and their required child-owned bootstrap, even with custom `PACKAGE_INCLUDE` or `PACKAGE_EXCLUDE` settings. Pack documentation and admin build-tool seeds remain development-only.
+
 The managed distignore file excludes common development-only paths (`/docs`, `/scripts`, `/tests`, `/packages`, and `/routes`) by default so build-only workspaces stay out of the install ZIP and translation scan. If one of those directories belongs in the shipped plugin, add it explicitly through `PACKAGE_INCLUDE` and remove only the paths that should stay excluded through `PACKAGE_EXCLUDE`.
 
 ## Local Generated State
@@ -67,3 +69,19 @@ The child template `.gitignore` ignores generated quality/security pack vendor d
 Seeded files remain project-owned after creation, but project validation still treats required seed paths as present while their pack is enabled.
 
 Managed automation files use `.yml` on GitHub and `.gitlab-ci.yml` on GitLab. The package builder excludes both GitHub and GitLab automation metadata from the shipped plugin ZIP.
+
+## Child PHPCS rules
+
+Project-specific PHPCS exclusions and compatibility exceptions belong in the optional
+`.wp-plugin-base-quality-pack/phpcs-child.xml` ruleset. Create that child-owned file,
+then run foundation sync to include it from the managed `.phpcs.xml.dist`.
+Sync preserves its contents. Removing the overlay and syncing removes the include.
+Keep exceptions narrow; generated admin asset metadata is already excluded by the foundation.
+
+## Manifest And Rendering Contracts
+
+`scripts/lib/managed_files.sh` is the shared authority for generation, validation, staging and disabled-file cleanup. Add managed template pairs there. Do not add a second independent generation list to sync. Optional GitHub simulation and Woo status workflows are generated only for the GitHub host. Consumer-owned seeds survive pack disablement; reconcile their entrypoint includes manually.
+
+`scripts/lib/render_template.php` renders PHP constant string literals using PHP serialization, JavaScript/JSON strings using their quote context, and YAML placeholders as quoted scalar values. Configuration is never evaluated as template code. PHP placeholders in executable or interpolated contexts are rejected. Keep new placeholders in supported contexts and extend the generation contract tests when adding a context.
+
+The vendored `lib/wp-plugin-base/plugin-update-checker/` tree is wholly managed and replaced on sync, including removal of retired upstream files. Do not store application code inside that vendor directory. Update staging includes the entire tree so removed files cannot linger in the child commit.

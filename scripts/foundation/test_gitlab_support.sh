@@ -50,7 +50,7 @@ test ! -e "$fixture_dir/.github/dependabot.yml"
 test -f "$fixture_dir/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php"
 test -f "$fixture_dir/lib/wp-plugin-base/wp-plugin-base-github-updater.php"
 
-grep -Fq 'image: ubuntu:24.04@sha256:' "$fixture_dir/.gitlab-ci.yml"
+grep -Fq 'WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGE: ubuntu:24.04@sha256:' "$fixture_dir/.gitlab-ci.yml"
 grep -Fq 'template: Jobs/SAST.gitlab-ci.yml' "$fixture_dir/.gitlab-ci.yml"
 grep -Fq 'template: Jobs/Secret-Detection.gitlab-ci.yml' "$fixture_dir/.gitlab-ci.yml"
 
@@ -69,23 +69,37 @@ fi
 WP_PLUGIN_BASE_ROOT="$fixture_dir" WP_ORG_DEPLOY_ENABLED=true WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true bash "$ROOT_DIR/scripts/ci/validate_project.sh" ".wp-plugin-base.env" "main"
 WP_PLUGIN_BASE_ROOT="$fixture_dir" bash "$ROOT_DIR/scripts/ci/build_zip.sh" ".wp-plugin-base.env"
 
-gitlab_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/wp-plugin-base foundation)"
-if ! printf '%s\n' 'https://gitlab.com/example-group/wp-plugin-base/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_identity_regex"; then
+gitlab_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/wp-plugin-base foundation v1.5.0)"
+if ! printf '%s\n' 'https://gitlab.com/example-group/wp-plugin-base//.gitlab-ci.yml@refs/tags/v1.5.0' | grep -Eq "$gitlab_identity_regex"; then
   echo "GitLab Sigstore identity regex did not match a canonical GitLab identity." >&2
   exit 1
 fi
-if printf '%s\n' 'https://gitlab.com/example-group/wp-pluginXbase/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_identity_regex"; then
+if printf '%s\n' 'https://gitlab.com/example-group/wp-pluginXbase//.gitlab-ci.yml@refs/tags/v1.5.0' | grep -Eq "$gitlab_identity_regex"; then
   echo "GitLab Sigstore identity regex matched a similarly named repository." >&2
   exit 1
 fi
 
-gitlab_nested_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/platform/plugin.base foundation)"
-if ! printf '%s\n' 'https://gitlab.com/example-group/platform/plugin.base/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_nested_identity_regex"; then
+gitlab_nested_identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/platform/plugin.base foundation v1.5.0)"
+if ! printf '%s\n' 'https://gitlab.com/example-group/platform/plugin.base//.gitlab-ci.yml@refs/tags/v1.5.0' | grep -Eq "$gitlab_nested_identity_regex"; then
   echo "GitLab Sigstore identity regex did not match a nested dotted repository path." >&2
   exit 1
 fi
-if printf '%s\n' 'https://gitlab.com/example-group/platform/pluginXbase/.gitlab-ci.yml@refs/heads/main' | grep -Eq "$gitlab_nested_identity_regex"; then
+if printf '%s\n' 'https://gitlab.com/example-group/platform/pluginXbase//.gitlab-ci.yml@refs/tags/v1.5.0' | grep -Eq "$gitlab_nested_identity_regex"; then
   echo "GitLab Sigstore identity regex treated a dotted repository path as a pattern." >&2
+  exit 1
+fi
+
+for wrong_identity in \
+  'https://gitlab.com/example-group/wp-plugin-base//.gitlab-ci.yml@refs/tags/v1.5.1' \
+  'https://gitlab.com/example-group/wp-plugin-base//.gitlab-ci.yml@refs/heads/main' \
+  'https://gitlab.com/example-group/wp-plugin-base/.gitlab-ci.yml@refs/tags/v1.5.0'; do
+  if printf '%s\n' "$wrong_identity" | grep -Eq "$gitlab_identity_regex"; then
+    echo "GitLab identity accepted wrong tag, branch, or CI-file separator." >&2
+    exit 1
+  fi
+done
+if wp_plugin_base_provider_sigstore_identity_regex gitlab-release https://gitlab.com/api/v4 example-group/wp-plugin-base foundation >/dev/null 2>&1; then
+  echo "GitLab identity accepted verification without an exact release tag." >&2
   exit 1
 fi
 

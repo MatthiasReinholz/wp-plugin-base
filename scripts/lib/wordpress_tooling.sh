@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:743aebe48ca67097c36819040633ea77e44a561eca135e4fc84c002e63a1ba07'
-WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='1.9.0'
+WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7'
+WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'
 
 wp_plugin_base_wordpress_tools_dir() {
   local script_dir
@@ -30,6 +30,30 @@ wp_plugin_base_wordpress_env() {
   local install_dir="$1"
   shift
   "$install_dir/node_modules/.bin/wp-env" "$@"
+}
+
+# Only call for an environment whose home/config/tool directories this task created.
+# Preserve every recovery input when Docker cleanup fails; never discard its identity.
+wp_plugin_base_cleanup_temporary_wordpress_env() {
+  local install_dir="$1"
+  local environment_home="$2"
+  local environment_config="$3"
+  local npm_cache_dir="$4"
+  local buildx_config_dir="$5"
+  local start_attempted="$6"
+  shift 6
+
+  if [ "$start_attempted" = true ]; then
+    if ! WP_ENV_HOME="$environment_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" \
+      wp_plugin_base_wordpress_env "$install_dir" cleanup --force --config="$environment_config" >/dev/null 2>&1; then
+      echo "Temporary WordPress environment cleanup failed; retaining configuration and tools for recovery." >&2
+      printf 'Retry: WP_ENV_HOME=%q BUILDX_CONFIG=%q NPM_CONFIG_CACHE=%q %q cleanup --force --config=%q\n' \
+        "$environment_home" "$buildx_config_dir" "$npm_cache_dir" "$install_dir/node_modules/.bin/wp-env" "$environment_config" >&2
+      return 1
+    fi
+  fi
+
+  rm -rf "$environment_home" "$environment_config" "$install_dir" "$npm_cache_dir" "$buildx_config_dir" "$@"
 }
 
 wp_plugin_base_wordpress_env_start_with_retry() {

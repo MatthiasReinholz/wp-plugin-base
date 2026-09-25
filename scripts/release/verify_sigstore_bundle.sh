@@ -17,9 +17,10 @@ VERIFICATION_SCOPE="${4:-plugin}"
 SOURCE_PROVIDER="${5:-${FOUNDATION_RELEASE_SOURCE_PROVIDER:-github-release}}"
 SOURCE_API_BASE="${6:-${FOUNDATION_RELEASE_SOURCE_API_BASE:-}}"
 SOURCE_ISSUER="${7:-${FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER:-}}"
+RELEASE_TAG="${8:-}"
 
 if [ -z "$REPOSITORY" ] || [ -z "$ARTIFACT_PATH" ] || [ -z "$BUNDLE_PATH" ]; then
-  echo "Usage: $0 <reference> <artifact-path> <bundle-path> [plugin|foundation] [provider] [api-base] [issuer]" >&2
+  echo "Usage: $0 <reference> <artifact-path> <bundle-path> [plugin|foundation] [provider] [api-base] [issuer] [release-tag]" >&2
   exit 1
 fi
 
@@ -41,7 +42,7 @@ identity_regex="${WP_PLUGIN_BASE_SIGSTORE_CERTIFICATE_IDENTITY_REGEXP:-}"
 issuer="${WP_PLUGIN_BASE_SIGSTORE_CERTIFICATE_OIDC_ISSUER:-}"
 
 if [ -z "$identity_regex" ]; then
-  identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex "$SOURCE_PROVIDER" "$SOURCE_API_BASE" "$REPOSITORY" "$VERIFICATION_SCOPE")"
+  identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex "$SOURCE_PROVIDER" "$SOURCE_API_BASE" "$REPOSITORY" "$VERIFICATION_SCOPE" "$RELEASE_TAG")"
 fi
 
 if [ -z "$issuer" ]; then

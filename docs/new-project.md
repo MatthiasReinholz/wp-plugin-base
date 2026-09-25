@@ -3,6 +3,8 @@
 Use this path when you are starting a new WordPress plugin repo from scratch.
 If you already have a plugin repository, use [Existing Project Migration](existing-project-migration.md) instead.
 
+The new-project example uses PHP 8.3 as its baseline. Keep `PHP_VERSION` aligned with the `Requires PHP` metadata in the plugin file and `readme.txt`. Existing explicit PHP configuration and metadata remain owned by the project and are preserved during foundation updates; raising an existing plugin's minimum PHP version is a separate maintainer decision.
+
 ## Steps
 
 1. Create the plugin repository and protect `main`.
@@ -34,7 +36,7 @@ If you already have a plugin repository, use [Existing Project Migration](existi
 14. On GitHub, under `Actions permissions`, choose `Allow OWNER, and select non-OWNER, actions and reusable workflows`.
 15. On GitHub, allow GitHub-authored actions and only the specific non-GitHub actions documented in [Security model](security-model.md).
 16. On GitHub, enable `Require actions to be pinned to a full-length commit SHA`.
-17. On GitHub, under `Workflow permissions`, select `Read and write permissions`.
+17. On GitHub, under `Workflow permissions`, select `Read repository contents and packages permissions`.
 18. Enable automated change-request creation for the selected host so release preparation and foundation updates can open PRs or MRs.
 19. If the selected GitHub option is greyed out, ask an organization owner to enable it in the organization under `Settings` -> `Actions` -> `General` first.
 20. If you plan to use automated foundation self-updates, confirm that your selected automation host can access releases from `FOUNDATION_RELEASE_SOURCE_REFERENCE`.
@@ -81,4 +83,6 @@ Workflow files must use the `.yml` extension. `.yaml` workflow files are rejecte
 
 For GitHub repos, WordPress.org deploy-enabled validation checks environment protection directly. For GitLab repos, validation fails closed until you rerun with `WP_PLUGIN_BASE_GITLAB_DEPLOY_ENV_ACKNOWLEDGED=true` after manually reviewing the protected environment configuration.
 
-Release repair skips WordPress.org redeploy by default so an existing SVN tag is not rewritten during a repair run. On GitHub, use the manual `release.yml` workflow for stable tags, the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags, and `woocommerce-status.yml` when WooCommerce.com is enabled. On GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+Channel repair restores the signed published package. A matching existing SVN tag is an idempotent success; an older release cannot replace trunk. On GitHub, use the manual `release.yml` workflow for stable tags, the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags, and `woocommerce-status.yml` when WooCommerce.com is enabled. On GitLab, rerun the tagged `release` job from the managed `.gitlab-ci.yml`. Only set `WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY=true` for an intentional break-glass redeploy of the latest repository release tag.
+
+For host-specific runner requirements and acceptance limits, see [automation host capabilities](automation-hosts.md).

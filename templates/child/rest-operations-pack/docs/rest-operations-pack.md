@@ -37,6 +37,16 @@ Each operation manifest should declare:
 - optional `error_response`
 - optional `source_file` (the seed bootstrap sets this automatically for review and suppressions)
 
+## Input Schema Contract
+
+Operation inputs use an object schema and WordPress' supported REST JSON Schema keywords. Both transports validate the complete object, including `required`, `additionalProperties`, property-count constraints, and nested object constraints, before calling the operation. Unsupported JSON Schema keywords do not gain enforcement from this pack.
+
+Defaults for missing top-level properties are applied after raw input validation. A default does not satisfy a required property or `minProperties`; pass required data explicitly. Nested defaults are not materialized. Use the same complete object when calling an ability directly, for example `$ability->execute( array( 'message' => 'Hello' ) )`.
+
+Required properties enforce presence: an explicit `null` is accepted only when the property's schema permits it. Both transports validate the final sanitized input and applied defaults again before permissions or execution, so normalization cannot produce a value outside the schema. Invalid capability metadata fails closed at runtime, including operations registered programmatically.
+
+REST transport controls (`_fields`, `_embed`, `_envelope`, `_locale`, `_method`, `_jsonp`, `_wpnonce`, and `rest_route`) are excluded from schema validation unless explicitly declared in `properties`. Other unknown fields are rejected when `additionalProperties` is false. Schema failures return HTTP 400. WordPress continues to handle per-field REST validation and sanitization before the managed callback.
+
 ## Visibility
 
 Supported `visibility` values:
@@ -77,5 +87,9 @@ The managed evaluator keeps capability checks mandatory and then applies scope n
 ## Abilities
 
 Set `REST_ABILITIES_ENABLED=true` to expose operations through the Abilities API when WordPress 6.9+ is available. The operation manifest is ability-ready from the first release, even when REST remains the primary transport.
+
+Abilities use the same capability and scope evaluator as REST through core's required `permission_callback`. Manifest `annotations` and `ability.show_in_rest` are mapped into the core ability's `meta`. Abilities remain hidden from the core Abilities REST API unless `show_in_rest` is explicitly true; enabling exposure does not bypass authorization. Core validates declared ability output schemas. Registration failures emit a developer diagnostic.
+
+Upgrading the foundation refreshes this managed adapter automatically. Existing operation manifests remain child-owned: review schemas for callers that previously sent undeclared fields or relied on defaults satisfying required fields before deploying the stricter validation.
 
 Disabling `REST_OPERATIONS_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but it does not rewrite child-owned plugin entrypoints or seeded operation files. Remove the `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` line from the main plugin file before validation or packaging will pass.

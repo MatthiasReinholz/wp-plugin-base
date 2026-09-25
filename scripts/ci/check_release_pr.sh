@@ -35,6 +35,11 @@ AUTOMATION_PROVIDER="${AUTOMATION_PROVIDER:-github}"
 AUTOMATION_API_BASE="${AUTOMATION_API_BASE:-$(wp_plugin_base_provider_default_api_base "$AUTOMATION_PROVIDER")}"
 
 response=""
+auth_dir="$(mktemp -d)"
+trap 'rm -rf "$auth_dir"' EXIT
+write_auth_header() {
+  (umask 077; printf '%s: %s\n' "$1" "$2" > "$auth_dir/header")
+}
 
 case "$AUTOMATION_PROVIDER" in
   github)
@@ -43,14 +48,15 @@ case "$AUTOMATION_PROVIDER" in
       exit 1
     fi
 
-    api_url="https://api.github.com/repos/${REPOSITORY}/commits/${COMMIT_SHA}/pulls"
+    write_auth_header Authorization "Bearer $GITHUB_TOKEN"
+    api_url="${AUTOMATION_API_BASE}/repos/${REPOSITORY}/commits/${COMMIT_SHA}/pulls"
     response="$(
       wp_plugin_base_run_with_retry 3 2 "Fetch release PR metadata for ${COMMIT_SHA}" \
-        curl -fsSL \
+        curl -fsS \
         --connect-timeout 10 \
         --max-time 60 \
         -H "Accept: application/vnd.github+json" \
-        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "@$auth_dir/header" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         "$api_url"
     )"
@@ -78,14 +84,16 @@ case "$AUTOMATION_PROVIDER" in
     if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
       gitlab_auth_header_name="JOB-TOKEN"
     fi
+    write_auth_header "$gitlab_auth_header_name" "$gitlab_token"
+    unset gitlab_token
     gitlab_project_id="$(wp_plugin_base_provider_gitlab_project_id "$REPOSITORY")"
     api_url="${AUTOMATION_API_BASE}/projects/${gitlab_project_id}/repository/commits/${COMMIT_SHA}/merge_requests?state=merged"
     response="$(
       wp_plugin_base_run_with_retry 3 2 "Fetch release MR metadata for ${COMMIT_SHA}" \
-        curl -fsSL \
+        curl -fsS \
         --connect-timeout 10 \
         --max-time 60 \
-        --header "${gitlab_auth_header_name}: ${gitlab_token}" \
+        --header "@$auth_dir/header" \
         "$api_url"
     )"
     match_count="$(

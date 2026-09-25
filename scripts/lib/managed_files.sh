@@ -100,7 +100,7 @@ wp_plugin_base_print_managed_template_pairs() {
     wp_plugin_base_print_optional_managed_template_pairs "security-pack" "$template_dir"
   fi
 
-  if wp_plugin_base_is_true "${WOOCOMMERCE_QIT_ENABLED:-false}"; then
+  if [ "${AUTOMATION_PROVIDER:-github}" = github ] && wp_plugin_base_is_true "${WOOCOMMERCE_QIT_ENABLED:-false}"; then
     wp_plugin_base_print_optional_managed_template_pairs "qit-pack" "$template_dir"
   fi
 
@@ -207,3 +207,21 @@ wp_plugin_base_print_required_seed_paths() {
     printf '%s\n' "$destination_path"
   done < <(wp_plugin_base_print_required_seed_template_pairs "$@")
 }
+
+# The union is used only for managed cleanup. Keep all host/pack policy above so
+# generation, validation, staging and removal cannot acquire different file lists.
+wp_plugin_base_print_all_managed_paths() (
+  local template_dir="${1:-$(wp_plugin_base_child_template_dir)}"
+  WORDPRESS_QUALITY_PACK_ENABLED=true
+  WORDPRESS_SECURITY_PACK_ENABLED=true
+  WOOCOMMERCE_QIT_ENABLED=true
+  WOOCOMMERCE_COM_PRODUCT_ID=1
+  PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release
+  REST_OPERATIONS_PACK_ENABLED=true
+  ADMIN_UI_PACK_ENABLED=true
+  SIMULATE_RELEASE_WORKFLOW_ENABLED=true
+  CODEOWNERS_REVIEWERS=@manifest
+  for AUTOMATION_PROVIDER in github gitlab; do
+    wp_plugin_base_print_managed_paths "$template_dir"
+  done | sort -u
+)

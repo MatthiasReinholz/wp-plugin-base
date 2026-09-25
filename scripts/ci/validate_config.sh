@@ -376,6 +376,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "$WORDPRESS_SECURITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_SECURITY_PACK_ENABLED'
   validate_regex "$RELEASE_READINESS_MODE" '^(standard|security-sensitive)$' 'RELEASE_READINESS_MODE'
   validate_regex "$WOOCOMMERCE_QIT_ENABLED" '^(true|false)$' 'WOOCOMMERCE_QIT_ENABLED'
+  if [ "$AUTOMATION_PROVIDER" = gitlab ] && wp_plugin_base_is_true "$WOOCOMMERCE_QIT_ENABLED"; then
+    echo "WOOCOMMERCE_QIT_ENABLED is a GitHub-only workflow pack; configure project-owned QIT automation for GitLab." >&2
+    exit 1
+  fi
   validate_regex "${WOOCOMMERCE_COM_PRODUCT_ID:-}" '^$|^[0-9]+$' 'WOOCOMMERCE_COM_PRODUCT_ID'
   validate_regex "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" '^[1-9][0-9]*$' 'WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS'
   validate_regex "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" '^(none|github-release|gitlab-release|generic-json)$' 'PLUGIN_RUNTIME_UPDATE_PROVIDER'
@@ -388,6 +392,33 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_regex "${ADMIN_UI_STARTER:-}" '^$|^(basic|dataviews)$' 'ADMIN_UI_STARTER'
   validate_regex "${ADMIN_UI_EXPERIMENTAL_DATAVIEWS:-false}" '^(true|false)$' 'ADMIN_UI_EXPERIMENTAL_DATAVIEWS'
   validate_regex "${ADMIN_UI_NPM_AUDIT_LEVEL:-high}" '^(high|critical)$' 'ADMIN_UI_NPM_AUDIT_LEVEL'
+  validate_regex "$DEPENDABOT_ECOSYSTEMS" '^(auto|github-actions|composer|npm|admin-ui-npm)(,(github-actions|composer|npm|admin-ui-npm))*$' 'DEPENDABOT_ECOSYSTEMS'
+  seen_dependabot_values=,
+  while IFS= read -r ecosystem; do
+    if [[ "$seen_dependabot_values" == *",$ecosystem,"* ]]; then
+      echo "DEPENDABOT_ECOSYSTEMS contains a duplicate value: $ecosystem" >&2
+      exit 1
+    fi
+    seen_dependabot_values="$seen_dependabot_values$ecosystem,"
+    if [[ "$DEPENDABOT_ECOSYSTEMS" == auto,* ]]; then
+      echo "DEPENDABOT_ECOSYSTEMS auto must be used alone." >&2
+      exit 1
+    fi
+    if [ "$AUTOMATION_PROVIDER" = github ]; then
+      case "$ecosystem" in
+        composer|npm)
+          manifest=composer.json
+          if [ "$ecosystem" = npm ]; then manifest=package.json; fi
+          validate_file "$manifest" "DEPENDABOT_ECOSYSTEMS $ecosystem manifest"
+          ;;
+        admin-ui-npm)
+          if ! wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; then
+            validate_file '.wp-plugin-base-admin-ui/package.json' 'DEPENDABOT_ECOSYSTEMS admin-ui-npm manifest'
+          fi
+          ;;
+      esac
+    fi
+  done < <(wp_plugin_base_csv_to_lines "$DEPENDABOT_ECOSYSTEMS")
   if [ -n "${GITHUB_RELEASE_UPDATER_REPO_URL:-}" ]; then
     validate_public_https_url "$GITHUB_RELEASE_UPDATER_REPO_URL" 'GITHUB_RELEASE_UPDATER_REPO_URL'
     if [[ "$GITHUB_RELEASE_UPDATER_REPO_URL" != https://github.com/* ]]; then

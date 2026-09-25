@@ -122,8 +122,9 @@ done < <(
   jq -r '.dependencies[] | select(.update.kind == "workflow") | .update.path // empty' "$INVENTORY_PATH"
 )
 
-if ! grep -Fq 'prepare_external_dependency_update.sh' "$TARGET_ROOT/.github/workflows/update-plugin-check.yml"; then
-  echo "update-plugin-check workflow must drive dependency updates through prepare_external_dependency_update.sh." >&2
+if ! grep -Fq './.github/workflows/update-external-dependency.yml' "$TARGET_ROOT/.github/workflows/update-plugin-check.yml" ||
+  ! grep -Fq 'prepare_external_dependency_update.sh' "$TARGET_ROOT/.github/workflows/update-external-dependency.yml"; then
+  echo "Dependency workflow must delegate to the isolated external dependency preparation pipeline." >&2
   exit 1
 fi
 

@@ -26,21 +26,21 @@ if ( ! function_exists( 'wp_plugin_base_example_rest_operation_list_example_item
 					'id'          => 'overview',
 					'name'        => __( 'Overview', '__PLUGIN_SLUG__' ),
 					'description' => __( 'Summarizes the scaffolded runtime surface.', '__PLUGIN_SLUG__' ),
-					'status'      => __( 'stable', '__PLUGIN_SLUG__' ),
+					'status'      => 'stable',
 				),
 				array(
 					'id'          => 'settings',
 					'name'        => __( 'Settings', '__PLUGIN_SLUG__' ),
 					'description' => __( 'Demonstrates a REST-backed settings workflow.', '__PLUGIN_SLUG__' ),
-					'status'      => __( 'stable', '__PLUGIN_SLUG__' ),
+					'status'      => 'stable',
 				),
 				array(
 					'id'          => 'dataviews',
 					'name'        => __( 'Data Views', '__PLUGIN_SLUG__' ),
 					'description' => __( 'Reserved for a richer DataViews/DataForm experience when enabled.', '__PLUGIN_SLUG__' ),
 					'status'      => filter_var( '__ADMIN_UI_EXPERIMENTAL_DATAVIEWS__', FILTER_VALIDATE_BOOLEAN )
-						? __( 'enabled', '__PLUGIN_SLUG__' )
-						: __( 'disabled', '__PLUGIN_SLUG__' ),
+						? 'enabled'
+						: 'disabled',
 				),
 			),
 		);

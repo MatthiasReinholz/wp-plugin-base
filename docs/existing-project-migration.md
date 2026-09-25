@@ -72,7 +72,7 @@ Before enabling WordPress.org deploy, confirm:
 - the plugin main file and `readme.txt` already exist before validation
 - the selected CI host policy matches the allowlist and pinning rules documented in [Security model](security-model.md)
 
-If you later need to repair a published host release manually, use the host-specific repair flow. GitHub uses the manual `release.yml` workflow for stable tags and the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags. GitLab uses the tagged `release` job from the managed `.gitlab-ci.yml`. Both paths verify the existing tag and skip WordPress.org redeploy by default so the existing SVN tag is not rewritten accidentally.
+If you later need to repair a published host release manually, use the host-specific repair flow. GitHub uses the manual `release.yml` workflow for stable tags and the prerelease-only `publish-tag-release.yml` workflow for trusted prerelease tags. GitLab uses the tagged `release` job from the managed `.gitlab-ci.yml`. Both paths verify the existing tag and restore signed published assets for channel retries. A matching SVN tag is idempotent; modified tags remain protected, and older releases cannot replace trunk.
 Downstream channels can fail after host-release publication. On GitHub, pair release repair with `woocommerce-status.yml` when WooCommerce.com is enabled. On GitLab, inspect Woo vendor/QIT status directly because there is no separate status workflow.
 
 ## Release-Order Behavior Change
@@ -91,3 +91,13 @@ Use this ownership model:
 - `tests/wp-plugin-base/bootstrap-child.php`: child-owned overlay for project-specific preloads, hooks, and support-class bootstrapping
 
 If sync warns that managed bootstrap customizations were detected, move those custom `require` statements into `tests/wp-plugin-base/bootstrap-child.php` and rerun sync plus project validation.
+
+For host-specific runner requirements and acceptance limits, see [automation host capabilities](automation-hosts.md).
+
+## Seed And Dependency Maintenance
+
+Foundation sync preserves existing application seeds and dependency manifests. The updated templates fix the DataViews filtering, sorting and pagination behavior; existing children must review the new starter diff and port that behavior into their customized components. Preserve stable machine status IDs in operation results and translate labels only in the UI. Run the child UI build, lint, dependency audit and interaction checks before merging.
+
+For existing npm trees, use targeted compatible dependency updates and regenerate the lockfile in the child repository. Review overrides supplied by the current starter; do not copy its lockfile over a customized manifest. `DEPENDABOT_ECOSYSTEMS=auto` creates coverage for the root Composer/npm manifests and enabled or existing admin UI npm source. Explicit lists remain supported. GitLab children need a project-owned dependency update service.
+
+New REST/admin consumers receive a persisted unique class prefix on first sync. Existing unprefixed runtimes retain their names. To migrate one, choose a unique `RUNTIME_CLASS_PREFIX`, update all child-owned class and callback references together, resync managed files, then test alongside other plugins. Never change only the managed classes while leaving child callbacks on the old identity. An explicit empty prefix preserves legacy behavior.

@@ -45,11 +45,15 @@ elif command -v gtimeout >/dev/null 2>&1; then
   timeout_bin='gtimeout'
 fi
 
+wp_env_start_attempted=false
+
 cleanup() {
-  if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
-    WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
+  local status="$?"
+  if ! wp_plugin_base_cleanup_temporary_wordpress_env "$wp_env_tools_dir" "$wp_env_home" "$wp_env_config" \
+    "$npm_cache_dir" "$buildx_config_dir" "$wp_env_start_attempted" "$wp_env_start_log"; then
+    if [ "$status" -eq 0 ]; then status=1; fi
   fi
-  rm -rf "$wp_env_home" "$wp_env_config" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir" "$wp_env_start_log"
+  exit "$status"
 }
 
 trap cleanup EXIT
@@ -79,6 +83,7 @@ while [ "$attempt" -le "$max_attempts" ]; do
 
   : > "$wp_env_start_log"
 
+  wp_env_start_attempted=true
   if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" start --config="$wp_env_config" >/dev/null 2>"$wp_env_start_log"; then
     if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin install plugin-check --version="$WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION" --activate >/dev/null 2>&1; then
       if WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- wp plugin is-installed plugin-check >/dev/null 2>&1; then
