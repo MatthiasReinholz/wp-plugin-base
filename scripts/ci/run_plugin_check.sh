@@ -142,6 +142,7 @@ plugin_check_args=(
   plugin check "$plugin_path"
   --slug="$PLUGIN_SLUG"
   --format=strict-json
+  '--fields=file,line,column,type,code,message,docs'
 )
 
 if [ -n "${WP_PLUGIN_BASE_PLUGIN_CHECK_CHECKS:-}" ]; then

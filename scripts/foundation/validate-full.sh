@@ -88,6 +88,26 @@ rsync -a --exclude '.git' "$ROOT_DIR/" "$quality_fixture/.wp-plugin-base/"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
 WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/ci/validate_wordpress_readiness.sh" "" "release/1.3.0"
 
+# Exercise the actual checker/formatter boundary: default strict-json fields omit
+# file names, even though Plugin Check records them internally.
+mkdir -p "$quality_fixture/dist/package/ready-blocks/includes"
+cat > "$quality_fixture/dist/package/ready-blocks/includes/plugin-check-negative.php" <<'EOF_PLUGIN_CHECK'
+<?php
+$ready_blocks_remote_script = 'https://raw.githubusercontent.com/example/example/main/script.js';
+EOF_PLUGIN_CHECK
+plugin_check_status=0
+WP_PLUGIN_BASE_ROOT="$quality_fixture" bash "$ROOT_DIR/scripts/ci/run_plugin_check.sh" \
+  > "$quality_fixture/plugin-check-negative.log" 2>&1 || plugin_check_status="$?"
+if [ "$plugin_check_status" -ne 1 ]; then
+  echo "Plugin Check must reject the deliberate offloaded-script finding." >&2
+  cat "$quality_fixture/plugin-check-negative.log" >&2
+  exit 1
+fi
+jq -e 'any(.[]; .type == "ERROR" and .code == "PluginCheck.CodeAnalysis.Offloading.OffloadedContent" and .file == "includes/plugin-check-negative.php" and .line == 2)' \
+  "$quality_fixture/dist/plugin-check.json" >/dev/null
+grep -Fq 'at includes/plugin-check-negative.php:2:' "$quality_fixture/plugin-check-negative.log"
+echo "Plugin Check preserves finding locations and fails on errors."
+
 default_environment_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$default_environment_fixture/"
 mkdir -p "$default_environment_fixture/.wp-plugin-base"

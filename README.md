@@ -408,6 +408,8 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 - `..._STRICT_WARNINGS=true` fails readiness validation on warnings in addition to errors.
 - `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
 
+Plugin Check reports preserve file paths, line/column positions, result codes, error/warning types, messages and documentation links in `dist/plugin-check.json`. Failure summaries include the finding's file and line when supplied by the checker.
+
 `ADMIN_UI_NPM_AUDIT_LEVEL` controls the managed admin UI npm audit threshold when the security pack is enabled. Keep the default `high` for release readiness. `critical` is only allowed outside `RELEASE_READINESS_MODE=security-sensitive` as a temporary compatibility override for non-runtime, upstream-owned admin UI toolchain advisories while you update `@wordpress/*` packages or add narrow npm `overrides`.
 
 `PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.3,8.4,8.5`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
