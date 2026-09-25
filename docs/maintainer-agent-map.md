@@ -8,6 +8,7 @@ This map is the quickest safe orientation for maintainers and AI coding agents w
 - `scripts/foundation/validate-full.sh`: Full validation path that includes heavy fixture and release checks.
 - `scripts/foundation/bootstrap_strict_local.sh`: Supported bootstrap path for strict-local parity from a clean clone.
 - `scripts/update/sync_child_repo.sh`: Generates and synchronizes managed child-repo surfaces.
+- `scripts/lib/managed_files.sh`: Defines managed ownership and publishes complete manifests through `managed_manifest_io.rb`; callers must check failures before mutation.
 - `scripts/update/prepare_external_dependency_update.sh`: Shared external dependency update preparation logic used by updater automation.
 
 ## Generated Vs Owned Surfaces

@@ -119,10 +119,10 @@ EOF
 
 managed_paths="$(
   {
-    printf '%s\n' ".wp-plugin-base"
-    printf '%s\n' "$CONFIG_OVERRIDE"
-    bash "$ROOT_DIR/.wp-plugin-base/scripts/ci/list_managed_files.sh" --mode stage "$CONFIG_OVERRIDE"
-    ruby "$ROOT_DIR/.wp-plugin-base/scripts/update/list_migrated_action_paths.rb" "$ROOT_DIR" "$migration_paths"
+    printf '%s\n' ".wp-plugin-base" || exit 1
+    printf '%s\n' "$CONFIG_OVERRIDE" || exit 1
+    bash "$ROOT_DIR/.wp-plugin-base/scripts/ci/list_managed_files.sh" --mode stage "$CONFIG_OVERRIDE" || exit 1
+    ruby "$ROOT_DIR/.wp-plugin-base/scripts/update/list_migrated_action_paths.rb" "$ROOT_DIR" "$migration_paths" || exit 1
   } | awk '!seen[$0]++' | paste -sd, -
 )"
 export GIT_ADD_PATHS="$managed_paths"

@@ -168,10 +168,10 @@ jobs:
           set -euo pipefail
           managed_paths="$(
             {
-              printf '%s\n' ".wp-plugin-base"
-              printf '%s\n' "${{ inputs.config_path }}"
-              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage "${{ inputs.config_path }}"
-              ruby .wp-plugin-base/scripts/update/list_migrated_action_paths.rb "$PWD" "$RUNNER_TEMP/foundation-action-migrations.txt"
+              printf '%s\n' ".wp-plugin-base" || exit 1
+              printf '%s\n' "${{ inputs.config_path }}" || exit 1
+              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage "${{ inputs.config_path }}" || exit 1
+              ruby .wp-plugin-base/scripts/update/list_migrated_action_paths.rb "$PWD" "$RUNNER_TEMP/foundation-action-migrations.txt" || exit 1
             } | awk '!seen[$0]++' | paste -sd, -
           )"
           echo "value=$managed_paths" >> "$GITHUB_OUTPUT"

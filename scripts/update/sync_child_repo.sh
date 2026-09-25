@@ -42,6 +42,13 @@ if [ ! -d "$TEMPLATE_DIR" ]; then
   exit 1
 fi
 
+# Resolve every producer before changing config, cleaning old files or writing
+# templates. Process substitutions hide producer failures from their consumers.
+managed_template_pairs="$(wp_plugin_base_print_managed_template_pairs "$TEMPLATE_DIR")" || exit 1
+seed_template_pairs="$(wp_plugin_base_print_required_seed_template_pairs "$TEMPLATE_DIR")" || exit 1
+active_managed_paths="$(wp_plugin_base_print_managed_paths "$TEMPLATE_DIR")" || exit 1
+all_managed_paths="$(wp_plugin_base_print_all_managed_paths "$TEMPLATE_DIR")" || exit 1
+
 # A prefix is persisted once: later loads must not infer a different identity
 # after seed files appear. Existing runtime consumers keep their historic names.
 if { wp_plugin_base_is_true "$REST_OPERATIONS_PACK_ENABLED" || wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; } &&
@@ -249,15 +256,13 @@ remove_stale_managed_aliases() {
 # Seed files are consumer-owned after first generation and never enter this cleanup.
 remove_disabled_managed_files() {
   local destination_path
-  local active_paths
-  active_paths="$(wp_plugin_base_print_managed_paths "$TEMPLATE_DIR")"
   while IFS= read -r destination_path; do
     [ -n "$destination_path" ] || continue
-    if ! grep -Fxq "$destination_path" <<< "$active_paths"; then
+    if ! grep -Fxq "$destination_path" <<< "$active_managed_paths"; then
       wp_plugin_base_assert_path_within_root "$ROOT_DIR/$destination_path" "Managed cleanup"
       rm -f "$ROOT_DIR/$destination_path"
     fi
-  done < <(wp_plugin_base_print_all_managed_paths "$TEMPLATE_DIR")
+  done <<< "$all_managed_paths"
 }
 
 warn_quality_pack_bootstrap_migration_risk
@@ -283,7 +288,7 @@ while IFS=$'\t' read -r source_file destination_path; do
       ;;
     *) render_template "$source_file" "$ROOT_DIR/$destination_path" ;;
   esac
-done < <(wp_plugin_base_print_managed_template_pairs "$TEMPLATE_DIR")
+done <<< "$managed_template_pairs"
 
 while IFS=$'\t' read -r source_file destination_path; do
   [ -n "$source_file" ] || continue
@@ -292,7 +297,7 @@ while IFS=$'\t' read -r source_file destination_path; do
   else
     seed_template_once "$source_file" "$ROOT_DIR/$destination_path"
   fi
-done < <(wp_plugin_base_print_required_seed_template_pairs "$TEMPLATE_DIR")
+done <<< "$seed_template_pairs"
 
 seed_template_once "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
 # Remove retired foundation-owned test names, but preserve current consumer seeds.

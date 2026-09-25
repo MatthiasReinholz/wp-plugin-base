@@ -82,6 +82,8 @@ Keep exceptions narrow; generated admin asset metadata is already excluded by th
 
 `scripts/lib/managed_files.sh` is the shared authority for generation, validation, staging and disabled-file cleanup. Add managed template pairs there. Do not add a second independent generation list to sync. Optional GitHub simulation and Woo status workflows are generated only for the GitHub host. Consumer-owned seeds survive pack disablement; reconcile their entrypoint includes manually.
 
+Manifest producers build complete results in private temporary files before publishing them through `scripts/lib/managed_manifest_io.rb`, which retries interrupted and short writes. Callers must check the producer's exit status; process substitutions cannot propagate it. Sync resolves every active, seed and cleanup manifest before changing child files, and update staging stops if any producer fails. The manifest I/O regression suite covers these failure paths and native Bash compatibility.
+
 `scripts/lib/render_template.php` renders PHP constant string literals using PHP serialization, JavaScript/JSON strings using their quote context, and YAML placeholders as quoted scalar values. Configuration is never evaluated as template code. PHP placeholders in executable or interpolated contexts are rejected. Keep new placeholders in supported contexts and extend the generation contract tests when adding a context.
 
 The vendored `lib/wp-plugin-base/plugin-update-checker/` tree is wholly managed and replaced on sync, including removal of retired upstream files. Do not store application code inside that vendor directory. Update staging includes the entire tree so removed files cannot linger in the child commit.
