@@ -3,6 +3,6 @@ semgrep==1.178.0
 pip==26.2
 # Preserve Semgrep's Python >=3.10 support; rpds-py 2026 releases require 3.11.
 # Revisit this bound when intentionally raising the supported Python floor.
-rpds-py<2026
+rpds-py<2027
 # Python 3.10/3.11 venvs also seed setuptools; replace vulnerable bundled copies.
 setuptools==83.0.0
