@@ -23,3 +23,8 @@ indent_size = 4
 
 [*.sh]
 indent_size = 2
+
+# WordPress Prettier owns JS indentation, including aligned ternary branches.
+[{.wp-plugin-base-admin-ui/src/*.js,admin-ui-pack-seed-*/.wp-plugin-base-admin-ui/src/*.js}]
+indent_style = unset
+indent_size = unset

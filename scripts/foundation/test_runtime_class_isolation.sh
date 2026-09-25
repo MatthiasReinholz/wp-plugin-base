@@ -2,6 +2,8 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 fixture="$(mktemp -d)"
+# PHP resolves __DIR__ physically; macOS temporary roots can contain symlinks.
+fixture="$(cd "$fixture" && pwd -P)"
 trap 'rm -rf "$fixture"' EXIT
 for name in legacy alpha beta; do
   consumer="$fixture/$name"
@@ -9,7 +11,9 @@ for name in legacy alpha beta; do
   cp -R "$ROOT_DIR/tests/fixtures/runtime-pack-ready/." "$consumer/"
   rsync -a --exclude .git "$ROOT_DIR/" "$consumer/.wp-plugin-base/"
   perl -pi -e "s/^PLUGIN_SLUG=.*/PLUGIN_SLUG=$name/; s~^REST_API_NAMESPACE=.*~REST_API_NAMESPACE=$name/v1~" "$consumer/.wp-plugin-base.env"
-  if [ "$name" != legacy ]; then
+  if [ "$name" = legacy ]; then
+    printf '\nRUNTIME_CLASS_PREFIX=\n' >> "$consumer/.wp-plugin-base.env"
+  else
     printf '\nRUNTIME_CLASS_PREFIX=%s_\n' "$name" >> "$consumer/.wp-plugin-base.env"
   fi
   WP_PLUGIN_BASE_ROOT="$consumer" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" >/dev/null
@@ -27,6 +31,7 @@ for name in legacy alpha beta; do
   mkdir -p "$consumer/assets/admin-ui"
   printf '/* %s */\n' "$name" > "$consumer/assets/admin-ui/index.js"
   printf '/* %s */\n' "$name" > "$consumer/assets/admin-ui/style-index.css"
+  printf '/* %s components */\n' "$name" > "$consumer/assets/admin-ui/index.css"
 done
 # Bad PHP identifier prefixes must never reach the renderer.
 cp "$fixture/alpha/.wp-plugin-base.env" "$fixture/invalid.env"
@@ -40,6 +45,7 @@ done
 FIXTURE="$fixture" php <<'PHP'
 <?php
 define('ABSPATH', '/');
+$fixture_root = realpath(getenv('FIXTURE'));
 $actions = $scripts = $styles = $inline = $routes = array();
 function __( $value ) { return $value; }
 function is_admin() { return true; }
@@ -73,8 +79,9 @@ check(count(beta_WP_Plugin_Base_REST_Operations_Registry::all()) === 3, 'Registr
 foreach ($actions['admin_menu'] as $callback) $callback();
 foreach (array('legacy', 'alpha', 'beta') as $name) {
     foreach ($actions['admin_enqueue_scripts'] as $callback) $callback($name . '-admin-ui');
-    check($scripts[$name . '-admin-ui'] === array(getenv('FIXTURE') . '/' . $name . '/assets/admin-ui/index.js'), 'Admin script resolved another consumer path or enqueued twice');
-    check($styles[$name . '-admin-ui'] === array(getenv('FIXTURE') . '/' . $name . '/assets/admin-ui/style-index.css'), 'Admin style resolved another consumer path');
+    check($scripts[$name . '-admin-ui'] === array($fixture_root . '/' . $name . '/assets/admin-ui/index.js'), 'Admin script resolved another consumer path or enqueued twice');
+    check($styles[$name . '-admin-ui'] === array($fixture_root . '/' . $name . '/assets/admin-ui/style-index.css'), 'Admin style resolved another consumer path');
+    check($styles[$name . '-admin-ui-components'] === array($fixture_root . '/' . $name . '/assets/admin-ui/index.css'), 'Component style resolved another consumer path');
     check(count($inline[$name . '-admin-ui']) === 1, 'Admin bootstrap duplicated');
     check(str_contains($inline[$name . '-admin-ui'][0], 'alpha.only') === ($name === 'alpha'), 'Admin bootstrap reads another registry');
 }

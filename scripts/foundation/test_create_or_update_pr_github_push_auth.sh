@@ -9,7 +9,7 @@ fixture_repo="$(mktemp -d)"
 fixture_origin="$(mktemp -d)"
 helper_dir="$(mktemp -d)"
 pr_output="$(mktemp)"
-auth_marker="$(mktemp)"
+auth_marker="$helper_dir/auth-used"
 expected_auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' 'fixture-token' | base64 | tr -d '\n')"
 
 cleanup() {
@@ -71,13 +71,16 @@ for arg in "\$@"; do
 done
 
 if [ "\$saw_push" = true ]; then
-  configured_header=""
-  if [ "\${GIT_CONFIG_COUNT:-0}" = "1" ] && [ "\${GIT_CONFIG_KEY_0:-}" = "http.https://github.com/.extraheader" ]; then
-    configured_header="\${GIT_CONFIG_VALUE_0:-}"
-  fi
-  if [ "\$configured_header" = "\$expected_header" ]; then
-    : > "\$auth_marker"
-  fi
+  count="\${GIT_CONFIG_COUNT:-0}"
+  i=0
+  while [ "\$i" -lt "\$count" ]; do
+    key_var="GIT_CONFIG_KEY_\$i"
+    value_var="GIT_CONFIG_VALUE_\$i"
+    if [ "\${!key_var:-}" = "http.https://github.com/.extraheader" ] && [ "\${!value_var:-}" = "\$expected_header" ]; then
+      : > "\$auth_marker"
+    fi
+    i=\$((i + 1))
+  done
 fi
 
 exec "\$real_git" "\$@"

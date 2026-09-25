@@ -77,37 +77,20 @@ Provide a token with workflows scope via WP_PLUGIN_BASE_PR_TOKEN, or remove the 
 EOF
 }
 
-git_with_optional_github_auth() {
+git_with_provider_auth() {
   local subcommand="$1"
-  local token=""
-  local basic_auth=""
-
   shift
 
-  if [ "$AUTOMATION_PROVIDER" = "github" ]; then
-    token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-  fi
-
-  if [ -n "$token" ]; then
-    basic_auth="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
-    GIT_CONFIG_COUNT=2 \
-      GIT_CONFIG_KEY_0='http.https://github.com/.extraheader' \
-      GIT_CONFIG_VALUE_0='' \
-      GIT_CONFIG_KEY_1='http.https://github.com/.extraheader' \
-      GIT_CONFIG_VALUE_1="AUTHORIZATION: basic ${basic_auth}" \
-      git -C "$ROOT_DIR" "$subcommand" "$@"
-    return
-  fi
-
-  git -C "$ROOT_DIR" "$subcommand" "$@"
+  wp_plugin_base_provider_git "$AUTOMATION_PROVIDER" "$AUTOMATION_API_BASE" \
+    -C "$ROOT_DIR" "$subcommand" "$@"
 }
 
 git_fetch_with_auth() {
-  git_with_optional_github_auth fetch "$@"
+  git_with_provider_auth fetch "$@"
 }
 
 git_push_with_auth() {
-  git_with_optional_github_auth push "$@"
+  git_with_provider_auth push "$@"
 }
 
 git_fetch_with_auth origin "$BRANCH_NAME" >/dev/null 2>&1 || true
@@ -130,14 +113,9 @@ if ! git -C "$ROOT_DIR" diff --cached --quiet; then
       print_github_workflow_scope_guidance
       exit 1
     fi
-    echo "Non-fast-forward push for $BRANCH_NAME; retrying with --force-with-lease." >&2
-    if ! push_output="$(git_push_with_auth --force-with-lease origin "HEAD:$BRANCH_NAME" 2>&1)"; then
-      printf '%s\n' "$push_output" >&2
-      if printf '%s' "$push_output" | grep -Eqi 'workflow|workflows|resource not accessible by integration|refusing to allow'; then
-        print_github_workflow_scope_guidance
-      fi
-      exit 1
-    fi
+    printf '%s\n' "$push_output" >&2
+    echo "Could not publish $BRANCH_NAME. Reconcile any remote branch changes before retrying; existing remote commits were not overwritten." >&2
+    exit 1
   fi
 fi
 
@@ -203,21 +181,21 @@ case "$AUTOMATION_PROVIDER" in
       exit 1
     fi
 
-    gitlab_auth_header_name="PRIVATE-TOKEN"
-    if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
-      gitlab_auth_header_name="JOB-TOKEN"
-    fi
+    auth_directory="$(mktemp -d)"
+    trap 'rm -rf "$auth_directory"' EXIT
+    wp_plugin_base_provider_write_auth_header gitlab "$auth_directory/header"
+    unset gitlab_token
 
     gitlab_api() {
       local method="$1"
       local path="$2"
       shift 2 || true
 
-      curl -fsSL \
+      curl -fsS \
         --request "$method" \
         --connect-timeout 10 \
         --max-time 60 \
-        --header "${gitlab_auth_header_name}: ${gitlab_token}" \
+        --header "@$auth_directory/header" \
         "$@" \
         "${AUTOMATION_API_BASE}/projects/${gitlab_project_id}${path}"
     }

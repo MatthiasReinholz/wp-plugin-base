@@ -25,4 +25,5 @@
   <rule ref="WordPress-Core"/>
   <rule ref="WordPress-Extra"/>
   <rule ref="PHPCompatibilityWP"/>
+__PHPCS_CHILD_RULE__
 </ruleset>

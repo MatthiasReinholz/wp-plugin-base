@@ -27,6 +27,20 @@ if WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_oper
   exit 1
 fi
 
+# Registry policy must recognize both plain and PHP 8 fully-qualified calls.
+# Restore the generated fixture rather than hand-editing placeholders in the owned file.
+rm "$SCAN_FIXTURE/includes/rest-operations/settings-operations.php"
+WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh" >/dev/null
+for call in 'register_rest_route' '\register_rest_route'; do
+  printf "<?php %s( 'fixture/v1', '/bypass', array() );\n" "$call" > "$SCAN_FIXTURE/route-bypass.php"
+  if WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" >/dev/null 2>&1; then
+    echo "Registry policy failed to detect $call." >&2
+    exit 1
+  fi
+done
+rm "$SCAN_FIXTURE/route-bypass.php"
+WP_PLUGIN_BASE_ROOT="$SCAN_FIXTURE" bash "$ROOT_DIR/scripts/ci/scan_rest_operation_contract.sh" >/dev/null
+
 PERMISSIONS_CLASS_PATH="$PERMISSIONS_CLASS_PATH" ERROR_LOG_PATH="$ERROR_LOG_PATH" php <<'PHP'
 <?php
 define( 'ABSPATH', '/' );
@@ -180,6 +194,29 @@ if ( ! is_wp_error( $result ) || 'wp_plugin_base_rest_scope_check_failed' !== $r
 }
 
 $GLOBALS['wp_plugin_base_test_state']['scope_filter_mode'] = 'append';
+
+// Malformed programmatic capability metadata must never grant access or warn.
+set_error_handler( static function ( $severity, $message ) {
+  throw new RuntimeException( $message, $severity );
+} );
+foreach ( array( 42, true, new stdClass(), '', '  ', array( 'edit_posts', 42 ), array( array() ), array( null ) ) as $capability ) {
+  $invalid_operation = array(
+    'visibility' => 'admin',
+    'capability' => $capability,
+  );
+  $invalid_result = WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', $invalid_operation, $request );
+  if ( ! is_wp_error( $invalid_result ) || 'wp_plugin_base_rest_invalid_capability_configuration' !== $invalid_result->code || 500 !== ( $invalid_result->data['status'] ?? null ) ) {
+    fwrite( STDERR, "Expected malformed capability metadata to return a configuration error.\n" );
+    exit( 1 );
+  }
+}
+restore_error_handler();
+foreach ( array( 'edit_posts', array( 'edit_posts' ) ) as $capability ) {
+  if ( true !== WP_Plugin_Base_REST_Operations_Permissions::check_operation( 'example-plugin', array( 'capability' => $capability ), $request ) ) {
+    fwrite( STDERR, "Expected valid string and list capability declarations to remain supported.\n" );
+    exit( 1 );
+  }
+}
 
 $operation = array(
   'visibility'      => 'admin',

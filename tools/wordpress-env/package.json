@@ -6,10 +6,10 @@
     "npm": ">=10.2.3"
   },
   "devDependencies": {
-    "@wordpress/env": "11.13.0"
+    "@wordpress/env": "11.16.0"
   },
   "overrides": {
-    "adm-zip": "0.6.0",
+    "adm-zip": "0.6.1",
     "ajv": "8.18.0",
     "qs": "6.16.0",
     "tmp": "0.2.7",

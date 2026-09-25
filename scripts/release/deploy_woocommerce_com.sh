@@ -41,12 +41,6 @@ if [[ ! "${WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS:-30}" =~ ^[1-9][0-9]*$ ]]; t
   exit 1
 fi
 
-if wp_plugin_base_is_true "${WP_PLUGIN_BASE_REPAIR_MODE:-false}"; then
-  echo "WooCommerce.com deploy skipped in repair mode (WP_PLUGIN_BASE_REPAIR_MODE=true)."
-  echo "WOOCOMMERCE_COM_DEPLOY status=skipped reason=repair_mode version=${VERSION} product_id=${WOOCOMMERCE_COM_PRODUCT_ID}"
-  exit 0
-fi
-
 if [ -z "${WOO_COM_USERNAME:-}" ] || [ -z "${WOO_COM_APP_PASSWORD:-}" ]; then
   echo "WOO_COM_USERNAME and WOO_COM_APP_PASSWORD must be set for WooCommerce.com deploy." >&2
   exit 1
@@ -183,6 +177,14 @@ else
     exit 1
   fi
 
+  case "$current_status" in
+    complete|failed|idle) ;;
+    *)
+      echo "WooCommerce.com returned an unknown deployment state (${current_status}); refusing to upload until its state is known." >&2
+      exit 1
+      ;;
+  esac
+
   if [[ "$current_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     semver_comparison="$(compare_semver "$current_version" "$VERSION")"
     if [ "$semver_comparison" -gt 0 ]; then
@@ -191,7 +193,7 @@ else
     fi
   fi
 
-  if [ "$current_version" = "$VERSION" ] && [ "$current_status" != "failed" ]; then
+  if [ "$current_version" = "$VERSION" ] && [ "$current_status" = "complete" ]; then
     echo "WooCommerce.com product ${WOOCOMMERCE_COM_PRODUCT_ID} is already on version ${VERSION} (status=${current_status}); skipping deploy."
     echo "WOOCOMMERCE_COM_DEPLOY status=skipped reason=already_live version=${VERSION} product_id=${WOOCOMMERCE_COM_PRODUCT_ID}"
     exit 0

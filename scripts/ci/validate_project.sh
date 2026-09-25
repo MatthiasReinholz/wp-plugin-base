@@ -41,6 +41,9 @@ wp_plugin_base_quality_pack_validation_hint() {
   esac
 }
 
+managed_paths="$(wp_plugin_base_print_managed_paths)" || exit 1
+required_seed_paths="$(wp_plugin_base_print_required_seed_paths)" || exit 1
+
 while IFS= read -r required_path; do
   [ -n "$required_path" ] || continue
   resolved_required_path="$(wp_plugin_base_resolve_path "$required_path")"
@@ -49,7 +52,7 @@ while IFS= read -r required_path; do
     echo "Managed file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
     exit 1
   fi
-done < <(wp_plugin_base_print_managed_paths)
+done <<< "$managed_paths"
 
 while IFS= read -r required_path; do
   [ -n "$required_path" ] || continue
@@ -59,7 +62,7 @@ while IFS= read -r required_path; do
     echo "Required seeded child-owned file is missing or not a regular file. Run .wp-plugin-base/scripts/update/sync_child_repo.sh: $required_path" >&2
     exit 1
   fi
-done < <(wp_plugin_base_print_required_seed_paths)
+done <<< "$required_seed_paths"
 
 runtime_update_enabled=false
 if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] || wp_plugin_base_is_true "${GITHUB_RELEASE_UPDATER_ENABLED:-false}"; then

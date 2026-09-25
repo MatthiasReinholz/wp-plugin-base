@@ -50,7 +50,7 @@ EOF_CONFIG
 (
   cd "$fixture"
   git init >/dev/null
-  git checkout -b main >/dev/null
+  git branch -M main >/dev/null
   git config user.name tester
   git config user.email tester@example.invalid
   git config gc.auto 0

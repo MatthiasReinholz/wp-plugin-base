@@ -46,7 +46,7 @@ If GitHub-hosted workflows fail when they try to open a pull request, check the 
 
 1. Open your repository on GitHub.
 2. Go to `Settings` -> `Actions` -> `General`.
-3. Under `Workflow permissions`, select `Read and write permissions`.
+3. Under `Workflow permissions`, select `Read repository contents and packages permissions`.
 4. Enable `Allow GitHub Actions to create and approve pull requests`.
 5. Save the change and rerun the failed workflow.
 
@@ -194,9 +194,27 @@ Common WooCommerce.com-specific failures and actions:
 3. API timeout or transport error:
    rerun release repair and, if needed, increase `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`.
 4. QIT rejection after queue acceptance:
-   inspect Woo vendor/QIT diagnostics, fix package issues, then rerun the same host-specific release repair path for the same tag.
+   inspect Woo vendor/QIT diagnostics, inspect the published package. Retry transient vendor failures with the same verified artifact; package changes require a new release version.
 
 See:
 
 - [WooCommerce.com distribution](distribution-woocommerce-com.md)
 - [Release model](release-model.md)
+
+## Temporary WordPress validation environments
+
+Plugin Check and POT generation create isolated WordPress environments for each run.
+Their exit handlers remove the containers, volumes, networks, and temporary files with
+`wp-env cleanup --force`, while preserving reusable Docker images. They do not clean up
+other development environments.
+
+If cleanup fails, the command fails and retains its configuration, environment home,
+tools, and diagnostics. Run the printed recovery command from the same project directory
+after restoring Docker access. Remove the retained temporary paths only after cleanup
+succeeds.
+
+For GitLab runtime mismatch, missing matrix images, or readiness runner prerequisites, see [automation host capabilities](automation-hosts.md).
+
+## Historical Workflow Runs
+
+Start a new manual recovery from current main when repairing an old GitHub release. Current recovery uses reviewed main-branch helpers with the original tagged payload. Do not re-run historical finalization runs: GitHub retains their old workflow definitions and concurrency settings, which cannot be retroactively changed by a source update. Old GitLab tag pipelines have the same limitation; use an accepted current pipeline/recovery procedure for tags created before this hardening. Review and restrict operator access to obsolete production workflows during rollout.

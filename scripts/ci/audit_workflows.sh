@@ -155,6 +155,7 @@ expected_permissions = {
   "prepare-release.yml" => { "contents" => "read", "pull-requests" => "read" },
   "update-foundation.yml" => { "contents" => "read", "pull-requests" => "read" },
   "update-plugin-check.yml" => { "contents" => "read", "pull-requests" => "read" },
+  "update-external-dependency.yml" => { "contents" => "read", "pull-requests" => "read" },
   "finalize-foundation-release.yml" => { "contents" => "read" },
   "release-foundation.yml" => { "contents" => "read", "pull-requests" => "read" },
   "finalize-release.yml" => { "contents" => "read" },
@@ -206,7 +207,12 @@ expected_job_permissions = {
     }
   },
   "update-plugin-check.yml" => {
-    "update" => {
+    "update" => { "contents" => "write", "pull-requests" => "write" }
+  },
+  "update-external-dependency.yml" => {
+    "prepare" => { "contents" => "read" },
+    "validate" => { "contents" => "read" },
+    "publish" => {
       "contents" => "write",
       "pull-requests" => "write"
     }
@@ -532,57 +538,7 @@ if [ "${#action_files[@]}" -gt 0 ]; then
   audit_yaml_files+=("${action_files[@]}")
 fi
 
-declare -a allowed_actions=(
-  "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-  "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
-  "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-  "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
-  "github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
-  "ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc"
-  "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240"
-)
-
-declare -a uses_entries=()
-while IFS= read -r entry; do
-  uses_entries+=("$entry")
-done < <(
-  perl -ne '
-    if (/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*([^[:space:]]+)/) {
-      print "$ARGV:$.:$1\n";
-    }
-  ' "${audit_yaml_files[@]}"
-)
-
-if [ "${#uses_entries[@]}" -gt 0 ]; then
-  for entry in "${uses_entries[@]}"; do
-    file="${entry%%:*}"
-    rest="${entry#*:}"
-    line="${rest%%:*}"
-    ref="${entry##*:}"
-
-    if [[ "$ref" == ./* ]]; then
-      continue
-    fi
-
-    if [[ ! "$ref" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*@[0-9a-f]{40}$ ]]; then
-      echo "${file}:${line}: action reference must be pinned to a full-length commit SHA: ${ref}" >&2
-      exit 1
-    fi
-
-    allowed=false
-    for action in "${allowed_actions[@]}"; do
-      if [ "$ref" = "$action" ]; then
-        allowed=true
-        break
-      fi
-    done
-
-    if [ "$allowed" != true ]; then
-      echo "${file}:${line}: action is not in the approved allowlist: ${ref}" >&2
-      exit 1
-    fi
-  done
-fi
+ruby "$SCRIPT_DIR/../lib/action_pins.rb" "${audit_yaml_files[@]}"
 
 declare -a scan_files=()
 while IFS= read -r file; do
@@ -661,6 +617,7 @@ declare -a default_allowed_hosts=(
   'auth.docker.io'
   'registry-1.docker.io'
   'token.actions.githubusercontent.com'
+  'accounts.google.com'
 )
 
 declare -a extra_allowed_hosts=()
@@ -717,6 +674,20 @@ while IFS=: read -r file line url; do
         ;;
     esac
   done
+  # The browser contract targets only the disposable local WordPress fixture.
+  # This exception does not apply to release/update scripts or project config.
+  if [ "$host" = 'localhost:' ] && {
+    [ "$file" = "$TARGET_ROOT/scripts/foundation/test_runtime_packs_wordpress.sh" ] ||
+    [ "$file" = "$TARGET_ROOT/.wp-plugin-base/scripts/foundation/test_runtime_packs_wordpress.sh" ]; }; then
+    continue
+  fi
+  # This reserved test domain is used only by mocked GitLab credential tests.
+  # Keep self-managed-host coverage without allowing it in executable workflows.
+  if [ "$host" = 'gitlab.example.test' ] && {
+    [ "$file" = "$TARGET_ROOT/scripts/foundation/test_create_or_update_pr_auth_header_reset.sh" ] ||
+    [ "$file" = "$TARGET_ROOT/.wp-plugin-base/scripts/foundation/test_create_or_update_pr_auth_header_reset.sh" ]; }; then
+    continue
+  fi
   if ! host_is_allowlisted "$host"; then
     echo "${file}:${line}: URL host is not allowlisted: ${url}" >&2
     if [[ "$host" == gitlab.* ]] || [[ "$host" == *gitlab* ]]; then
@@ -724,17 +695,22 @@ while IFS=: read -r file line url; do
     fi
     exit 1
   fi
-done < <(perl -ne 'while (m#(https?://[^\s"'\''()\$\{\}]+)#g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
+done < <(perl -ne 'while (m#(https?://[^\s"'\''()\$\{\}]+)#g) { print "$ARGV:$.:$1\n"; } close ARGV if eof;' "${scan_files[@]}")
 
 while IFS=: read -r file line url; do
   [ -n "$url" ] || continue
   echo "${file}:${line}: URL authority must be static and allowlisted before expressions are appended: ${url}" >&2
   exit 1
-done < <(perl -ne 'while (m#(https?://(?:\$\{\{|\$\{|\$[A-Za-z_][A-Za-z0-9_]*))#g) { print "$ARGV:$.:$1\n"; }' "${scan_files[@]}")
+done < <(perl -ne 'while (m#(https?://(?:\$\{\{|\$\{|\$[A-Za-z_][A-Za-z0-9_]*))#g) { print "$ARGV:$.:$1\n"; } close ARGV if eof;' "${scan_files[@]}")
 
 while IFS=: read -r file line content; do
   [ -n "$content" ] || continue
   trimmed="$(printf '%s' "$content" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [[ "$file" == */scripts/ci/prepare_gitlab_runtime.sh ]] && {
+    [ "$trimmed" = "apt-get update" ] ||
+    [ "$trimmed" = "DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli python3 rsync ruby subversion unzip zip" ]; }; then
+    continue
+  fi
   if [ "$trimmed" != "run: sudo apt-get update && sudo apt-get install -y subversion" ]; then
     echo "${file}:${line}: apt-get usage is not allowlisted: ${trimmed}" >&2
     exit 1

@@ -33,50 +33,18 @@ fi
 major="${CURRENT_VERSION%%.*}"
 releases_json=''
 
+AUTH_DIR="$(mktemp -d)"
+trap 'rm -rf "$AUTH_DIR"' EXIT
+wp_plugin_base_provider_write_auth_header "$SOURCE_PROVIDER" "$AUTH_DIR/header"
+
 github_api_get() {
-  local url="$1"
-
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
-    curl -fsSL \
-      --connect-timeout 10 \
-      --max-time 60 \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$url"
-    return
-  fi
-
-  curl -fsSL \
-    --connect-timeout 10 \
-    --max-time 60 \
-    -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    "$url"
+  curl -fsS --connect-timeout 10 --max-time 60 \
+    -H 'Accept: application/vnd.github+json' -H "@$AUTH_DIR/header" \
+    -H 'X-GitHub-Api-Version: 2022-11-28' "$1"
 }
 
 gitlab_api_get() {
-  local url="$1"
-  local token="${GITLAB_TOKEN:-${CI_JOB_TOKEN:-}}"
-  local header_name="PRIVATE-TOKEN"
-
-  if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
-    header_name="JOB-TOKEN"
-  fi
-
-  if [ -n "$token" ]; then
-    curl -fsSL \
-      --connect-timeout 10 \
-      --max-time 60 \
-      --header "${header_name}: ${token}" \
-      "$url"
-    return
-  fi
-
-  curl -fsSL \
-    --connect-timeout 10 \
-    --max-time 60 \
-    "$url"
+  curl -fsS --connect-timeout 10 --max-time 60 --header "@$AUTH_DIR/header" "$1"
 }
 
 fetch_releases_page() {

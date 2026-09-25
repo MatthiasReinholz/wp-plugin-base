@@ -23,7 +23,7 @@ Set this project config key in `.wp-plugin-base.env`:
 During `finalize-release` and `release` workflows:
 
 1. `validate_woocommerce_com_deploy.sh` checks credentials, product ID, Woo header parity, package version, and ZIP integrity.
-2. `deploy_woocommerce_com.sh` checks the Woo submission-runner status endpoint, blocks on in-flight conflicting deployments, and uploads the release ZIP via multipart form fields.
+2. `deploy_woocommerce_com.sh` checks the Woo submission-runner status endpoint, blocks on in-flight deployments, refuses newer or unknown channel states, and uploads the release ZIP via multipart form fields.
 3. The deploy call is queue-and-exit: the workflow does not block for long Woo QIT completion polling.
 
 If `WOOCOMMERCE_COM_PRODUCT_ID` is empty, validation soft-skips with a warning so onboarding repositories are not blocked during vendor approval.
@@ -37,13 +37,16 @@ A Woo or WordPress.org channel failure can happen after host-release publication
 ## Repair Runbook
 
 - GitHub:
-  - run manual `release.yml` for the existing tag
+  - run manual `release.yml` for the existing tag, leaving `repair_host_assets=false` to retry with the verified published ZIP
   - run manual `woocommerce-status.yml` to inspect channel state
 - GitLab:
   - rerun the tagged `release` job from the managed `.gitlab-ci.yml` for the existing tag
   - inspect Woo vendor/QIT status directly because there is no separate `woocommerce-status.yml` workflow
 - If Woo reports an in-flight deployment, wait and re-check status.
-- If Woo reports failed or idle with the target version missing, rerun the same host-specific repair path and verify status again.
+- If Woo reports failed or idle with the target version missing, rerun the same host-specific repair path and verify status again. Repair mode performs the same status checks and actually retries the upload.
+- A `complete` response for the requested version is idempotent. A queued response means acceptance for processing, not a successful QIT run.
+- GitHub and GitLab channel retries download the published package and verify its Sigstore bundle before upload. They preserve the published bytes. On GitHub, choose `repair_host_assets=true` only to reconstruct missing host evidence; on GitLab, the equivalent job variable is `WP_PLUGIN_BASE_REPAIR_HOST_ASSETS=true`. Existing ZIP bytes cannot be replaced by a different rebuild.
+- If the host release or its evidence is incomplete, channel recovery fails until the host assets are repaired. Investigate the failing evidence before requesting explicit host repair.
 
 ## Woo Header Contract
 
@@ -64,7 +67,7 @@ Generate the Woo deployment credential as a WordPress Application Password in yo
 Queue-and-exit means failures can occur asynchronously after upload. On GitHub, use `woocommerce-status.yml` to inspect state. On GitLab, inspect the Woo vendor/QIT status directly:
 
 - `running` or `queued`: wait, then rerun status.
-- `failed`: inspect Woo/QIT error details in vendor tooling, fix the package, and rerun the same host-specific release repair path for the same tag.
+- `failed`: inspect Woo/QIT error details in vendor tooling. Retry transient channel failures with the same verified artifact. If plugin code or packaged bytes must change, prepare a new version and release; do not rewrite the existing tag or ZIP.
 - `idle`/missing target version: rerun the same host-specific release repair path and verify status again.
 
 ## References

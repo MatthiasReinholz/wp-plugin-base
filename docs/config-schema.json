@@ -139,6 +139,7 @@
       "pattern": "^(standard|security-sensitive)$"
     },
     "WOOCOMMERCE_QIT_ENABLED": {
+      "description": "Optional manual QIT workflow; supported only with AUTOMATION_PROVIDER=github.",
       "default": "false",
       "pattern": "^(true|false)$"
     },
@@ -157,6 +158,11 @@
     "GITHUB_RELEASE_UPDATER_REPO_URL": {
       "default": "",
       "pattern": "^$|^https://github[.]com/[^/]+/[^/]+/?$"
+    },
+    "DEPENDABOT_ECOSYSTEMS": {
+      "description": "Managed child dependency update coverage. auto detects root npm/Composer and enabled or existing admin UI npm; explicit lists select coverage. GitLab does not generate Dependabot.",
+      "default": "auto",
+      "pattern": "^(auto|github-actions|composer|npm|admin-ui-npm)(,(github-actions|composer|npm|admin-ui-npm))*$"
     },
     "RUNTIME_CLASS_PREFIX": {
       "description": "Optional plugin-specific prefix for generated REST/admin runtime classes and seed callback functions. Empty retains legacy identifiers.",
@@ -180,6 +186,7 @@
       "pattern": "^(true|false)$"
     },
     "ADMIN_UI_STARTER": {
+      "description": "Seeded admin UI variant. dataviews requires WordPress 7.1 or newer in plugin and readme metadata.",
       "default": "basic",
       "pattern": "^$|^(basic|dataviews)$"
     },

@@ -18,9 +18,7 @@ concurrency:
 
 jobs:
   update:
-    name: Update external dependency (${{ matrix.dependency_id }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    name: Update dependency (${{ matrix.dependency_id }})
     permissions:
       contents: write
       pull-requests: write
@@ -37,53 +35,8 @@ jobs:
           - gitleaks-binary
           - syft-binary
           - cosign-binary
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Prepare dependency update
-        id: prepare
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          bash scripts/update/prepare_external_dependency_update.sh \
-            "${{ matrix.dependency_id }}" \
-            "$GITHUB_OUTPUT"
-
-      - name: Install foundation assurance tools
-        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
-        run: |
-          bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
-          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
-          echo "$RUNNER_TEMP/wp-plugin-base-tools" >> "$GITHUB_PATH"
-
-      - name: Validate updated foundation state
-        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
-        run: bash scripts/foundation/validate.sh --mode ci
-
-      - name: Create dependency update PR
-        if: ${{ steps.prepare.outputs.update_needed == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN != '' && secrets.WP_PLUGIN_BASE_PR_TOKEN || github.token }}
-          GIT_ADD_PATHS: ${{ steps.prepare.outputs.git_add_paths }}
-        run: |
-          bash scripts/update/create_or_update_pr.sh \
-            "${{ steps.prepare.outputs.branch_name }}" \
-            "main" \
-            "${{ steps.prepare.outputs.pr_title }}" \
-            "${{ steps.prepare.outputs.commit_message }}" \
-            "${{ steps.prepare.outputs.pr_body_file }}"
-
-      - name: Report no update needed
-        if: ${{ steps.prepare.outputs.update_needed != 'true' }}
-        run: echo "No compatible update found for ${{ matrix.dependency_id }}."
+    uses: ./.github/workflows/update-external-dependency.yml
+    with:
+      dependency_id: ${{ matrix.dependency_id }}
+    secrets:
+      WP_PLUGIN_BASE_PR_TOKEN: ${{ secrets.WP_PLUGIN_BASE_PR_TOKEN }}

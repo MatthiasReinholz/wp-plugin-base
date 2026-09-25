@@ -37,11 +37,15 @@ plugin_path="/var/www/html/wp-content/plugins/${repo_basename}"
 pot_container_path="${plugin_path}/${POT_FILE}"
 exclude_paths='.git,.github,.wp-plugin-base,.wp-plugin-base-quality-pack,dist,node_modules,tests,packages,routes'
 
+wp_env_start_attempted=false
+
 cleanup() {
-  if [ -x "$wp_env_tools_dir/node_modules/.bin/wp-env" ]; then
-    WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" stop --config="$wp_env_config" >/dev/null 2>&1 || true
+  local status="$?"
+  if ! wp_plugin_base_cleanup_temporary_wordpress_env "$wp_env_tools_dir" "$wp_env_home" "$wp_env_config" \
+    "$npm_cache_dir" "$buildx_config_dir" "$wp_env_start_attempted"; then
+    if [ "$status" -eq 0 ]; then status=1; fi
   fi
-  rm -rf "$wp_env_home" "$wp_env_config" "$wp_env_tools_dir" "$npm_cache_dir" "$buildx_config_dir"
+  exit "$status"
 }
 
 trap cleanup EXIT
@@ -61,6 +65,7 @@ php -r '
 
 NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_install_wordpress_env "$wp_env_tools_dir"
 
+wp_env_start_attempted=true
 WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env_start_with_retry "$wp_env_tools_dir" --config="$wp_env_config"
 WP_ENV_HOME="$wp_env_home" BUILDX_CONFIG="$buildx_config_dir" NPM_CONFIG_CACHE="$npm_cache_dir" wp_plugin_base_wordpress_env "$wp_env_tools_dir" run cli --config="$wp_env_config" -- \
   wp i18n make-pot "$plugin_path" "$pot_container_path" \

@@ -123,6 +123,8 @@ Set `WP_PLUGIN_BASE_SKIP_LOCAL_PUSH_GATE=1` only when you intentionally need to 
 
 Use `scripts/foundation/bootstrap_strict_local.sh` to install the supported strict-local toolchain into `.wp-plugin-base-tools`. The bootstrap script installs pinned binary, Python, and Node-based tools with checksum, lockfile, or hash validation.
 
+The Python lint and security tool environments require Python 3.10 or newer. See [dependency maintenance](docs/dependency-maintenance.md) for lock regeneration, compatibility constraints, and advisory checks.
+
 Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`.
 
 To bootstrap strict-local foundation validation from a clean clone, use:
@@ -169,7 +171,7 @@ For GitHub-hosted repositories, enable pull request creation in GitHub:
 1. Open your repository on GitHub.
 2. Go to `Settings` -> `Actions` -> `General`.
 3. Scroll to `Workflow permissions`.
-4. Select `Read and write permissions`.
+4. Select `Read repository contents and packages permissions`.
 5. Enable `Allow GitHub Actions to create and approve pull requests`.
 6. Save the changes.
 
@@ -280,7 +282,7 @@ Required keys in `.wp-plugin-base.env`:
 - `PHP_VERSION`
 - `NODE_VERSION`
 
-New child projects default to Node.js 22. Current admin UI tooling requires Node.js 22.12 or newer; keep `NODE_VERSION=22` unless the project's complete JavaScript dependency graph explicitly supports another runtime.
+New child projects default to Node.js 22. Current admin UI tooling supports Node.js 22.22.2 or newer within 22.x, Node.js 24.15.0 or newer within 24.x, and Node.js 26 or newer. Keep `NODE_VERSION=22` to select a current supported LTS patch; older 22.x patches and Node.js 25 do not satisfy the complete tooling dependency graph.
 
 Legacy compatibility alias: `FOUNDATION_REPOSITORY` remains accepted for GitHub-hosted foundations.
 
@@ -311,6 +313,7 @@ Optional keys:
 - `WOOCOMMERCE_COM_ENDPOINT_TIMEOUT_SECONDS`
 - `GITHUB_RELEASE_UPDATER_ENABLED`
 - `GITHUB_RELEASE_UPDATER_REPO_URL`
+- `DEPENDABOT_ECOSYSTEMS`
 - `RUNTIME_CLASS_PREFIX`
 - `REST_OPERATIONS_PACK_ENABLED`
 - `REST_API_NAMESPACE`
@@ -405,9 +408,11 @@ Workflow files use the `.yml` extension. `.yaml` workflow files are rejected by 
 - `..._STRICT_WARNINGS=true` fails readiness validation on warnings in addition to errors.
 - `..._SEVERITY`, `..._ERROR_SEVERITY`, and `..._WARNING_SEVERITY` pass through severity thresholds to Plugin Check.
 
+Plugin Check reports preserve file paths, line/column positions, result codes, error/warning types, messages and documentation links in `dist/plugin-check.json`. Failure summaries include the finding's file and line when supplied by the checker.
+
 `ADMIN_UI_NPM_AUDIT_LEVEL` controls the managed admin UI npm audit threshold when the security pack is enabled. Keep the default `high` for release readiness. `critical` is only allowed outside `RELEASE_READINESS_MODE=security-sensitive` as a temporary compatibility override for non-runtime, upstream-owned admin UI toolchain advisories while you update `@wordpress/*` packages or add narrow npm `overrides`.
 
-`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.1,8.2,8.3`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
+`PHP_RUNTIME_MATRIX` enables an additional CI smoke job across the listed interpreter versions, for example `PHP_RUNTIME_MATRIX=8.3,8.4,8.5`. The matrix reruns repository validation, WordPress metadata checks, and a direct main-plugin load smoke with each configured PHP version. Set `PHP_RUNTIME_MATRIX_MODE=strict` to also run PHPUnit in the matrix when `phpunit.xml.dist` and the managed quality-pack tool bundle are present.
 
 `PHPSTAN_MEMORY_LIMIT` optionally passes a memory limit to the managed PHPStan command, for example `768M`, `1G`, or `-1`. Keep analysis paths, excludes, bootstrap files, and scan files in the child-owned `phpstan.neon` overlay so sync can update `phpstan.neon.dist` without taking over project-specific analysis scope.
 
@@ -424,7 +429,7 @@ Strict runtime matrix mode can therefore manage and execute the PHPUnit bridge e
 
 When the PHPUnit bridge is active, treat `tests/bootstrap.php` as managed and keep child-specific preload/support-class wiring in `tests/wp-plugin-base/bootstrap-child.php`. The managed `phpunit.xml.dist` discovers `*Test.php` files under `tests/`, so project tests can live in a child-owned path such as `tests/php`. During migration, move custom preloads there before or immediately after sync to avoid post-sync CI regressions.
 
-`WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into the child repository. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
+`WOOCOMMERCE_QIT_ENABLED=true` syncs an optional manual WooCommerce QIT workflow into a GitHub child repository. GitLab rejects this toggle; use project-owned GitLab QIT automation. That workflow is intended for WooCommerce Marketplace/partner use, expects `QIT_USER` and `QIT_APP_PASSWORD` secrets plus a manually provided WooCommerce extension slug, and uses a pinned internal `woocommerce/qit-cli` version.
 
 `WOOCOMMERCE_COM_PRODUCT_ID` enables WooCommerce.com Marketplace release deploy preflight and upload when the CI variable `WOOCOMMERCE_COM_DEPLOY_ENABLED=true` is set. Keep `WOO_COM_USERNAME` and `WOO_COM_APP_PASSWORD` in protected CI secrets. Leave the product ID empty during Woo onboarding approval and the release flow soft-skips Woo deploy.
 
@@ -432,7 +437,7 @@ When the PHPUnit bridge is active, treat `tests/bootstrap.php` as managed and ke
 
 `PLUGIN_RUNTIME_UPDATE_PROVIDER=github-release|gitlab-release|generic-json` enables an opt-in runtime pack that ships YahnisElsts Plugin Update Checker in `lib/wp-plugin-base/plugin-update-checker/` and a managed bootstrap in `lib/wp-plugin-base/wp-plugin-base-runtime-updater.php`. Set `PLUGIN_RUNTIME_UPDATE_SOURCE_URL` to the matching repository or JSON metadata URL and add `require_once __DIR__ . '/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php';` to the plugin main file. `github-release` requires `AUTOMATION_PROVIDER=github`. `gitlab-release` requires `AUTOMATION_PROVIDER=gitlab`. `generic-json` is host-agnostic, but it is a runtime updater transport only, not a supported `FOUNDATION_RELEASE_SOURCE_PROVIDER` or native source contract for managed downstream automation. Systems such as `wp-core-base` should keep consuming the authoritative Git host release surface. Runtime update URLs must be public HTTPS URLs without credentials, query strings, fragments, localhost/private-network hosts, or token-like material. `GITHUB_RELEASE_UPDATER_ENABLED` and `GITHUB_RELEASE_UPDATER_REPO_URL` remain accepted as GitHub-only compatibility aliases.
 
-`RUNTIME_CLASS_PREFIX` defaults to an empty string for backward compatibility. Set a unique prefix such as `Example_Plugin_` before generating REST/admin packs to isolate their PHP classes and seed callbacks from other plugins. This creates identifiers such as `Example_Plugin_WP_Plugin_Base_Admin_UI_Loader` and `example_plugin_wp_plugin_base_example_rest_operation_get_settings`. The prefix must start with a letter, end with an underscore, and contain only letters, digits, and underscores (at most 64 characters). PHP identifiers are case-insensitive: prefixes differing only in case are not distinct. This setting does not change hooks, error codes, filenames, REST namespaces, or upstream update-library identifiers.
+`RUNTIME_CLASS_PREFIX` remains empty for existing runtime consumers for backward compatibility. On the first sync of a new REST/admin runtime, sync writes a deterministic slug-based prefix to the project config. An explicit empty `RUNTIME_CLASS_PREFIX=` preserves legacy names. Set a unique prefix such as `Example_Plugin_` before generating REST/admin packs to isolate their PHP classes and seed callbacks from other plugins. This creates identifiers such as `Example_Plugin_WP_Plugin_Base_Admin_UI_Loader` and `example_plugin_wp_plugin_base_example_rest_operation_get_settings`. The prefix must start with a letter, end with an underscore, and contain only letters, digits, and underscores (at most 64 characters). PHP identifiers are case-insensitive: prefixes differing only in case are not distinct. This setting does not change hooks, error codes, filenames, REST namespaces, or upstream update-library identifiers.
 
 Changing the prefix in an existing project requires updating project-owned bootstrap/class references and seeded callback functions manually; synchronization preserves existing child-owned files. Choose a stable prefix before first enabling the packs. Each plugin installed together must use a different nonempty prefix, apart from at most one legacy unprefixed consumer. Managed pack files must be regenerated from the foundation, never patched directly.
 
@@ -502,3 +507,9 @@ Repair flows skip WordPress.org redeploy by default so an existing `tags/<versio
 - [Update model](docs/update-model.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Maintainer and agent map](docs/maintainer-agent-map.md)
+
+Dependency updates in GitHub children default to `DEPENDABOT_ECOSYSTEMS=auto`: GitHub Actions plus root Composer/npm manifests and enabled or existing admin UI npm sources. Set an explicit comma-separated list of `github-actions`, `composer`, `npm`, and `admin-ui-npm` to select coverage. Seed manifests remain project-owned; review and merge dependency updates in each child. Foundation upgrades do not silently overwrite custom application dependencies. See [existing project migration](docs/existing-project-migration.md) before upgrading a seeded admin UI.
+
+See [engineering quality and Woo comparison](docs/engineering-quality.md) for merge gates and evaluation criteria, and [automation host capabilities](docs/automation-hosts.md) for GitLab acceptance requirements.
+
+The experimental DataViews starter requires WordPress 7.1 or newer. Both the plugin header and readme must declare `Requires at least: 7.1` (or newer); artifact validation rejects incompatible or missing metadata. The basic starter and REST/Abilities boundary retain their separate compatibility coverage.

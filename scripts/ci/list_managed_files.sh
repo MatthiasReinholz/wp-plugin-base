@@ -43,12 +43,18 @@ esac
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
-case "$MODE" in
-  validate)
-    wp_plugin_base_print_managed_paths
-    ;;
-  stage)
-    wp_plugin_base_print_managed_paths
-    wp_plugin_base_print_required_seed_paths
-    ;;
-esac | awk '!seen[$0]++'
+collect_listed_managed_files() {
+  case "$MODE" in
+    validate)
+      _wp_plugin_base_collect_managed_paths || return 1
+      ;;
+    stage)
+      # Stage whole vendored trees so files retired upstream are also deleted.
+      printf '%s\n' 'lib/wp-plugin-base/plugin-update-checker' || return 1
+      _wp_plugin_base_collect_all_managed_paths || return 1
+      _wp_plugin_base_collect_required_seed_paths || return 1
+      ;;
+  esac
+}
+
+_wp_plugin_base_emit_managed_manifest --unique collect_listed_managed_files

@@ -19,69 +19,7 @@ if ( false === $code ) {
 
 $tokens = token_get_all( $code );
 
-/**
- * Returns a token id, or null for single-character tokens.
- *
- * @param mixed $token Token.
- * @return int|null
- */
-function wp_plugin_base_token_id( $token ) {
-	return is_array( $token ) ? $token[0] : null;
-}
-
-/**
- * Returns token text.
- *
- * @param mixed $token Token.
- * @return string
- */
-function wp_plugin_base_token_text( $token ) {
-	return is_array( $token ) ? $token[1] : (string) $token;
-}
-
-/**
- * Returns a token line.
- *
- * @param mixed $token Token.
- * @return int
- */
-function wp_plugin_base_token_line( $token ) {
-	return is_array( $token ) ? (int) $token[2] : 1;
-}
-
-/**
- * Whether token is non-semantic trivia.
- *
- * @param mixed $token Token.
- * @return bool
- */
-function wp_plugin_base_is_trivia_token( $token ) {
-	$id = wp_plugin_base_token_id( $token );
-	return in_array( $id, array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true );
-}
-
-/**
- * Returns true when a token is a specific identifier.
- *
- * @param mixed  $token Token.
- * @param string $name Identifier.
- * @return bool
- */
-function wp_plugin_base_is_string_token( $token, $name ) {
-	if ( ! is_array( $token ) ) {
-		return false;
-	}
-
-	if ( T_STRING === $token[0] ) {
-		return 0 === strcasecmp( $token[1], $name );
-	}
-
-	if ( defined( 'T_NAME_FULLY_QUALIFIED' ) && T_NAME_FULLY_QUALIFIED === $token[0] ) {
-		return 0 === strcasecmp( ltrim( $token[1], '\\' ), $name );
-	}
-
-	return false;
-}
+require_once __DIR__ . '/../lib/php_tokens.php';
 
 /**
  * Unquotes PHP string literals when possible.
@@ -518,11 +456,12 @@ function wp_plugin_base_print_finding( $kind, $line, $identifier, $message ) {
 	printf( "%s\t%d\t%s\t%s\n", $kind, $line, $identifier, $message );
 }
 
-$true_callbacks = wp_plugin_base_collect_true_callbacks( $tokens );
-$count          = count( $tokens );
+$true_callbacks         = wp_plugin_base_collect_true_callbacks( $tokens );
+$function_alias_targets = wp_plugin_base_function_alias_targets( $tokens );
+$count                  = count( $tokens );
 
 for ( $i = 0; $i < $count; $i++ ) {
-	if ( ! wp_plugin_base_is_string_token( $tokens[ $i ], 'register_rest_route' ) ) {
+	if ( ! wp_plugin_base_is_function_call_token( $tokens, $i, 'register_rest_route', $function_alias_targets ) ) {
 		continue;
 	}
 

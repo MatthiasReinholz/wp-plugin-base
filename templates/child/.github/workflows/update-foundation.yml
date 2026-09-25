@@ -37,6 +37,20 @@ jobs:
         shell: bash
         run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh foundation ".wp-plugin-base.env" "$GITHUB_OUTPUT"
 
+      - name: Read project runtime config
+        id: runtime
+        run: bash .wp-plugin-base/scripts/ci/write_config_outputs.sh project ".wp-plugin-base.env" "$GITHUB_OUTPUT"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: ${{ steps.runtime.outputs.php_version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ steps.runtime.outputs.node_version }}
+
       - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -52,7 +66,7 @@ jobs:
         id: latest
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN != '' && secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN || github.token }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           bash .wp-plugin-base/scripts/update/resolve_latest_foundation_version.sh \
@@ -72,7 +86,7 @@ jobs:
         id: verify
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN != '' && secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN || github.token }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           set -euo pipefail
@@ -101,12 +115,17 @@ jobs:
           exit 1
 
       - name: Clone target foundation version
+        env:
+          GH_TOKEN: ${{ secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN != '' && secrets.WP_PLUGIN_BASE_FOUNDATION_TOKEN || github.token }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
           rm -rf "$RUNNER_TEMP/wp-plugin-base"
           git init "$RUNNER_TEMP/wp-plugin-base"
           git -C "$RUNNER_TEMP/wp-plugin-base" remote add origin "$(git remote get-url foundation)"
-          git -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
+          source .wp-plugin-base/scripts/lib/provider.sh
+          wp_plugin_base_provider_git "${{ steps.config.outputs.release_source_provider }}" "${{ steps.config.outputs.release_source_api_base }}" \
+            -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
           git -C "$RUNNER_TEMP/wp-plugin-base" checkout --detach FETCH_HEAD
 
       - name: Refresh vendored foundation directory
@@ -123,6 +142,8 @@ jobs:
 
       - name: Regenerate managed files
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        env:
+          WP_PLUGIN_BASE_ACTION_MIGRATION_MANIFEST: ${{ runner.temp }}/foundation-action-migrations.txt
         run: bash .wp-plugin-base/scripts/update/sync_child_repo.sh
 
       - name: Validate updated child repository
@@ -137,9 +158,10 @@ jobs:
           set -euo pipefail
           managed_paths="$(
             {
-              printf '%s\n' ".wp-plugin-base"
-              printf '%s\n' ".wp-plugin-base.env"
-              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage ".wp-plugin-base.env"
+              printf '%s\n' ".wp-plugin-base" || exit 1
+              printf '%s\n' ".wp-plugin-base.env" || exit 1
+              bash .wp-plugin-base/scripts/ci/list_managed_files.sh --mode stage ".wp-plugin-base.env" || exit 1
+              ruby .wp-plugin-base/scripts/update/list_migrated_action_paths.rb "$PWD" "$RUNNER_TEMP/foundation-action-migrations.txt" || exit 1
             } | awk '!seen[$0]++' | paste -sd, -
           )"
           echo "value=$managed_paths" >> "$GITHUB_OUTPUT"

@@ -9,19 +9,22 @@ include:
   - template: Jobs/Secret-Detection.gitlab-ci.yml
 
 .wp_plugin_base_runtime:
-  image: ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+  rules: &wp_plugin_base_rules
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+  image: $WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGE
   before_script:
-    - apt-get update
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby unzip zip
+    - bash .wp-plugin-base/scripts/ci/prepare_gitlab_runtime.sh .wp-plugin-base.env
 
 .wp_plugin_base_release_runtime:
-  image: ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
-  before_script:
-    - apt-get update
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git jq nodejs npm perl php-cli rsync ruby subversion unzip zip
+  extends: .wp_plugin_base_runtime
 
 variables:
+  GIT_DEPTH: '0'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGE: ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+  WP_PLUGIN_BASE_GITLAB_BOOTSTRAP_APT: 'true'
 
 validate:
   extends: .wp_plugin_base_runtime
@@ -36,6 +39,38 @@ validate:
     when: always
     paths:
       - dist/
+
+readiness:
+  extends: .wp_plugin_base_runtime
+  stage: test
+  needs: [validate]
+  script:
+    - |
+      . .wp-plugin-base/scripts/lib/load_config.sh
+      wp_plugin_base_load_config .wp-plugin-base.env
+      if wp_plugin_base_is_true "$WORDPRESS_READINESS_ENABLED"; then
+        bash .wp-plugin-base/scripts/ci/validate_wordpress_readiness.sh .wp-plugin-base.env
+      fi
+
+runtime_matrix_config:
+  extends: .wp_plugin_base_runtime
+  stage: validate
+  script:
+    - mkdir -p dist
+    - bash .wp-plugin-base/scripts/ci/generate_gitlab_runtime_pipeline.sh .wp-plugin-base.env > dist/runtime-pipeline.yml
+  artifacts:
+    paths: [dist/runtime-pipeline.yml]
+
+runtime_matrix:
+  rules: *wp_plugin_base_rules
+  stage: test
+  needs: [runtime_matrix_config]
+  trigger:
+    include:
+      - artifact: dist/runtime-pipeline.yml
+        job: runtime_matrix_config
+    strategy: depend
+
 
 prepare_release:
   extends: .wp_plugin_base_runtime
@@ -57,11 +92,17 @@ update_foundation:
       when: manual
     - when: never
   script:
+    - bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$CI_PROJECT_DIR/.release-tools"
+    - export PATH="$CI_PROJECT_DIR/.release-tools:$PATH"
     - bash .wp-plugin-base/scripts/update/run_foundation_update.sh ".wp-plugin-base.env" "${BASE_REF:-main}"
 
 release:
   extends: .wp_plugin_base_release_runtime
   stage: release
+  resource_group: release-publication
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
   environment:
     name: __PRODUCTION_ENVIRONMENT__
   rules:

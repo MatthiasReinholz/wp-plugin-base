@@ -8,6 +8,7 @@ This map is the quickest safe orientation for maintainers and AI coding agents w
 - `scripts/foundation/validate-full.sh`: Full validation path that includes heavy fixture and release checks.
 - `scripts/foundation/bootstrap_strict_local.sh`: Supported bootstrap path for strict-local parity from a clean clone.
 - `scripts/update/sync_child_repo.sh`: Generates and synchronizes managed child-repo surfaces.
+- `scripts/lib/managed_files.sh`: Defines managed ownership and publishes complete manifests through `managed_manifest_io.rb`; callers must check failures before mutation.
 - `scripts/update/prepare_external_dependency_update.sh`: Shared external dependency update preparation logic used by updater automation.
 
 ## Generated Vs Owned Surfaces
@@ -42,9 +43,10 @@ For any policy/release/dependency updater change, run `validate-full.sh --mode c
 
 ### 1) Add or change a config key
 
-Update all four surfaces together:
+Update all five surfaces together:
 
 - `scripts/lib/load_config.sh`
+- `scripts/ci/validate_config.sh`
 - `docs/config-schema.json`
 - `README.md` config section
 - `templates/child/.wp-plugin-base.env.example`
@@ -84,7 +86,9 @@ Then run:
 Touch all relevant surfaces:
 
 - `.github/workflows/update-plugin-check.yml`
+- `.github/workflows/update-external-dependency.yml`
 - `scripts/update/prepare_external_dependency_update.sh`
+- `scripts/update/external_dependency_candidate.py`
 - `docs/dependency-inventory.json`
 - `docs/update-model.md`
 
@@ -92,7 +96,12 @@ Then run:
 
 - `bash scripts/ci/validate_dependency_inventory.sh`
 - `bash scripts/foundation/test_dependency_inventory.sh`
+- `bash scripts/foundation/test_external_dependency_updates.sh`
 - `bash scripts/ci/audit_workflows.sh`
+
+Keep preparation, candidate execution, and publication in separate jobs. The
+publication job must use trusted helper code and verify the original artifact ID,
+digest, base commit, and allowed paths before proposing an update.
 
 ## Validation Commands
 

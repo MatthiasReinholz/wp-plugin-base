@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: finalize-foundation-release-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  group: release-publication-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -49,13 +49,19 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preserve current trusted release helpers
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp-plugin-base-release-driver"
+          cp -R scripts "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts"
+          cp -R docs "$RUNNER_TEMP/wp-plugin-base-release-driver/docs"
 
       - name: Verify merged commit is reachable from main
         env:
           EXPECTED_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
-          git fetch --unshallow origin main || git fetch origin main
           if ! git merge-base --is-ancestor "$EXPECTED_COMMIT" origin/main; then
             echo "Merged commit $EXPECTED_COMMIT is not reachable from origin/main." >&2
             exit 1
@@ -83,23 +89,32 @@ jobs:
 
       - name: Install SBOM and signing tools
         run: |
-          bash scripts/release/install_release_security_tools.sh "$RUNNER_TEMP/wp-plugin-base-release-tools"
+          bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/install_release_security_tools.sh" "$RUNNER_TEMP/wp-plugin-base-release-tools"
           echo "$RUNNER_TEMP/wp-plugin-base-release-tools" >> "$GITHUB_PATH"
 
       - name: Generate foundation SBOM
-        run: bash scripts/release/generate_sbom.sh "." dist-foundation-release.sbom.cdx.json
+        run: bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/generate_sbom.sh" "." dist-foundation-release.sbom.cdx.json
 
       - name: Sign foundation release metadata
-        run: bash scripts/release/sign_release.sh dist-foundation-release.json dist-foundation-release.json.sigstore.json
+        run: bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/sign_release.sh" dist-foundation-release.json dist-foundation-release.json.sigstore.json
+
+      - name: Verify signing identity before publication
+        run: |
+          bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/verify_sigstore_bundle.sh" \
+            "$GITHUB_REPOSITORY" \
+            dist-foundation-release.json \
+            dist-foundation-release.json.sigstore.json \
+            foundation github-release "$GITHUB_API_URL"
 
       - name: Inspect foundation release tag state
         id: tag
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release.outputs.version }}
           EXPECTED_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
-          git fetch --tags origin
+          bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/github_git.sh" fetch --tags origin
           if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null 2>&1; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -128,8 +143,10 @@ jobs:
         run: git -c tag.gpgsign=false tag -a "${{ steps.release.outputs.version }}" -m "Foundation release ${{ steps.release.outputs.version }}"
 
       - name: Push tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         if: ${{ steps.tag.outputs.exists != 'true' }}
-        run: git push origin "${{ steps.release.outputs.version }}"
+        run: bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/github_git.sh" push origin "${{ steps.release.outputs.version }}"
 
       - name: Create GitHub release
         env:
@@ -139,7 +156,7 @@ jobs:
           if [ "${{ steps.tag.outputs.exists }}" = "true" ]; then
             repair_args+=(--repair)
           fi
-          bash scripts/release/publish_github_release.sh \
+          bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/publish_github_release.sh" \
             --mark-latest \
             "${repair_args[@]}" \
             "${{ steps.release.outputs.version }}" \
@@ -155,7 +172,7 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          bash scripts/release/verify_github_release_assets.sh \
+          bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/release/verify_github_release_assets.sh" \
             "$VERSION" \
             false \
             dist-foundation-release.json \

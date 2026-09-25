@@ -1,30 +1,33 @@
-# Future Enhancements
+# Maintenance Review
 
-This page captures possible follow-up work identified during security,
-reliability, currency, maintainability, and scalability reviews. These items are
-not committed roadmap promises. Each item needs a separate design decision,
-implementation plan, and validation scope before it is shipped.
+Use this page to assess future changes against the foundation's existing contracts.
+It is not an unresolved defect list or a commitment to speculative features.
 
-## Review Follow-Ups
+## Implemented Review Outcomes
 
-- P1: Design a trust-on-first-use or provenance hardening model for external
-  release and binary dependency updates before expanding automated updater
-  coverage.
-- P1: Evaluate WordPress Plugin Check 2.0.0 after the configured stabilization
-  window and update the managed tooling pin only after release authenticity and
-  compatibility are reviewed.
-- P2: Strengthen workflow audit policy so sensitive workflow classification does
-  not rely only on workflow file basenames.
-- P2: Decide whether the foundation should explicitly enforce expected
-  `pull_request_target` workflow presence and scope.
-- P2: Evaluate Plugin Update Checker v5.7 and refresh the vendored runtime
-  updater pack if the upstream release is authentic and compatible.
-- P2: Decide whether the PHP runtime matrix should expand beyond the current
-  supported smoke coverage.
-- P2: Define a Dependabot policy for optional child/admin UI npm dependency
-  templates without creating noisy or misleading downstream update surfaces.
-- P3: Add a stale-aware currency report for external pinned tools and release
-  security binaries.
-- P3: Consider renaming or aliasing the external dependency updater workflow if
-  the current `update-plugin-check` filename becomes misleading as more
-  dependencies are managed by the same automation.
+- External dependency updates separate preparation, candidate execution and
+  publication, with artifact identity and digest checks. Publisher verification
+  and metadata-only verification are distinguished in the
+  [dependency maintenance guide](dependency-maintenance.md).
+- Plugin Check and the vendored runtime updater are maintained through reviewed
+  pins and the [dependency inventory](dependency-inventory.json).
+- Workflow policy inspects privileged behavior and validates the managed action
+  catalog. See the [security model](security-model.md).
+- Real WordPress runtime coverage and required merge gates are documented in
+  [engineering quality](engineering-quality.md).
+- Optional child/admin dependency coverage and preserved project ownership are
+  documented in the [update model](update-model.md).
+- The generic external dependency workflow is the maintained entrypoint; the
+  compatibility workflow remains available for existing automation callers.
+
+## Criteria For New Enhancements
+
+Propose a change when a reproducible defect, platform contract change, security
+advisory or measured maintenance cost justifies it. Record the affected support
+boundary, source-of-truth files, consumer migration and acceptance evidence.
+Avoid increasing the managed surface solely to add another configuration option.
+
+Evaluate performance with equivalent checks and repeated measurements. Keep
+aggregate runner usage separate from elapsed feedback time. Live host/channel
+acceptance is separate from local fixtures; retain the status documented in
+[host capabilities](automation-hosts.md).

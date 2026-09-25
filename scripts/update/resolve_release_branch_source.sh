@@ -54,7 +54,7 @@ case "$AUTOMATION_PROVIDER" in
     ;;
 esac
 
-if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
+if wp_plugin_base_provider_git "$AUTOMATION_PROVIDER" "$AUTOMATION_API_BASE" ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
   open_pr_count=""
 
   case "$AUTOMATION_PROVIDER" in
@@ -77,16 +77,16 @@ if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; t
         echo "GITLAB_TOKEN or CI_JOB_TOKEN is required." >&2
         exit 1
       fi
-      gitlab_auth_header_name="PRIVATE-TOKEN"
-      if [ -z "${GITLAB_TOKEN:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
-        gitlab_auth_header_name="JOB-TOKEN"
-      fi
+      auth_directory="$(mktemp -d)"
+      trap 'rm -rf "$auth_directory"' EXIT
+      wp_plugin_base_provider_write_auth_header gitlab "$auth_directory/header"
+      unset gitlab_token
 
       open_pr_count="$(
-        curl -fsSL \
+        curl -fsS \
           --connect-timeout 10 \
           --max-time 60 \
-          --header "${gitlab_auth_header_name}: ${gitlab_token}" \
+          --header "@$auth_directory/header" \
           "${AUTOMATION_API_BASE}/projects/${gitlab_project_id}/merge_requests?state=opened&source_branch=${RELEASE_BRANCH}&target_branch=${BASE_REF}&per_page=1" \
           | jq 'length'
       )"

@@ -54,7 +54,7 @@ else
         --connect-timeout 10 \
         --max-time 60 \
         -H "Accept: application/vnd.github+json" \
-        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        --config <(printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN") \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         "$api_url"
       return

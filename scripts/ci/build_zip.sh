@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/managed_files.sh
+. "$SCRIPT_DIR/../lib/managed_files.sh"
 
 wp_plugin_base_require_commands "package build" rsync zip
 
@@ -38,6 +40,25 @@ if [[ ! "$ZIP_FILE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$ ]]; then
   echo "ZIP_FILE must be a simple zip filename: $ZIP_FILE" >&2
   exit 1
 fi
+
+if [[ ! "$PLUGIN_SLUG" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+  echo "PLUGIN_SLUG must be a simple lowercase plugin slug: $PLUGIN_SLUG" >&2
+  exit 1
+fi
+
+assert_package_output_paths() {
+  local output_path
+  for output_path in "$DIST_DIR" "$STAGE_ROOT" "$STAGE_DIR" "$ZIP_PATH"; do
+    wp_plugin_base_assert_path_within_root "$output_path" "Package output"
+    if [ -L "$output_path" ]; then
+      echo "Package output must not be a symbolic link: $output_path" >&2
+      exit 1
+    fi
+  done
+}
+
+# Reject unsafe output paths before executing a build or removing old artifacts.
+assert_package_output_paths
 
 wp_plugin_base_assert_path_within_root "$MAIN_PLUGIN_PATH" "Main plugin file"
 wp_plugin_base_assert_path_within_root "$README_PATH" "Readme file"
@@ -125,6 +146,9 @@ filtered_excludes_file="$(mktemp)"
 grep -Fvx "$configured_readme_path" "$EXCLUDES_FILE" > "$filtered_excludes_file" || true
 mv "$filtered_excludes_file" "$EXCLUDES_FILE"
 
+# A project-owned build can change output paths, so recheck immediately before
+# the first destructive operation as well as before running the build.
+assert_package_output_paths
 rm -rf "$STAGE_ROOT" "$ZIP_PATH"
 mkdir -p "$STAGE_DIR"
 
@@ -207,21 +231,51 @@ if [ "${PLUGIN_RUNTIME_UPDATE_PROVIDER:-none}" != "none" ] || wp_plugin_base_is_
   runtime_update_enabled=true
 fi
 
+assert_runtime_pack_php_is_packaged() {
+  local pack_name="$1"
+  local runtime_directory="$2"
+  local seed_directory="${3:-}"
+  local _template_file=""
+  local relative_path=""
+  local manifest=""
+  local php_count=0
+
+  # The managed manifest remains authoritative as classes are added or removed.
+  manifest="$(wp_plugin_base_print_optional_managed_template_pairs "$pack_name" "$SCRIPT_DIR/../../templates/child")" || {
+    echo "Cannot read the enabled runtime pack manifest: $pack_name" >&2
+    exit 1
+  }
+  while IFS=$'\t' read -r _template_file relative_path; do
+    case "$relative_path" in
+      "$runtime_directory"/*.php)
+        php_count=$((php_count + 1))
+        if [ ! -f "$STAGE_DIR/$relative_path" ]; then
+          echo "Enabled runtime pack is missing required PHP in the package: $relative_path" >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done <<< "$manifest"
+  if [ "$php_count" -eq 0 ]; then
+    echo "Enabled runtime pack has no authoritative PHP manifest: $pack_name" >&2
+    exit 1
+  fi
+
+  if [ -n "$seed_directory" ] && [ ! -f "$STAGE_DIR/$seed_directory/bootstrap.php" ]; then
+    echo "Enabled runtime pack is missing its child-owned bootstrap in the package: $seed_directory/bootstrap.php" >&2
+    exit 1
+  fi
+
+}
+
 if wp_plugin_base_is_true "$runtime_update_enabled"; then
-  staged_updater="$STAGE_DIR/lib/wp-plugin-base/wp-plugin-base-runtime-updater.php"
-  staged_puc_entry="$STAGE_DIR/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php"
-
-  if [ ! -f "$staged_updater" ]; then
-    echo "Build error: runtime updater support is enabled but $staged_updater is missing from the package." >&2
-    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to install the runtime updater pack." >&2
-    exit 1
-  fi
-
-  if [ ! -f "$staged_puc_entry" ]; then
-    echo "Build error: runtime updater support is enabled but plugin-update-checker is missing from the package." >&2
-    echo "Run .wp-plugin-base/scripts/update/sync_child_repo.sh to restore lib/wp-plugin-base/plugin-update-checker/." >&2
-    exit 1
-  fi
+  assert_runtime_pack_php_is_packaged "github-release-updater-pack" "lib/wp-plugin-base"
+fi
+if wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
+  assert_runtime_pack_php_is_packaged "rest-operations-pack" "lib/wp-plugin-base/rest-operations" "includes/rest-operations"
+fi
+if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}"; then
+  assert_runtime_pack_php_is_packaged "admin-ui-pack" "lib/wp-plugin-base/admin-ui" "includes/admin-ui"
 fi
 
 staged_symlinks="$(find "$STAGE_DIR" -type l -print)"

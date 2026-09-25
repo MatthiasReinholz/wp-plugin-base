@@ -92,14 +92,14 @@
     },
     {
       "id": "plugin-update-checker-runtime",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "templates/child/github-release-updater-pack/lib/wp-plugin-base/plugin-update-checker/plugin-update-checker.php",
-        "pattern": "Plugin Update Checker Library 5.6"
+        "pattern": "Plugin Update Checker Library 5.7"
       }
     },
     {
@@ -111,24 +111,24 @@
       },
       "pin": {
         "file": "scripts/lib/wordpress_tooling.sh",
-        "pattern": "WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='1.9.0'"
+        "pattern": "WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'"
       }
     },
     {
       "id": "composer-docker-image",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/lib/wordpress_tooling.sh",
-        "pattern": "WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:743aebe48ca67097c36819040633ea77e44a561eca135e4fc84c002e63a1ba07'"
+        "pattern": "WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7'"
       }
     },
     {
       "id": "shellcheck-binary",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
@@ -140,7 +140,7 @@
     },
     {
       "id": "actionlint-binary",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
@@ -152,19 +152,19 @@
     },
     {
       "id": "editorconfig-checker-binary",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/ci/install_lint_tools.sh",
-        "pattern": "EDITORCONFIG_CHECKER_VERSION='3.6.1'"
+        "pattern": "EDITORCONFIG_CHECKER_VERSION='3.11.3'"
       }
     },
     {
       "id": "gitleaks-binary",
-      "tier": "manual",
+      "tier": "metadata-only",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
@@ -176,26 +176,26 @@
     },
     {
       "id": "syft-binary",
-      "tier": "manual",
+      "tier": "verified-provenance",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "SYFT_VERSION='1.43.0'"
+        "pattern": "SYFT_VERSION='1.52.0'"
       }
     },
     {
       "id": "cosign-binary",
-      "tier": "manual",
+      "tier": "verified-provenance",
       "update": {
         "kind": "workflow",
         "path": ".github/workflows/update-plugin-check.yml"
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "COSIGN_VERSION='3.0.6'"
+        "pattern": "COSIGN_VERSION='3.1.3'"
       }
     }
   ]
