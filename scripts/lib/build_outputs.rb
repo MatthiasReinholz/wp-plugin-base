@@ -69,7 +69,7 @@ module BuildOutputs
       value = ENV[key].to_s
       next [] if value.empty?
 
-      absolute = File.expand_path(value, root)
+      absolute = File.absolute_path(value, root)
       begin
         [absolute, File.realpath(absolute)]
       rescue Errno::ENOENT, Errno::ENOTDIR
@@ -79,7 +79,7 @@ module BuildOutputs
   end
 
   def protects_source?(root, value, sources, directory: false)
-    output = File.expand_path(value, root)
+    output = File.absolute_path(value, root)
     sources.any? do |source|
       next true if source == output || source.start_with?(output + '/') || File.identical?(source, output)
       next false unless directory
@@ -172,7 +172,7 @@ module BuildOutputs
     required_sources.each do |key|
       value = ENV[key].to_s
       next if value.empty?
-      raise ContractError, "Required source input not found: #{key}=#{value}" unless File.file?(File.expand_path(value, root))
+      raise ContractError, "Required source input not found: #{key}=#{value}" unless File.file?(File.absolute_path(value, root))
     end
     outputs = csv(ENV['BUILD_OUTPUTS']).map { |value| generated_path(value, root, sources) }
     manifest = ENV['BUILD_OUTPUT_MANIFEST'].to_s

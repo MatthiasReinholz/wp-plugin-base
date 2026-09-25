@@ -288,6 +288,22 @@ class LocalConformance(unittest.TestCase):
             self.assertIn("must not contain required source", result.stdout)
             self.assertEqual(source.read_bytes(), b"required source must survive\n")
 
+    def test_generated_paths_keep_tilde_literal(self):
+        self.builder()
+        source = self.root / "~/input.txt"
+        source.parent.mkdir()
+        source.write_bytes(b"literal tilde source must survive\n")
+        for value in ("~/input.txt", "./~/input.txt"):
+            for manifest, output in (("~/manifest.json", ""), ("", "~/input.txt")):
+                with self.subTest(value=value, manifest=manifest, output=output):
+                    result = self.output_helper("prepare", README_FILE=value,
+                                                BUILD_OUTPUT_MANIFEST=manifest, BUILD_OUTPUTS=output)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertNotIn("Required source input not found", result.stdout)
+                    self.assertEqual(source.read_bytes(), b"literal tilde source must survive\n")
+        result = self.output_helper("inputs", README_FILE="~/input.txt")
+        self.assertEqual(result.returncode, 0, result.stdout)
+
     def test_generated_output_reserved_names_are_case_insensitive(self):
         self.builder()
         for name in ("DIST", ".Git", ".GITHUB", ".GITLAB", "Node_Modules", "Vendor", ".WP-PLUGIN-BASE-cache"):
