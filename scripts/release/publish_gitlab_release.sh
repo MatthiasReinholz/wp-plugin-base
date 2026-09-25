@@ -64,16 +64,17 @@ body_content="$(cat "$BODY_PATH")"
 work_dir="$(mktemp -d)"
 tmp_response="$work_dir/response.json"
 auth_header="$work_dir/auth-header"
-(
-  umask 077
-  printf '%s: %s\n' "$gitlab_auth_header_name" "$gitlab_token" > "$auth_header"
-)
-unset gitlab_token
 
 cleanup() {
   rm -rf "$work_dir"
 }
 trap cleanup EXIT
+
+(
+  umask 077
+  printf '%s: %s\n' "$gitlab_auth_header_name" "$gitlab_token" > "$auth_header"
+)
+unset gitlab_token
 
 gitlab_api_json() {
   local method="$1"

@@ -92,10 +92,7 @@ EOF_GH
 chmod +x "$fake_bin/gh"
 echo "Prepared GitHub provider fixture."
 
-http_client_name='cu'"rl"
-cat > "$fake_bin/$http_client_name" <<EOF_CURL
-#!/usr/bin/env sh
-cat <<'JSON'
+cat > "$fixture/gitlab-response.json" <<EOF_JSON
 [
   {
     "merged_at": "2026-04-22T00:00:00Z",
@@ -105,7 +102,33 @@ cat <<'JSON'
     "labels": ["performance"]
   }
 ]
-JSON
+EOF_JSON
+
+http_client_name='cu'"rl"
+cat > "$fake_bin/$http_client_name" <<'EOF_CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" > "$GITLAB_FIXTURE_ARGS"
+header_file=''
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = '--header' ]; then
+    shift
+    case "$1" in
+      @*) header_file="${1#@}" ;;
+      *) echo 'Authentication must use a header file.' >&2; exit 1 ;;
+    esac
+  fi
+  shift
+done
+[ -n "$header_file" ] && [ -f "$header_file" ]
+[ "$(cat "$header_file")" = "$GITLAB_FIXTURE_EXPECTED_HEADER" ]
+[ "$(LC_ALL=C ls -ld "$header_file" | cut -c 2-10)" = 'rw-------' ]
+printf '%s\n' "$header_file" > "$GITLAB_FIXTURE_HEADER_PATH"
+if [ "${GITLAB_FIXTURE_FAIL:-false}" = true ]; then
+  echo 'Synthetic request failure.' >&2
+  exit 22
+fi
+cat "$GITLAB_FIXTURE_RESPONSE"
 EOF_CURL
 chmod +x "$fake_bin/$http_client_name"
 echo "Prepared GitLab provider fixture."
@@ -133,32 +156,60 @@ if grep -Fq 'deferred checklist item' "$github_output"; then
   exit 1
 fi
 
-if ! PATH="$fake_bin:$PATH" \
-  AUTOMATION_PROVIDER=gitlab \
-  CI_PROJECT_PATH=example-group/standard-plugin \
-  GITLAB_TOKEN=test-token \
-  AUTOMATION_API_BASE=https://gitlab.com/api/v4 \
-  WP_PLUGIN_BASE_ROOT="$fixture" \
-  bash -x "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$gitlab_output" 2> "$gitlab_error"; then
-  echo "GitLab release-note generator failed:" >&2
-  cat "$gitlab_error" >&2
-  exit 1
-fi
-echo "Generated GitLab release-note fixture output."
+project_token='synthetic-project-release-note-token'
+job_token='synthetic-job-release-note-token'
+gitlab_args="$fixture/gitlab-args"
+gitlab_header_path="$fixture/gitlab-header-path"
+cat > "$fixture/expected-gitlab-notes" <<'EOF_NOTES'
+* Tweak - Tweak runtime guard defaults.
+* Dev - Dev docs cleanup for runtime guidance.
+EOF_NOTES
 
-assert_output_contains "$gitlab_output" '* Tweak - Tweak runtime guard defaults.' "GitLab"
-assert_output_contains "$gitlab_output" '* Dev - Dev docs cleanup for runtime guidance.' "GitLab"
-if grep -Fq 'Update automation defaults' "$gitlab_output"; then
-  echo "GitLab generator unexpectedly fell back to title despite a release notes section." >&2
-  exit 1
-fi
-if grep -Fq 'deferred checklist item' "$gitlab_output"; then
-  echo "Generator unexpectedly included unchecked task-list entries for GitLab release notes." >&2
-  exit 1
-fi
-if grep -Fq '_none_' "$gitlab_output" || grep -Fq 'n/a' "$gitlab_output"; then
-  echo "Generator unexpectedly included placeholder release-note entries." >&2
-  exit 1
-fi
+for token_kind in project job; do
+  project_token_value=''
+  expected_header="JOB-TOKEN: $job_token"
+  if [ "$token_kind" = project ]; then
+    project_token_value="$project_token"
+    expected_header="PRIVATE-TOKEN: $project_token"
+  fi
+  for request_fails in false true; do
+    rm -f "$gitlab_args" "$gitlab_header_path"
+    status=0
+    PATH="$fake_bin:$PATH" \
+      AUTOMATION_PROVIDER=gitlab \
+      CI_PROJECT_PATH=example-group/standard-plugin \
+      GITLAB_TOKEN="$project_token_value" CI_JOB_TOKEN="$job_token" \
+      AUTOMATION_API_BASE=https://gitlab.com/api/v4 \
+      WP_PLUGIN_BASE_ROOT="$fixture" \
+      GITLAB_FIXTURE_ARGS="$gitlab_args" \
+      GITLAB_FIXTURE_HEADER_PATH="$gitlab_header_path" \
+      GITLAB_FIXTURE_EXPECTED_HEADER="$expected_header" \
+      GITLAB_FIXTURE_RESPONSE="$fixture/gitlab-response.json" \
+      GITLAB_FIXTURE_FAIL="$request_fails" \
+      bash "$ROOT_DIR/scripts/release/generate_release_notes_from_pr_titles.sh" "1.2.3" ".wp-plugin-base.env" > "$gitlab_output" 2> "$gitlab_error" || status=$?
+
+    for forbidden in "$project_token" "$job_token" 'PRIVATE-TOKEN:' 'JOB-TOKEN:'; do
+      if grep -Fq "$forbidden" "$gitlab_output" "$gitlab_error" "$gitlab_args"; then
+        echo "GitLab $token_kind authentication leaked into notes, diagnostics or process arguments." >&2
+        exit 1
+      fi
+    done
+    if [ ! -s "$gitlab_header_path" ] || [ -e "$(cat "$gitlab_header_path")" ]; then
+      echo "GitLab $token_kind authentication file was not used and cleaned up." >&2
+      exit 1
+    fi
+    if [ "$request_fails" = true ]; then
+      if [ "$status" -eq 0 ] || [ -s "$gitlab_output" ]; then
+        echo "GitLab request failure must fail without producing release notes." >&2
+        exit 1
+      fi
+      assert_output_contains "$gitlab_error" 'Synthetic request failure.' 'GitLab failure'
+    elif [ "$status" -ne 0 ] || [ -s "$gitlab_error" ] || ! cmp -s "$fixture/expected-gitlab-notes" "$gitlab_output"; then
+      echo "GitLab $token_kind release notes did not match the expected notes exactly." >&2
+      exit 1
+    fi
+  done
+done
+echo "GitLab project/job authentication, exact notes and failure cleanup passed."
 
 echo "PR changelog body extraction tests passed."

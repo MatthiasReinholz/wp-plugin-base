@@ -285,7 +285,7 @@ if [ "$entries" -eq 0 ]; then
   exit 0
 fi
 
-for bucket in "$add_file" "$fix_file" "$tweak_file" "$update_file" "$dev_file" "$auth_header"; do
+for bucket in "$add_file" "$fix_file" "$tweak_file" "$update_file" "$dev_file"; do
   if [ -s "$bucket" ]; then
     cat "$bucket"
   fi
