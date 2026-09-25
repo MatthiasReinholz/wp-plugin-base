@@ -7,6 +7,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/provider.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/require_publication_profile.sh
+. "$SCRIPT_DIR/../lib/require_publication_profile.sh"
+wp_plugin_base_require_publication_profile
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 
 wp_plugin_base_require_commands "GitLab release publication" curl jq basename mktemp cmp
 
@@ -21,6 +27,7 @@ RELEASE_NAME="${2:-}"
 BODY_PATH="${3:-}"
 shift 3 2>/dev/null || true
 ASSET_PATHS=("$@")
+wp_plugin_base_require_package_assets "$@"
 
 if [ -z "$VERSION" ] || [ -z "$RELEASE_NAME" ] || [ -z "$BODY_PATH" ] || [ "${#ASSET_PATHS[@]}" -eq 0 ]; then
   echo "Usage: $0 [--repair] <version> <release-name> <release-body-path> <asset-path>..." >&2

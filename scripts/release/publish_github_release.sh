@@ -5,6 +5,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/require_publication_profile.sh
+. "$SCRIPT_DIR/../lib/require_publication_profile.sh"
+wp_plugin_base_require_publication_profile
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 
 wp_plugin_base_require_commands "GitHub release publication" gh jq cmp
 
@@ -44,6 +50,7 @@ TAG_NAME="${1:-}"
 RELEASE_TITLE="${2:-}"
 NOTES_FILE="${3:-}"
 shift 3 || true
+wp_plugin_base_require_package_assets "$@"
 
 if [ -z "$TAG_NAME" ] || [ -z "$RELEASE_TITLE" ] || [ -z "$NOTES_FILE" ]; then
   echo "Usage: $0 [--repair] [--mark-latest|--prerelease] tag-name release-title notes-file [asset ...]" >&2

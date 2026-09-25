@@ -138,20 +138,35 @@ if sync_fixture > "$fixture/symlink.log" 2>&1; then
 fi
 grep -Fxq outside-marker "$external_file"
 rm -f "$fixture/.editorconfig" "$external_file"
-# Disabled-file cleanup obeys the same containment boundary as generation.
+# Unowned inactive-host paths are preserved without traversal or cleanup.
 external_dir="$(mktemp -d)"
 printf 'outside-workflow\n' > "$external_dir/ci.yml"
 mkdir -p "$fixture/.github"
 rm -rf "$fixture/.github/workflows"
 ln -s "$external_dir" "$fixture/.github/workflows"
-if sync_fixture > "$fixture/cleanup-symlink.log" 2>&1; then
-  rm -rf "$external_dir"
-  echo 'Managed cleanup traversed a symbolic link outside the repository.' >&2
-  exit 1
-fi
+sync_fixture > "$fixture/cleanup-symlink.log" 2>&1
+test -L "$fixture/.github/workflows"
+test "$(readlink "$fixture/.github/workflows")" = "$external_dir"
 grep -Fxq outside-workflow "$external_dir/ci.yml"
 rm -f "$fixture/.github/workflows"
 rm -rf "$external_dir"
+# A recorded managed path still fails before cleanup if replaced by a symlink.
+external_file="$(mktemp)"
+printf 'outside-owned-workflow\n' > "$external_file"
+rm -f "$fixture/.gitlab-ci.yml"
+ln -s "$external_file" "$fixture/.gitlab-ci.yml"
+printf '\nAUTOMATION_PROFILE=local\n' >> "$fixture/.wp-plugin-base.env"
+if sync_fixture > "$fixture/owned-cleanup-symlink.log" 2>&1; then
+  rm -f "$external_file"
+  echo 'Recorded managed cleanup accepted a symbolic link outside the repository.' >&2
+  exit 1
+fi
+grep -Fq 'must not use symlinks' "$fixture/owned-cleanup-symlink.log"
+grep -Fxq outside-owned-workflow "$external_file"
+test -L "$fixture/.gitlab-ci.yml"
+rm -f "$fixture/.gitlab-ci.yml" "$external_file"
+printf '\nAUTOMATION_PROFILE=managed\n' >> "$fixture/.wp-plugin-base.env"
+sync_fixture
 # AGENTS uses marked-section preservation and must enforce its own link boundary.
 external_dir="$(mktemp -d)"
 rm -f "$fixture/AGENTS.md"

@@ -40,7 +40,7 @@ if [ -z "$ASSURANCE_MODE" ]; then
   fi
 fi
 
-wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker
+wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker python3
 
 quality_fixture=""
 strict_plugin_check_fixture=""
@@ -79,6 +79,7 @@ if [ "${WP_PLUGIN_BASE_SKIP_FAST_VALIDATE:-false}" != "true" ]; then
   bash "$ROOT_DIR/scripts/foundation/validate.sh" --mode "$ASSURANCE_MODE"
 fi
 
+bash "$ROOT_DIR/scripts/foundation/test_existing_application_adoption.sh"
 bash "$ROOT_DIR/scripts/foundation/test_quality_pack_platform.sh"
 
 quality_fixture="$(mktemp -d)"

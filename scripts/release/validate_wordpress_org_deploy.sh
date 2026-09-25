@@ -17,8 +17,13 @@ fi
 
 bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope deploy-structure "$CONFIG_OVERRIDE"
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 
-SOURCE_DIR="${SOURCE_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
+SOURCE_DIR="${SOURCE_OVERRIDE:-${WP_PLUGIN_BASE_PACKAGE_DIR:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}}"
+wp_plugin_base_require_package_input package_dir "$SOURCE_DIR"
 README_BASENAME="$(basename "$README_FILE")"
 MAIN_PLUGIN_BASENAME="$(basename "$MAIN_PLUGIN_FILE")"
 PACKAGE_PLUGIN_FILE="$SOURCE_DIR/$MAIN_PLUGIN_BASENAME"

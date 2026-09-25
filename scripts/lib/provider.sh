@@ -292,12 +292,22 @@ wp_plugin_base_escape_extended_regex_literal() {
   printf '%s\n' "$escaped"
 }
 
+# Branches enter shell, YAML, URL and certificate expressions. Keep a small
+# literal alphabet and also enforce Git's complete ref-format constraints.
+wp_plugin_base_valid_branch() {
+  local branch="${1:-}"
+  [[ "$branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || return 1
+  case "$branch" in refs|refs/*|*/refs|*/refs/*|pull|pull/*|*/pull|*/pull/*) return 1 ;; esac
+  git check-ref-format --branch "$branch" >/dev/null 2>&1
+}
+
 wp_plugin_base_provider_sigstore_identity_regex() {
   local provider="${1:-}"
   local api_base="${2:-}"
   local reference="${3:-}"
   local scope="${4:-plugin}"
   local release_tag="${5:-}"
+  local plugin_branch="${6:-${DEFAULT_BRANCH:-main}}"
   local web_base=""
   local escaped_web_base=""
   local escaped_reference=""
@@ -310,7 +320,11 @@ wp_plugin_base_provider_sigstore_identity_regex() {
     github|github-release)
       case "$scope" in
         plugin)
-          printf '^%s/%s/\\.github/workflows/(finalize-release|release)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"
+          if ! wp_plugin_base_valid_branch "$plugin_branch"; then
+            echo "Invalid plugin signing branch: $plugin_branch" >&2
+            return 1
+          fi
+          printf '^%s/%s/\\.github/workflows/(finalize-release|release)\\.yml@refs/heads/%s$\n' "$escaped_web_base" "$escaped_reference" "$(wp_plugin_base_escape_extended_regex_literal "$plugin_branch")"
           ;;
         foundation)
           printf '^%s/%s/\\.github/workflows/(finalize-foundation-release|release-foundation)\\.yml@refs/heads/main$\n' "$escaped_web_base" "$escaped_reference"

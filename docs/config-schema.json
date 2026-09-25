@@ -39,6 +39,22 @@
       "required_in_scopes": ["sync", "foundation", "project", "ci", "readiness", "release", "deploy-structure", "deploy"],
       "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
     },
+    "AUTOMATION_PROFILE": {
+      "default": "managed",
+      "description": "managed generates hosted automation; local retains local conformance without managed publishers or schedules."
+    },
+    "DEFAULT_BRANCH": {
+      "default": "main",
+      "description": "Downstream default branch; independent of foundation-source signing trust."
+    },
+    "BUILD_OUTPUTS": {
+      "default": "",
+      "description": "Comma-separated explicit generated regular files required after BUILD_SCRIPT. Missing ancestors may be package inputs before building."
+    },
+    "BUILD_OUTPUT_MANIFEST": {
+      "default": "",
+      "description": "Generated JSON artifact manifest in a dedicated output directory; schema_version 1 and artifacts containing repo-relative path and sha256."
+    },
     "AUTOMATION_PROVIDER": {
       "description": "Canonical downstream repository host selector. A downstream project uses one automation host profile at a time in this release.",
       "default": "github",

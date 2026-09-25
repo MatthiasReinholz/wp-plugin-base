@@ -109,16 +109,26 @@ set -euo pipefail
 printf '%s\n' "${0##*/}" >> "$WP_PLUGIN_BASE_RELEASE_EVENTS"
 MOCK
 done
+cp "$fixture/.wp-plugin-base/scripts/ci/build_zip.sh" "$fixture/.wp-plugin-base/scripts/ci/build_zip.real.sh"
 cat > "$fixture/.wp-plugin-base/scripts/ci/build_zip.sh" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
-mkdir -p "$WP_PLUGIN_BASE_ROOT/dist/package/standard-plugin"
 printf '%s\n' build_zip.sh >> "$WP_PLUGIN_BASE_RELEASE_EVENTS"
+exec bash "$WP_PLUGIN_BASE_ROOT/.wp-plugin-base/scripts/ci/build_zip.real.sh" "$@"
 MOCK
 cat > "$fixture/.wp-plugin-base/scripts/release/restore_gitlab_release_assets.sh" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' restore_gitlab_release_assets.sh >> "$WP_PLUGIN_BASE_RELEASE_EVENTS"
+if [ "${WP_PLUGIN_BASE_FIXTURE_RESTORE_STATUS:-3}" = 0 ]; then
+  python3 - "$WP_PLUGIN_BASE_ROOT/dist/package-generation.json" "$WP_PLUGIN_BASE_PACKAGE_RESULT_FILE" <<'PYTHON'
+import json, pathlib, sys
+record = json.loads(pathlib.Path(sys.argv[1]).read_text())
+with pathlib.Path(sys.argv[2]).open('a') as stream:
+    for key in ('package_dir', 'zip_path', 'sbom_path', 'signature_path', 'descriptor_path', 'sha256'):
+        stream.write(f'{key}={record[key]}\n')
+PYTHON
+fi
 exit "${WP_PLUGIN_BASE_FIXTURE_RESTORE_STATUS:-3}"
 MOCK
 (

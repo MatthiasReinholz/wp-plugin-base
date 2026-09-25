@@ -127,7 +127,7 @@ class PathAndPackageBoundaryTests(unittest.TestCase):
 
     def test_build_cannot_replace_output_directory_with_link(self):
         self.configure(BUILD_SCRIPT="build.sh")
-        (self.child / "build.sh").write_text(f'ln -s "{self.outside}" dist\n')
+        (self.child / "build.sh").write_text(f'rm -rf dist; ln -s "{self.outside}" dist\n')
         self.assert_failed_safely(self.run_script("scripts/ci/build_zip.sh"))
         self.assertFalse((self.outside / "standard-plugin.zip").exists())
 
@@ -147,6 +147,7 @@ class PathAndPackageBoundaryTests(unittest.TestCase):
         )
         complete = self.run_script("scripts/ci/build_zip.sh")
         self.assertEqual(complete.returncode, 0, complete.stdout + complete.stderr)
+        previous_zip = (self.child / "dist/standard-plugin.zip").read_bytes()
         for relative in (
             "lib/wp-plugin-base/wp-plugin-base-runtime-updater.php",
             "lib/wp-plugin-base/plugin-update-checker/load-v5p7.php",
@@ -157,7 +158,7 @@ class PathAndPackageBoundaryTests(unittest.TestCase):
                 result = self.run_script("scripts/ci/build_zip.sh")
                 self.assert_failed_safely(result)
                 self.assertIn(relative, result.stderr)
-                self.assertFalse((self.child / "dist/standard-plugin.zip").exists())
+                self.assertEqual((self.child / "dist/standard-plugin.zip").read_bytes(), previous_zip)
 
     def test_enabled_runtime_packs_reject_missing_or_empty_manifest(self):
         partial = self.base / "partial-foundation"

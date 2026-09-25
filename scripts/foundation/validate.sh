@@ -53,7 +53,7 @@ case "$ASSURANCE_MODE" in
     ;;
 esac
 
-wp_plugin_base_require_commands "foundation validation" git php node ruby perl rsync zip unzip jq
+wp_plugin_base_require_commands "foundation validation" git php node ruby perl rsync zip unzip jq python3
 
 declare -a assurance_tools=(
   shellcheck

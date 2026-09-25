@@ -10,6 +10,7 @@ Foundation sync writes three kinds of child-repo surface:
 
 These files are regenerated from foundation templates:
 
+- `.wp-plugin-base-automation.json`: generated automation ownership receipt; commit with managed outputs, never package it
 - `.editorconfig`
 - `.gitattributes`
 - `.gitignore`
@@ -35,7 +36,7 @@ Do not hand-edit those files in your project unless you are intentionally diverg
 
 `bash .wp-plugin-base/scripts/ci/validate_project.sh` treats that managed surface as part of the child-repo contract. If one of those files is missing after sync, or if a required file path has been replaced with a directory or another non-file entry, project validation fails and points back to `sync_child_repo.sh`.
 
-GitHub repos receive the managed GitHub workflow set plus optional Dependabot automation. GitLab repos receive a managed `.gitlab-ci.yml` pipeline that covers validation, release preparation, release publication, and foundation updates. Managed CODEOWNERS files are optional on both hosts. Each downstream repo should select one host profile; mixed GitHub/GitLab automation in one repo is out of contract.
+With `AUTOMATION_PROFILE=managed` (the default), GitHub repos receive the managed GitHub workflow set plus optional Dependabot automation. `AUTOMATION_PROFILE=local` omits hosted automation and preserves local checks and runtime packs. Profile switches use the automation ownership receipt to reject edits before mutation and preserve unknown application workflows. See [local development](local-development.md). GitLab repos receive a managed `.gitlab-ci.yml` pipeline that covers validation, release preparation, release publication, and foundation updates. Managed CODEOWNERS files are optional on both hosts. Each downstream repo should select one host profile; mixed GitHub/GitLab automation in one repo is out of contract.
 
 ## Seeded Or Child-Owned Files
 

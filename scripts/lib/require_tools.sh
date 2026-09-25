@@ -47,7 +47,7 @@ wp_plugin_base_require_commands() {
           echo "- php: required for PHP syntax validation."
           ;;
         python3)
-          echo "- python3: required for WordPress.org deployment credential handling."
+          echo "- python3: required for package generations, verification, recovery and deployment credentials."
           ;;
         rg)
           echo "- rg: required for workflow policy scans."
@@ -56,7 +56,7 @@ wp_plugin_base_require_commands() {
           echo "- rsync: required for packaging and vendored foundation sync."
           ;;
         ruby)
-          echo "- ruby: required for workflow YAML permission auditing."
+          echo "- ruby: required for generated-output contracts and workflow YAML permission auditing."
           ;;
         svn)
           echo "- svn: required only for WordPress.org deployment."

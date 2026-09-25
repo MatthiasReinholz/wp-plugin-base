@@ -128,3 +128,44 @@ If strict-local fails on missing tools, bootstrap first:
 3. Keep `docs/config-schema.json`, `README.md` config keys, and `load_config.sh` behavior in sync.
 4. Keep reusable and child workflow parity tests passing.
 5. Keep docs consistent with behavior changes (especially release ordering, channel defaults, and updater scope).
+
+## Consumer Conformance And Manual Adoption
+
+- `scripts/lib/build_outputs.sh` and `scripts/lib/build_outputs.rb`: pre-build containment and post-build artifact
+  completeness/digest contracts for application-owned generators.
+- `scripts/lib/package_generation.sh` and `scripts/lib/package_generation.py`:
+  package generation capture and verification shared by builders and consumers.
+- `scripts/update/import_foundation_release.sh` and its Python implementation:
+  complete verified manual import, using the existing trusted foundation release
+  verifier without synchronization or publication side effects.
+- `scripts/foundation/test_manual_foundation_import.py`: import trust boundary,
+  tree completeness, permission and ordinary-failure recovery tests.
+- `scripts/foundation/test_existing_application_adoption.sh` and
+  `tests/fixtures/existing-application/`: application-owned TypeScript/webpack
+  adoption and real build/package qualification. Its independent npm lockfile is
+  inventoried and monitored by Dependabot; optional starter updates do not rewrite
+  the fixture's app-owned manifests automatically.
+- `docs/manual-foundation-import.md` and `docs/existing-application-adoption.md`:
+  explicit trust, ownership and runtime-qualification boundaries for consumers.
+
+Changes to local managed profiles, generated outputs, or downstream default
+branches must retain the five-surface configuration contract above. Test both
+`main` and an alternate child branch while keeping foundation-source signature
+identities pinned independently. Compiled-entry host stubs establish integration
+behavior only; actual minimum-core claims require the existing WordPress runtime
+qualification suite or equivalent application-owned browser evidence.
+
+### Automation profile ownership
+
+- `scripts/lib/automation_ownership.rb`: records and validates exact managed hosted-file hashes; profile transitions must reject modifications before sync mutates project files.
+- `scripts/update/capture_automation_ownership.sh`: captures a legacy project's current trusted template generation before replacing its vendored foundation, without synchronizing application files.
+- `scripts/update/recover_automation_ownership.py`: reconstructs a pre-receipt generation from tracked Git `HEAD` templates/config with current trusted code; it never executes historical scripts.
+- `scripts/lib/render_legacy_automation.php`: reconstructs published v1.8.3 raw placeholders as inert ownership comparison data. Capture accepts this candidate only with a v1.8.3 config pin, the complete reviewed hosted-template digest set, and exact existing hosted-file byte equality; normal sync retains current escaping and action-catalog rendering.
+- `tests/fixtures/legacy-v183-automation.json` and `tests/fixtures/legacy-automation-templates.json`: qualify actual published v1.8.3 and v1.9 migration formats, pinned to their exact source commits.
+- `scripts/foundation/test_local_conformance.py`: qualifies local/managed transitions, ownership conflicts, published-template migration, clean-checkout outputs, stale artifacts and experimental metadata.
+
+Keep unknown application-owned workflows outside managed cleanup. Add hosted template
+paths to the shared managed manifest; never infer ownership solely from a familiar
+filename. `.wp-plugin-base-automation.json` is tracked managed metadata and must remain
+excluded from install packages. See [local development](local-development.md) for the
+explicit capture flow when historical ownership evidence is unavailable.

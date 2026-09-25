@@ -25,6 +25,21 @@ if [ ! -d "$TARGET_ROOT" ]; then
   exit 1
 fi
 
+# An explicit value supports non-default config paths. Otherwise use the same
+# data-only parser as sync; do not trust a workflow to declare its own policy.
+AUDIT_DEFAULT_BRANCH="${2:-}"
+if [ -z "$AUDIT_DEFAULT_BRANCH" ] && [ -f "$TARGET_ROOT/.wp-plugin-base.env" ]; then
+  AUDIT_DEFAULT_BRANCH="$(
+    # shellcheck source=../lib/load_config.sh
+    . "$SCRIPT_DIR/../lib/load_config.sh"
+    wp_plugin_base_load_config "$TARGET_ROOT/.wp-plugin-base.env"
+    printf '%s' "$DEFAULT_BRANCH"
+  )"
+fi
+AUDIT_DEFAULT_BRANCH="${AUDIT_DEFAULT_BRANCH:-main}"
+wp_plugin_base_valid_branch "$AUDIT_DEFAULT_BRANCH" || { echo "Invalid workflow default branch." >&2; exit 1; }
+export WP_PLUGIN_BASE_AUDIT_DEFAULT_BRANCH="$AUDIT_DEFAULT_BRANCH"
+
 declare -a workflow_dirs=()
 declare -a action_dirs=()
 declare -a scan_dirs=()
@@ -397,6 +412,18 @@ workflow_files.each do |file|
   expected = expected_permissions[basename]
   expected_jobs = expected_job_permissions.fetch(basename, {})
   expected_pull_request_target_jobs = expected_pull_request_target_conditions[basename]
+  if basename == "finalize-release.yml"
+    branch_operand = if file.include?("/templates/child/")
+      "'__DEFAULT_BRANCH__'"
+    elsif trigger_block.is_a?(Hash) && trigger_block.key?("workflow_call")
+      "github.event.repository.default_branch"
+    else
+      "'#{ENV.fetch('WP_PLUGIN_BASE_AUDIT_DEFAULT_BRANCH')}'"
+    end
+    expected_pull_request_target_jobs = expected_pull_request_target_jobs.transform_values do |condition|
+      condition.sub("base.ref == 'main'", "base.ref == #{branch_operand}")
+    end
+  end
   jobs = data["jobs"]
 
   if permissions.nil?

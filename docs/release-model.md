@@ -3,9 +3,9 @@
 The shared release model is:
 
 - short-lived `feature/*`, `release/*`, and `hotfix/*` branches
-- protected `main`
+- protected downstream `DEFAULT_BRANCH` (`main` by default)
 - `prepare-release` creates or updates `release/x.y.z`
-- merging `release/*` or `hotfix/*` into `main` publishes from the selected downstream host
+- merging `release/*` or `hotfix/*` into the configured default branch publishes from the selected downstream host
 - GitHub uses the managed finalize workflow to create the annotated tag and publish release artifacts automatically
 - GitHub stable tags are owned by the release PR/finalize flow; the managed `publish-tag-release.yml` workflow only publishes trusted prerelease tags such as `v1.2.3-beta.1`
 - GitLab uses a managed release MR plus a manual tag push after merge to trigger the tag pipeline and publish release artifacts
@@ -51,9 +51,11 @@ External automation/downstream consumers such as `wp-core-base` should consume t
 | GitHub prerelease | trusted prerelease tag push or rerun | prerelease tag such as `1.2.3-beta.1` | publishes or repairs only prerelease GitHub Releases with ZIP, SBOM, and Sigstore assets; never marks prereleases latest | verify the release is not draft, is marked prerelease, and has non-empty ZIP/SBOM/Sigstore assets |
 | GitLab | tagged `release` job in the managed `.gitlab-ci.yml` | existing tag | first publication uploads all assets before exposing the release; reruns restore verified published bytes and retry enabled channels; different SVN tag contents require explicit permission | inspect GitLab release assets and Woo vendor/QIT status directly; GitLab has no separate WooCommerce status workflow |
 
-Start manual GitHub stable recovery from `main`. Its workflow copies current protected-main release helpers outside the historical checkout, then operates on the selected tag payload. Stable signing verifies the certificate identity before publication. Rerunning a historical Actions run still uses that run's old workflow definition; it does not acquire these new controls. Use a new recovery run from current `main` instead.
+Start manual GitHub stable recovery from the configured default branch. Its workflow copies current protected release helpers outside the historical checkout, then operates on the selected tag payload. Stable signing verifies the certificate identity before publication. Rerunning a historical Actions run still uses that run's old workflow definition; it does not acquire these new controls. Use a new recovery run from the current protected default branch instead.
 
-The default stable signature policy accepts this repository's `release.yml` or `finalize-release.yml` on `main` (and the corresponding foundation workflows). Same-repository reusable calls from `main` preserve that contract. Cross-repository reusable signing has a different identity because [Fulcio uses the called workflow's `job_workflow_ref`](https://github.com/sigstore/fulcio/blob/main/docs/oidc.md); the default policy rejects it before publication. Use the managed child workflows for the supported downstream release path. Broadening signer trust requires an explicit reviewed policy and host acceptance; it is not inferred from the caller repository.
+The stable plugin signature policy accepts this repository's `release.yml` or `finalize-release.yml` on its exact configured `DEFAULT_BRANCH`. Foundation signatures independently retain their protected `main` policy. Same-repository reusable calls from the configured branch preserve that contract. Cross-repository reusable signing has a different identity because [Fulcio uses the called workflow's `job_workflow_ref`](https://github.com/sigstore/fulcio/blob/main/docs/oidc.md); the default policy rejects it before publication. Use the managed child workflows for the supported downstream release path. Broadening signer trust requires an explicit reviewed policy and host acceptance; it is not inferred from the caller repository.
+
+See [downstream branch migration](downstream-branches.md) for historical retry and exact signing-identity rules. Packaging, SBOM generation, signing, upload, and deployment consume one captured [verified package generation](package-lifecycle.md).
 
 ## GitLab Acceptance And Credentials
 

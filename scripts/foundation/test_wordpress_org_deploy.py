@@ -23,6 +23,8 @@ command = pathlib.Path(sys.argv[0]).name
 with (base / 'calls.jsonl').open('a') as log:
     log.write(json.dumps([command, args, os.getcwd()]) + '\n')
 if command == 'git':
+    if args[:2] == ['check-ref-format', '--branch']:
+        raise SystemExit(subprocess.call([os.environ['REAL_GIT'], *args], stdout=subprocess.DEVNULL))
     assert args[2:] == ['tag', '--list', '[0-9]*.[0-9]*.[0-9]*']
     print('1.2.3')
     raise SystemExit(0)
@@ -117,6 +119,7 @@ class DeploymentCases:
             path.chmod(0o755)
         self.environment = dict(os.environ, PATH=f'{self.bin}:{os.environ["PATH"]}',
                                 DEPLOY_FIXTURE=str(self.base), REAL_RSYNC=REAL_RSYNC,
+                                REAL_GIT=shutil.which('git'),
                                 REAL_PYTHON=sys.executable,
                                 REAL_SVN=REAL_SVN if self.native else '',
                                 WP_PLUGIN_BASE_ROOT=str(self.project), SVN_USERNAME='fixture-user',

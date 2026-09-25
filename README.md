@@ -9,12 +9,14 @@ It is the **delivery and governance layer** for plugin repos:
 - workflow hardening and provenance checks
 - vendored scripts, templates, and documentation under `.wp-plugin-base/`
 
-It is **not** a general plugin runtime framework. It does not provide plugin-side DI, PSR-4 runtime scaffolding, settings abstractions, REST controllers, or block architecture. Those concerns should remain outside this repo or move into a future companion runtime layer.
+The core foundation preserves application-owned runtime architecture. Optional REST, admin UI, and updater packs provide specific primitives when enabled; existing applications can keep all three disabled and use their own public WordPress components, routes, and update mechanisms.
 
-Each downstream project is expected to use one supported automation host profile:
+Managed hosted automation supports:
 
 - GitHub downstream repo
 - GitLab downstream repo
+
+For local sync, validation, and packaging without hosted publishers or credentials, set `AUTOMATION_PROFILE=local`. See [local development](docs/local-development.md).
 
 Host-backed runtime updates follow that same downstream host:
 
@@ -32,6 +34,8 @@ It also provides two reuse surfaces:
 The foundation is a development dependency only. The default baseline must never become a runtime dependency of the released plugin ZIP. A small, explicit opt-in runtime updater pack exists for GitHub Releases, GitLab Releases, or generic JSON metadata and is disabled by default.
 
 The repository also enforces a tracked-file hygiene policy. Files such as `.DS_Store`, `Thumbs.db`, `Desktop.ini`, editor workspace folders, and transient debug logs are treated as forbidden repository content and fail validation if present.
+
+See [existing-application adoption](docs/existing-application-adoption.md) for a tested TypeScript/webpack integration, and [package lifecycle](docs/package-lifecycle.md) for concurrent builds, deterministic permissions, and verified consumer paths.
 
 ## Who It Is For
 
@@ -61,7 +65,7 @@ Default behavior is intentionally conservative. Optional channels and packs are 
 
 ## Quick Start
 
-1. Vendor this repo into your plugin repository at `.wp-plugin-base/`.
+1. Import a complete pinned release into `.wp-plugin-base/` using the [verified manual import](docs/manual-foundation-import.md) procedure.
 2. If this is a blank repo, create the plugin main file and `readme.txt` before you sync.
 3. Create `.wp-plugin-base.env` from `.wp-plugin-base/templates/child/.wp-plugin-base.env.example`.
 4. Fill in the required values.
@@ -93,6 +97,7 @@ Fast local validation depends on these commands being available:
 - `php`
 - `node`
 - `ruby`
+- `python3` (Python 3.10 or newer) for package generations, recovery, and import
 - `perl`
 - `jq`
 - `rsync`
@@ -106,7 +111,6 @@ Full local validation and optional flows need additional tools:
 - `gh` for GitHub release and pull request automation
 - `curl` for GitLab release publication, repair, and API-backed update flows
 - `docker` for WordPress readiness validation, Plugin Check, and the full foundation validation suite
-- `python3` for WordPress.org deployment credential handling
 - `svn` for WordPress.org deployment
 - `wp` is not required locally; release-time POT generation uses the pinned `@wordpress/env` bundle when `POT_FILE` is configured
 
@@ -291,6 +295,10 @@ Optional keys:
 - `FOUNDATION_RELEASE_SOURCE_API_BASE`
 - `FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER`
 - `FOUNDATION_REPOSITORY`
+- `AUTOMATION_PROFILE`
+- `DEFAULT_BRANCH`
+- `BUILD_OUTPUTS`
+- `BUILD_OUTPUT_MANIFEST`
 - `AUTOMATION_PROVIDER`
 - `AUTOMATION_API_BASE`
 - `TRUSTED_GIT_HOSTS`
@@ -363,6 +371,12 @@ Use shell-safe `KEY=value` syntax. Quote values that contain spaces, for example
 The canonical machine-readable config contract is tracked in [`docs/config-schema.json`](docs/config-schema.json). Foundation validation enforces parity between that schema, `load_config.sh`, this README key list, and `templates/child/.wp-plugin-base.env.example`.
 
 `PACKAGE_INCLUDE`, `PACKAGE_EXCLUDE`, `DISTIGNORE_FILE`, and `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE` must stay repo-relative. `DISTIGNORE_FILE` must point to a `*.distignore` file. `PRODUCTION_ENVIRONMENT` defaults to `production` when unset.
+
+`AUTOMATION_PROFILE=local` retains managed sync and local project/readiness checks while omitting foundation-owned hosted automation. The default `managed` profile preserves hosted workflows. Publication and automated update entrypoints reject the local profile even when credentials exist. See [local development and generated outputs](docs/local-development.md) for safe profile transitions and experimental-version validation.
+
+`DEFAULT_BRANCH` defaults to `main` and selects downstream workflow, release, and update targets. It does not change foundation-source trust. See [branch migration and exact signature identities](docs/downstream-branches.md).
+
+`BUILD_OUTPUTS` lists concrete generated files required after building; `BUILD_OUTPUT_MANIFEST` optionally declares a generated SHA-256 artifact inventory for a dedicated output directory, including lazy chunks. Only explicitly declared generated paths or their ancestors may be absent before building. Source inputs still must exist. See [the output contract](docs/local-development.md#generated-output-contract).
 
 `BUILD_SCRIPT` must be a repo-relative script path. When set, `build_zip.sh` runs it from the repository root before staging files. `BUILD_SCRIPT_ARGS` is an optional comma-separated argument list passed to that script.
 

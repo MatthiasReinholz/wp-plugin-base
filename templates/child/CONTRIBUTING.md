@@ -6,12 +6,12 @@ This file is managed by `wp-plugin-base`. Update it from the foundation repo ins
 
 This repository uses short-lived branches:
 
-- `main`: protected and intended to stay releasable
+- `__DEFAULT_BRANCH__`: protected and intended to stay releasable
 - `feature/<topic>`: normal development work
 - `release/<version>`: release preparation only
-- `hotfix/<version>`: urgent production fixes branched from `main`
+- `hotfix/<version>`: urgent production fixes branched from `__DEFAULT_BRANCH__`
 
-Do not push directly to `main`. Open a change request (PR/MR) instead.
+Do not push directly to `__DEFAULT_BRANCH__`. Open a change request (PR/MR) instead.
 
 ## Release Process
 
@@ -19,13 +19,13 @@ Releases are merge-driven and tag-backed. A branch push must never publish a plu
 
 Normal release flow:
 
-1. Merge the intended feature branches into `main`.
+1. Merge the intended feature branches into `__DEFAULT_BRANCH__`.
 2. Run the managed release-preparation automation and choose `patch`, `minor`, `major`, or `custom`.
    On GitHub this is the `prepare-release` workflow. On GitLab this is the manual `prepare_release` pipeline job.
    Rerunning release preparation for the same version refreshes the existing `release/x.y.z` branch and updates the existing change request if needed.
 3. Review the generated `release/x.y.z` change request.
 4. Review the auto-generated changelog entry, adjust it if needed, and complete any plugin-specific smoke tests.
-5. Merge the `release/x.y.z` change request into `main`.
+5. Merge the `release/x.y.z` change request into `__DEFAULT_BRANCH__`.
 6. The merged release flow creates the `x.y.z` tag and publishes the platform release from the selected automation host.
 7. Use the host-specific release recovery flow only for an existing stable tag if automatic publication needs to be repeated.
 

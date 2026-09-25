@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/load_config.sh"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
 
 wp_plugin_base_require_commands "release simulation" git unzip
 
@@ -54,7 +56,8 @@ fi
 
 NOTES_FILE="$(mktemp)"
 DIFF_FILE="$(mktemp)"
-trap 'rm -f "$NOTES_FILE" "$DIFF_FILE"; cleanup' EXIT
+PACKAGE_RESULT="$(mktemp)"
+trap 'rm -f "$NOTES_FILE" "$DIFF_FILE" "$PACKAGE_RESULT"; cleanup' EXIT
 
 WP_PLUGIN_BASE_ROOT="$SIM_WORKTREE" \
   bash "$SCRIPT_DIR/generate_release_notes.sh" "$VERSION" "$CONFIG_OVERRIDE" > "$NOTES_FILE"
@@ -64,17 +67,18 @@ WP_PLUGIN_BASE_ROOT="$SIM_WORKTREE" \
 
 git -C "$SIM_WORKTREE" --no-pager diff --name-only > "$DIFF_FILE"
 
-WP_PLUGIN_BASE_ROOT="$SIM_WORKTREE" \
+WP_PLUGIN_BASE_ROOT="$SIM_WORKTREE" WP_PLUGIN_BASE_PACKAGE_RESULT_FILE="$PACKAGE_RESULT" \
   bash "$SCRIPT_DIR/../ci/build_zip.sh" "$CONFIG_OVERRIDE" >/dev/null
 
-ZIP_PATH="$SIM_WORKTREE/dist/$ZIP_FILE"
+wp_plugin_base_capture_package "$PACKAGE_RESULT"
+ZIP_PATH="$WP_PLUGIN_BASE_PACKAGE_ZIP"
 if [ ! -f "$ZIP_PATH" ]; then
   echo "Simulation did not produce expected package: $ZIP_PATH" >&2
   exit 1
 fi
 
 package_bytes="$(wc -c < "$ZIP_PATH" | tr -d ' ')"
-package_files="$(unzip -Z1 "$ZIP_PATH" | wc -l | tr -d ' ')"
+package_files="$(unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT; unzip -Z1 "$ZIP_PATH" | wc -l | tr -d ' ')"
 changelog_entries="$(grep -c '^\* ' "$NOTES_FILE" || true)"
 
 wp_org_deploy_state="disabled"

@@ -1,6 +1,6 @@
 # Automation Host Capabilities
 
-GitHub is the primary continuously tested automation host. GitLab provides a separate host profile with local contract tests; a configured GitLab runner must complete the acceptance checklist below before production use. Local mocks do not establish parity with a live hosted service.
+GitHub is the primary continuously tested automation host. GitLab provides a separate host profile with local contract tests; a configured GitLab runner must complete the acceptance checklist below before production use. Local mocks do not establish parity with a live hosted service. These capabilities describe `AUTOMATION_PROFILE=managed`; the [local profile](local-development.md) supports sync, validation and packaging without foundation-owned hosted workflows or hosting credentials.
 
 | Capability | GitHub | GitLab |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ GitHub is the primary continuously tested automation host. GitLab provides a sep
 | WordPress readiness | Managed job | Managed job; Docker-capable runtime required |
 | PHP runtime matrix | Configured setup-php matrix | Generated child pipeline; reviewed image mapping required |
 | Release preparation | Pull request | Merge request |
-| Release trigger | Verified release PR merge; controlled manual repair | Annotated tag from main with verified release MR |
+| Release trigger | Verified release PR merge; controlled manual repair | Annotated tag from the configured protected default branch with verified release MR |
 | Release provenance | GitHub OIDC, exact workflow identity | Sigstore audience ID token, exact project/tag identity |
 | Channel retry | Verified published artifacts | Verified published artifacts |
 | Manual QIT workflow pack | Managed optional workflow | Project-owned automation; GitHub pack toggle rejected |
@@ -20,7 +20,7 @@ GitHub is the primary continuously tested automation host. GitLab provides a sep
 
 The fallback image is digest-pinned Ubuntu. Its distribution packages do not necessarily match the PHP and Node versions in the project config. Every job verifies actual versions before running project code. A mismatch is an error; the pipeline never silently substitutes Ubuntu's versions.
 
-For a production runner, set `WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGE` to a reviewed image ending in `@sha256:<64 lowercase hex characters>` and `WP_PLUGIN_BASE_GITLAB_BOOTSTRAP_APT=false`. Provision `git`, PHP, Node/npm, Ruby, Perl, Python 3, jq, rsync, curl, zip/unzip, CA certificates, and Subversion when deploying to WordPress.org. PHP and Node must match `PHP_VERSION` and `NODE_VERSION`. Use a Docker-capable runner and client for WordPress readiness and strict runtime checks. Maintain the image and its tool dependencies as an upstream platform asset.
+For a production runner, set `WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGE` to a reviewed image ending in `@sha256:<64 lowercase hex characters>` and `WP_PLUGIN_BASE_GITLAB_BOOTSTRAP_APT=false`. Provision `git`, PHP, Node/npm, Ruby, Perl, Python 3.10 or newer, jq, rsync, curl, zip/unzip, CA certificates, and Subversion when deploying to WordPress.org. PHP and Node must match `PHP_VERSION` and `NODE_VERSION`. Use a Docker-capable runner and client for WordPress readiness and strict runtime checks. Maintain the image and its tool dependencies as an upstream platform asset.
 
 For `PHP_RUNTIME_MATRIX`, set `WP_PLUGIN_BASE_GITLAB_RUNTIME_IMAGES` to a JSON object mapping each configured PHP version to its own provisioned digest-pinned image. Each image must use the same configured Node version. Matrix jobs verify the selected PHP version inside the container before running the smoke/strict checks. Missing mappings fail pipeline generation. No matrix is silently skipped when configured.
 

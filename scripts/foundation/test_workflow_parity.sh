@@ -119,8 +119,32 @@ ruby -ryaml -e '
       next unless step["run"].to_s.match?(/\/(?:deploy_wordpress_org|deploy_woocommerce_com)\.sh/)
       abort "Channel deploy precedes immutable host publication: #{file}" unless index > publish
     end
+    foundation = File.basename(file).include?("foundation")
+    child = file.include?("/templates/child/")
+    unless foundation
+      capture = steps.index { |step| step["name"] == "Capture verified package generation" }
+      context = steps.index { |step| step["run"].to_s.include?("check_release_context.sh") }
+      abort "Release lacks a checked profile/branch context before capture: #{file}" unless context && capture && context < capture && capture < publish
+      abort "Trusted package helpers lack their templates: #{file}" unless steps.any? { |step| step["run"].to_s.include?("/templates ") }
+      steps.each do |step|
+        run = step["run"].to_s
+        if run.match?(/(?:generate_sbom|sign_release|publish_github_release|deploy_wordpress_org|deploy_woocommerce_com)\.sh/)
+          abort "Release consumer reads a mutable compatibility package: #{file}" if run.include?("dist/package/") || run.include?("dist/${")
+        end
+        if step["uses"].to_s.match?(/actions\/(?:upload-artifact|attest-build-provenance)@/)
+          key = step["uses"].include?("upload-artifact") ? "path" : "subject-path"
+          abort "Release uploads an uncaptured package: #{file}" unless step.fetch("with")[key] == "${{ steps.package.outputs.zip_path }}"
+        end
+      end
+    end
+    branch = foundation ? "main" : (child ? "__DEFAULT_BRANCH__" : "${{ github.event.repository.default_branch }}")
     if ["release.yml", "release-foundation.yml"].include?(File.basename(file))
-      abort "Manual stable signing is not bound to main: #{file}" unless job["if"] == "${{ github.ref == \"refs/heads/main\" }}".tr("\"", "\x27")
+      expected_if = if !foundation && !child
+        "${{ github.ref == format(\x27refs/heads/{0}\x27, github.event.repository.default_branch) }}"
+      else
+        "${{ github.ref == \x27refs/heads/#{branch}\x27 }}"
+      end
+      abort "Manual stable signing is not bound to the default branch: #{file}" unless job["if"] == expected_if
     end
     if File.basename(file) == "release.yml"
       restore = steps.find { |step| step["run"].to_s.include?("restore_github_release_assets.sh") }
@@ -136,7 +160,7 @@ ruby -ryaml -e '
       abort "Historical checkout bypasses current release policy: #{file}" unless preserve && detach && preserve < detach
     else
       trusted = steps.find { |step| step["name"] == "Checkout current trusted release helpers" }
-      abort "Recovery lacks protected-main helpers: #{file}" unless trusted && trusted.fetch("with")["ref"] == "main"
+      abort "Recovery lacks protected default-branch helpers: #{file}" unless trusted && trusted.fetch("with")["ref"] == branch
     end
     steps.each do |step|
       next unless step["run"].to_s.include?("publish_github_release.sh") || step["run"].to_s.include?("restore_github_release_assets.sh")

@@ -19,6 +19,7 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
 wp_plugin_base_require_vars PLUGIN_NAME PLUGIN_SLUG
 
 if ! wp_plugin_base_is_true "${DEPLOY_NOTIFICATION_ENABLED:-false}"; then

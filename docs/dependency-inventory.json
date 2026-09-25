@@ -41,6 +41,16 @@
       "lockfile": "templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui/package-lock.json"
     },
     {
+      "id": "existing-application-adoption-fixture",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/tests/fixtures/existing-application"
+      },
+      "lockfile": "tests/fixtures/existing-application/package-lock.json"
+    },
+    {
       "id": "markdownlint-tooling",
       "tier": "lockfile-backed",
       "update": {

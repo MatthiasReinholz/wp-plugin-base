@@ -16,7 +16,8 @@ wp_plugin_base_require_commands "Plugin Check" docker jq npm php zip unzip
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 wp_plugin_base_require_vars PLUGIN_SLUG
 
-PACKAGE_ROOT="$ROOT_DIR/dist/package/$PLUGIN_SLUG"
+PACKAGE_ROOT="${WP_PLUGIN_BASE_PACKAGE_DIR:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
+wp_plugin_base_assert_path_within_root "$PACKAGE_ROOT" "Plugin Check package"
 REPORT_PATH="$ROOT_DIR/dist/plugin-check.json"
 
 if [ ! -d "$PACKAGE_ROOT" ]; then
@@ -134,7 +135,7 @@ if [ "$plugin_check_cli_exists" != "1" ]; then
 fi
 
 repo_basename="$(basename "$ROOT_DIR")"
-plugin_path="/var/www/html/wp-content/plugins/${repo_basename}/dist/package/${PLUGIN_SLUG}"
+plugin_path="/var/www/html/wp-content/plugins/${repo_basename}/${PACKAGE_ROOT#"$ROOT_DIR"/}"
 wp_env_bin="$wp_env_tools_dir/node_modules/.bin/wp-env"
 plugin_check_args=(
   wp

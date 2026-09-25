@@ -20,6 +20,10 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 wp_plugin_base_require_vars PLUGIN_SLUG MAIN_PLUGIN_FILE ZIP_FILE
 
 if [ -z "${WOOCOMMERCE_COM_PRODUCT_ID:-}" ]; then
@@ -38,10 +42,12 @@ if [[ ! "${WOOCOMMERCE_COM_PRODUCT_ID}" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-PACKAGE_DIR="${PACKAGE_DIR_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
+PACKAGE_DIR="${PACKAGE_DIR_OVERRIDE:-${WP_PLUGIN_BASE_PACKAGE_DIR:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}}"
 MAIN_PLUGIN_BASENAME="$(basename "$MAIN_PLUGIN_FILE")"
 PACKAGE_PLUGIN_FILE="$PACKAGE_DIR/$MAIN_PLUGIN_BASENAME"
-ZIP_PATH="$ROOT_DIR/dist/$ZIP_FILE"
+ZIP_PATH="${WP_PLUGIN_BASE_PACKAGE_ZIP:-$ROOT_DIR/dist/$ZIP_FILE}"
+wp_plugin_base_require_package_input package_dir "$PACKAGE_DIR"
+wp_plugin_base_require_package_input zip_path "$ZIP_PATH"
 
 if [ ! -d "$PACKAGE_DIR" ]; then
   echo "WooCommerce.com deploy source directory not found: $PACKAGE_DIR" >&2
@@ -83,7 +89,7 @@ if [ ! -f "$ZIP_PATH" ]; then
   exit 1
 fi
 
-if ! unzip -tqq "$ZIP_PATH" >/dev/null 2>&1; then
+if ! (unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT; unzip -tqq "$ZIP_PATH") >/dev/null 2>&1; then
   echo "Packaged ZIP failed integrity check: $ZIP_PATH" >&2
   exit 1
 fi

@@ -26,28 +26,30 @@ _wp_plugin_base_collect_base_managed_template_pairs() {
     printf '%s\t%s\n' "$template_dir/$relative_path" "$relative_path" || return 1
   done
 
-  case "$automation_provider" in
-    gitlab)
-      printf '%s\t%s\n' "$template_dir/.gitlab-ci.yml" ".gitlab-ci.yml" || return 1
-      ;;
-    *)
-      for relative_path in \
-        ".github/dependabot.yml" \
-        ".github/workflows/ci.yml" \
-        ".github/workflows/finalize-release.yml" \
-        ".github/workflows/prepare-release.yml" \
-        ".github/workflows/publish-tag-release.yml" \
-        ".github/workflows/release.yml" \
-        ".github/workflows/update-foundation.yml"
-      do
-        printf '%s\t%s\n' "$template_dir/$relative_path" "$relative_path" || return 1
-      done
-      ;;
-  esac
+  if [ "${AUTOMATION_PROFILE:-managed}" = managed ]; then
+    case "$automation_provider" in
+      gitlab)
+        printf '%s\t%s\n' "$template_dir/.gitlab-ci.yml" ".gitlab-ci.yml" || return 1
+        ;;
+      *)
+        for relative_path in \
+          ".github/dependabot.yml" \
+          ".github/workflows/ci.yml" \
+          ".github/workflows/finalize-release.yml" \
+          ".github/workflows/prepare-release.yml" \
+          ".github/workflows/publish-tag-release.yml" \
+          ".github/workflows/release.yml" \
+          ".github/workflows/update-foundation.yml"
+        do
+          printf '%s\t%s\n' "$template_dir/$relative_path" "$relative_path" || return 1
+        done
+        ;;
+    esac
+  fi
 
   printf '%s\t%s\n' "$template_dir/.distignore" "$DISTIGNORE_FILE" || return 1
 
-  if [ -n "${CODEOWNERS_REVIEWERS:-}" ]; then
+  if [ -n "${CODEOWNERS_REVIEWERS:-}" ] && [ "${AUTOMATION_PROFILE:-managed}" = managed ]; then
     case "$automation_provider" in
       gitlab)
         printf '%s\t%s\n' "$template_dir/.gitlab/CODEOWNERS" ".gitlab/CODEOWNERS" || return 1
@@ -104,12 +106,12 @@ _wp_plugin_base_collect_managed_template_pairs() {
     _wp_plugin_base_collect_optional_managed_template_pairs "security-pack" "$template_dir" || return 1
   fi
 
-  if [ "${AUTOMATION_PROVIDER:-github}" = github ] && wp_plugin_base_is_true "${WOOCOMMERCE_QIT_ENABLED:-false}"; then
+  if [ "${AUTOMATION_PROFILE:-managed}" = managed ] && [ "${AUTOMATION_PROVIDER:-github}" = github ] && wp_plugin_base_is_true "${WOOCOMMERCE_QIT_ENABLED:-false}"; then
     _wp_plugin_base_collect_optional_managed_template_pairs "qit-pack" "$template_dir" || return 1
   fi
 
   if [ -n "${WOOCOMMERCE_COM_PRODUCT_ID:-}" ]; then
-    if [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
+    if [ "${AUTOMATION_PROFILE:-managed}" = managed ] && [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
       printf '%s\t%s\n' "$template_dir/.github/workflows/woocommerce-status.yml" ".github/workflows/woocommerce-status.yml" || return 1
     fi
   fi
@@ -127,7 +129,7 @@ _wp_plugin_base_collect_managed_template_pairs() {
   fi
 
   if wp_plugin_base_is_true "${SIMULATE_RELEASE_WORKFLOW_ENABLED:-false}"; then
-    if [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
+    if [ "${AUTOMATION_PROFILE:-managed}" = managed ] && [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
       printf '%s\t%s\n' "$template_dir/.github/workflows/simulate-release.yml" ".github/workflows/simulate-release.yml" || return 1
     fi
   fi
@@ -143,6 +145,7 @@ _wp_plugin_base_collect_managed_paths() {
     [ -n "$destination_path" ] || continue
     printf '%s\n' "$destination_path" || return 1
   done <<< "$pairs"
+  printf '%s\n' ".wp-plugin-base-automation.json" || return 1
 }
 
 _wp_plugin_base_collect_seed_template_pairs() {
@@ -222,8 +225,23 @@ _wp_plugin_base_collect_required_seed_paths() {
 
 # The union is used only for managed cleanup. Keep all host/pack policy above so
 # generation, validation, staging and removal cannot acquire different file lists.
-_wp_plugin_base_collect_all_managed_paths() (
+_wp_plugin_base_collect_all_managed_paths() {
   local template_dir="${1:-$ROOT_DIR/.wp-plugin-base/templates/child}"
+  local pairs="" source_file="" destination_path="" paths=""
+  pairs="$(wp_plugin_base_print_all_managed_template_pairs "$template_dir")" || return 1
+  paths="$(
+    while IFS=$'\t' read -r source_file destination_path; do
+      [ -n "$destination_path" ] || continue
+      printf '%s\n' "$destination_path" || exit 1
+    done <<< "$pairs"
+    printf '%s\n' ".wp-plugin-base-automation.json" || exit 1
+  )" || return 1
+  sort -u <<< "$paths" || return 1
+}
+
+_wp_plugin_base_collect_all_managed_template_pairs() (
+  local template_dir="${1:-$ROOT_DIR/.wp-plugin-base/templates/child}"
+  AUTOMATION_PROFILE=managed
   WORDPRESS_QUALITY_PACK_ENABLED=true
   WORDPRESS_SECURITY_PACK_ENABLED=true
   WOOCOMMERCE_QIT_ENABLED=true
@@ -236,7 +254,7 @@ _wp_plugin_base_collect_all_managed_paths() (
   local paths=""
   paths="$(
     for AUTOMATION_PROVIDER in github gitlab; do
-      wp_plugin_base_print_managed_paths "$template_dir" || exit 1
+      wp_plugin_base_print_managed_template_pairs "$template_dir" || exit 1
     done
   )" || return 1
   sort -u <<< "$paths" || return 1
@@ -291,4 +309,8 @@ wp_plugin_base_print_required_seed_paths() {
 
 wp_plugin_base_print_all_managed_paths() {
   _wp_plugin_base_emit_managed_manifest _wp_plugin_base_collect_all_managed_paths "$@"
+}
+
+wp_plugin_base_print_all_managed_template_pairs() {
+  _wp_plugin_base_emit_managed_manifest _wp_plugin_base_collect_all_managed_template_pairs "$@"
 }

@@ -34,6 +34,9 @@ The foundation is designed for standard WordPress plugin repos, but it allows a 
 - custom suppressions file path
 - custom changelog heading
 - optional CODEOWNERS generation
+- a configured downstream default branch, independently of foundation-source trust
+- explicit generated build outputs and an optional checksummed artifact manifest
+- local-only validation and sync through `AUTOMATION_PROFILE=local`
 - opt-in REST namespace override for the managed operations pack
 
 ## Operational Modes
@@ -48,11 +51,13 @@ The foundation also exposes opt-in modes that change how strict the generated wo
 - `ADMIN_UI_STARTER=basic|dataviews` selects which admin starter the pack seeds; the legacy `ADMIN_UI_EXPERIMENTAL_DATAVIEWS=true` flag remains a compatibility alias for `dataviews`. Because starter files are child-owned and seeded once, switching modes later requires manual reconciliation or intentional re-seeding.
 - Disabling the admin UI pack is also a manual reconciliation step: sync removes managed bootstrap files, but child-owned entrypoints, `BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh`, and any existing `assets/admin-ui/` outputs must be reconciled by the project before validation or packaging will pass.
 
+Local conformance, migration of automation ownership, and prerelease development checks are described in [local development](local-development.md). Package permissions and cooperating-consumer guarantees follow the [package lifecycle](package-lifecycle.md). An application keeps its independently qualified WordPress minimum when optional runtime packs stay disabled; see [existing application adoption](existing-application-adoption.md).
+
 ## Intentional Non-Goals
 
 The foundation does not aim to support arbitrary release conventions. It stays opinionated around:
 
-- `main` as the protected release base branch
+- one protected release base branch (`DEFAULT_BRANCH`, default `main`)
 - release and hotfix pull requests as the publishing trigger
 - WordPress-style changelog sections
 - vendored `.wp-plugin-base/` source in the child repo

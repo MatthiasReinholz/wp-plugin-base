@@ -8,6 +8,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
+VALIDATION_PURPOSE=release
+if [ "${1:-}" = --purpose ]; then
+  VALIDATION_PURPOSE="${2:-}"
+  shift 2
+fi
+case "$VALIDATION_PURPOSE" in
+  release|development) ;;
+  *) echo "--purpose must be release or development." >&2; exit 1 ;;
+esac
 CONFIG_OVERRIDE="${1:-}"
 
 wp_plugin_base_require_commands "WordPress metadata validation" node
@@ -127,10 +136,14 @@ if [ "$PLUGIN_HEADER_TEXT_DOMAIN" != "$PLUGIN_SLUG" ]; then
   exit 1
 fi
 
-validate_regex "$PLUGIN_HEADER_VERSION" '^[0-9]+\.[0-9]+\.[0-9]+$' 'plugin Version'
+version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+if [ "$VALIDATION_PURPOSE" = development ]; then
+  version_pattern='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'
+fi
+validate_regex "$PLUGIN_HEADER_VERSION" "$version_pattern" 'plugin Version'
 validate_regex "$PLUGIN_HEADER_REQUIRES_AT_LEAST" '^[0-9]+\.[0-9]+(\.[0-9]+)?$' 'Requires at least'
 validate_regex "$README_TESTED_UP_TO" '^[0-9]+\.[0-9]+(\.[0-9]+)?$' 'Tested up to'
-validate_regex "$README_STABLE_TAG" '^[0-9]+\.[0-9]+\.[0-9]+$' 'Stable tag'
+validate_regex "$README_STABLE_TAG" "$version_pattern" 'Stable tag'
 validate_regex "$README_CONTRIBUTORS" '^[A-Za-z0-9][A-Za-z0-9-]*(,[[:space:]]*[A-Za-z0-9][A-Za-z0-9-]*)*$' 'Contributors'
 
 PLUGIN_HEADER_DOMAIN_PATH="$(header_value 'Domain Path')"
