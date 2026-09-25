@@ -3,7 +3,7 @@
 ## v1.9.0
 
 * Isolate generated runtime classes per plugin and validate REST/Abilities input consistently, including nullable values, normalized input, and permission configuration.
-* Preserve published release bytes and provenance on retries; constrain authenticated source fetching, update branches, and dependency publication credentials.
+* Preserve published release bytes and provenance on retries; constrain authenticated source fetching, update branches, and dependency publication credentials. Keep authentication headers out of GitLab release notes and clean temporary credentials when header creation fails.
 * Verify WordPress.org working-copy operations and compare exact package content before permitting release repair.
 * Reject unsafe generation/build paths, symlink escapes, excluded runtime files, and incomplete foundation runtime packages.
 * Centralize approved action pins, migrate reviewed child workflow references, stage migrated files, and clarify foundation versus child dependency ownership.
