@@ -81,7 +81,9 @@ When adding a new updater target:
 
 `scripts/lib/action-pins.json` is the authoritative action catalog used by both the
 workflow auditor and the sync-time migration. Each entry records the current approved
-commit and explicitly reviewed predecessor commits. Sync changes only parsed `uses`
+commit and explicitly reviewed predecessor commits. Keep the documented pins in
+[the security model](security-model.md) synchronized; the foundation gate checks
+them against the catalog. Sync changes only parsed `uses`
 values in child workflows and composite actions; it preserves comments, formatting,
 step inputs, scripts, and unrelated text. Tags and unknown commits fail closed and
 require review. A predecessor is eligible for migration but is never accepted by audit.

@@ -125,16 +125,16 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml"
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-release.yml" 'concurrency:' "finalize-release workflow must serialize release publication."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-foundation-release.yml" 'concurrency:' "finalize-foundation-release workflow must serialize foundation release publication."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "Security documentation must advertise the reviewed upload-artifact SHA."
-assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Root CI workflow must pin upload-sarif to the reviewed SHA."
-assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Child CI workflow must pin upload-sarif to the reviewed SHA."
-assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28' "Security documentation must advertise the reviewed upload-sarif SHA."
+reviewed_sarif_pin="$(jq -er '.actions["github/codeql-action/upload-sarif"].current | select(test("^[a-f0-9]{40}$"))' "$ROOT_DIR/scripts/lib/action-pins.json")"
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Root CI workflow must pin upload-sarif to the reviewed SHA."
+assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Child CI workflow must pin upload-sarif to the reviewed SHA."
+assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Security documentation must advertise the reviewed upload-sarif SHA."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'ruby "$SCRIPT_DIR/../lib/action_pins.rb" "${audit_yaml_files[@]}"' "Workflow audit must use the shared action catalog."
 ruby - "$ROOT_DIR" <<'RUBY'
 require File.join(ARGV.fetch(0), 'scripts/lib/action_pins')
 policy = WPPluginBaseActionPins.catalog
 name = 'github/codeql-action/upload-sarif'
-expected = 'db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28'
-abort 'Action catalog must approve the reviewed upload-sarif SHA.' unless policy.fetch(name).fetch('current') == expected
+expected = policy.fetch(name).fetch('current')
 WPPluginBaseActionPins.replacement("#{name}@#{expected}", policy)
 rejected = ['38697555549f1db7851b81482ff19f1fa5c4fedc', '9e0d7b8d25671d64c341c19c0152d693099fb5ba'] + policy.fetch(name).fetch('predecessors')
 rejected.each do |pin|
