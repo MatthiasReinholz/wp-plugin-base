@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9.0
+
+* fix: retain Plugin Check finding locations in JSON reports
+* fix: preserve complete managed manifests and propagate staging failures
+* Read foundation SARIF assertions from the action catalog
+* Preserve supported minimatch APIs across admin tooling
+* Harden release trust, runtime contracts, dependency maintenance and CI
+* Isolate generated runtime classes and preserve ability request input (#342)
+* Keep security scans enforceable across reporting capabilities (#341)
+
 ## v1.8.3
 
 * Validate the actual release branch and reject malformed release or hotfix branch names (#340)
