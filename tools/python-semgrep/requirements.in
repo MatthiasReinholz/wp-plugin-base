@@ -1,6 +1,6 @@
 semgrep==1.178.0
 # Keep the shared security-tool environment on a patched, hash-locked installer.
-pip==26.2
+pip==26.2.1
 # Preserve Semgrep's Python >=3.10 support; rpds-py 2026 releases require 3.11.
 # Revisit this bound when intentionally raising the supported Python floor.
 rpds-py<2026
