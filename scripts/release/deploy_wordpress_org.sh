@@ -20,11 +20,17 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 wp_plugin_base_require_vars PLUGIN_SLUG WORDPRESS_ORG_SLUG ZIP_FILE
 wp_plugin_base_require_vars SVN_USERNAME SVN_PASSWORD
 
-SOURCE_DIR="${SOURCE_OVERRIDE:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
-LOCAL_ZIP_PATH="$ROOT_DIR/dist/$ZIP_FILE"
+SOURCE_DIR="${SOURCE_OVERRIDE:-${WP_PLUGIN_BASE_PACKAGE_DIR:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}}"
+LOCAL_ZIP_PATH="${WP_PLUGIN_BASE_PACKAGE_ZIP:-$ROOT_DIR/dist/$ZIP_FILE}"
+wp_plugin_base_require_package_input package_dir "$SOURCE_DIR"
+wp_plugin_base_require_package_input zip_path "$LOCAL_ZIP_PATH"
 ASSETS_DIR="$ROOT_DIR/.wordpress-org"
 ALLOW_TAG_REDEPLOY="${WP_PLUGIN_BASE_ALLOW_WPORG_TAG_REDEPLOY:-false}"
 SVN_HOST="plugins.svn.wordpress.org"

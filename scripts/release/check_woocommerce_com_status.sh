@@ -12,6 +12,7 @@ wp_plugin_base_require_commands "WooCommerce.com status check" curl jq
 
 CONFIG_OVERRIDE="${1:-}"
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
 
 if [ -z "${WOO_COM_USERNAME:-}" ] || [ -z "${WOO_COM_APP_PASSWORD:-}" ]; then
   echo "WOO_COM_USERNAME and WOO_COM_APP_PASSWORD must be set for WooCommerce.com status checks." >&2

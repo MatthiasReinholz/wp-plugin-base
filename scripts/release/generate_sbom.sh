@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
+
 SOURCE_PATH="${1:-}"
 OUTPUT_PATH="${2:-}"
 
@@ -20,6 +25,8 @@ if [ ! -e "$SOURCE_PATH" ]; then
   exit 1
 fi
 
+wp_plugin_base_require_package_input package_dir "$SOURCE_PATH"
+wp_plugin_base_require_package_input sbom_path "$OUTPUT_PATH"
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 
 SYFT_FORMAT_PRETTY=true syft "dir:${SOURCE_PATH}" -o "cyclonedx-json=${OUTPUT_PATH}" >/dev/null

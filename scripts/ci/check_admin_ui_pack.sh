@@ -36,7 +36,13 @@ INDEX_SCRIPT_PATH="$(wp_plugin_base_resolve_path "assets/admin-ui/index.js")"
 INDEX_ASSET_PATH="$(wp_plugin_base_resolve_path "assets/admin-ui/index.asset.php")"
 INDEX_STYLE_PATH="$(wp_plugin_base_resolve_path "assets/admin-ui/style-index.css")"
 ADMIN_UI_ASSETS_DIR="$(wp_plugin_base_resolve_path "assets/admin-ui")"
-ZIP_PATH="$(wp_plugin_base_resolve_path "dist/$ZIP_FILE")"
+ZIP_PATH="${WP_PLUGIN_BASE_PACKAGE_ZIP:-$(wp_plugin_base_resolve_path "dist/$ZIP_FILE")}"
+if [ -n "${WP_PLUGIN_BASE_PACKAGE_DIR:-}" ]; then
+  INDEX_SCRIPT_PATH="$WP_PLUGIN_BASE_PACKAGE_DIR/assets/admin-ui/index.js"
+  INDEX_ASSET_PATH="$WP_PLUGIN_BASE_PACKAGE_DIR/assets/admin-ui/index.asset.php"
+  INDEX_STYLE_PATH="$WP_PLUGIN_BASE_PACKAGE_DIR/assets/admin-ui/style-index.css"
+  ADMIN_UI_ASSETS_DIR="$WP_PLUGIN_BASE_PACKAGE_DIR/assets/admin-ui"
+fi
 # DataViews bundles its public UI implementation and styles. Keep its measured
 # opt-in budget separate from the lightweight basic starter.
 if [ "${ADMIN_UI_STARTER:-basic}" = dataviews ]; then
@@ -153,7 +159,7 @@ if [ "$total_asset_gzip_bytes" -gt "$MAX_TOTAL_GZIP_BYTES" ]; then
   exit 1
 fi
 
-zip_listing="$(unzip -Z1 "$ZIP_PATH")"
+zip_listing="$(unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT; unzip -Z1 "$ZIP_PATH")"
 if ! grep -Fq "$PLUGIN_SLUG/assets/admin-ui/index.js" <<<"$zip_listing"; then
   echo "Admin UI package zip does not contain assets/admin-ui/index.js." >&2
   exit 1

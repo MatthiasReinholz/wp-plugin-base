@@ -7,6 +7,8 @@ FOUNDATION_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONFIG_SCHEMA_PATH="$FOUNDATION_DIR/docs/config-schema.json"
 # shellcheck source=../lib/load_config.sh
 . "$SCRIPT_DIR/../lib/load_config.sh"
+# shellcheck source=../lib/build_outputs.sh
+. "$SCRIPT_DIR/../lib/build_outputs.sh"
 
 CONFIG_SCOPE="project"
 CONFIG_OVERRIDE=""
@@ -293,6 +295,14 @@ validate_regex "$FOUNDATION_RELEASE_SOURCE_PROVIDER" '^(github-release|gitlab-re
 validate_regex "$FOUNDATION_RELEASE_SOURCE_REFERENCE" '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+$' 'FOUNDATION_RELEASE_SOURCE_REFERENCE'
 validate_trusted_git_url "$FOUNDATION_RELEASE_SOURCE_API_BASE" 'FOUNDATION_RELEASE_SOURCE_API_BASE'
 validate_regex "$FOUNDATION_VERSION" '^v[0-9]+\.[0-9]+\.[0-9]+$' 'FOUNDATION_VERSION'
+validate_regex "$AUTOMATION_PROFILE" '^(managed|local)$' 'AUTOMATION_PROFILE'
+if ! wp_plugin_base_valid_branch "$DEFAULT_BRANCH"; then
+  echo "DEFAULT_BRANCH must be a supported Git branch name: $DEFAULT_BRANCH" >&2
+  exit 1
+fi
+if [[ "$CONFIG_SCOPE" =~ ^(release|deploy-structure|deploy)$ ]]; then
+  wp_plugin_base_require_managed_automation "${CONFIG_SCOPE} validation"
+fi
 validate_regex "$PRODUCTION_ENVIRONMENT" '^[A-Za-z0-9_.-]+$' 'PRODUCTION_ENVIRONMENT'
 if [ -n "${FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER:-}" ]; then
   validate_trusted_git_url "$FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER" 'FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER'
@@ -336,8 +346,10 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
   validate_distignore_path "$DISTIGNORE_FILE"
 
   if [ -n "${PACKAGE_INCLUDE:-}" ]; then
-    validate_repo_relative_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE" true
+    validate_repo_relative_paths "$PACKAGE_INCLUDE" "PACKAGE_INCLUDE"
   fi
+
+  wp_plugin_base_validate_build_inputs
 
   validate_repo_relative_paths "$WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE" "WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE"
 

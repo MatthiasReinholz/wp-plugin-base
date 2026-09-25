@@ -9,8 +9,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 # shellcheck source=../lib/managed_files.sh
 . "$SCRIPT_DIR/../lib/managed_files.sh"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+# shellcheck source=../lib/build_outputs.sh
+. "$SCRIPT_DIR/../lib/build_outputs.sh"
 
-wp_plugin_base_require_commands "package build" rsync zip
+wp_plugin_base_require_commands "package build" rsync zip python3 ruby
 
 wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars PLUGIN_SLUG MAIN_PLUGIN_FILE ZIP_FILE
@@ -19,17 +23,6 @@ MAIN_PLUGIN_PATH="$(wp_plugin_base_resolve_path "$MAIN_PLUGIN_FILE")"
 README_PATH="$(wp_plugin_base_resolve_path "$README_FILE")"
 DISTIGNORE_PATH="$(wp_plugin_base_resolve_path "$DISTIGNORE_FILE")"
 ACTIVE_CONFIG_RELATIVE_PATH="${CONFIG_PATH#"$ROOT_DIR"/}"
-DIST_DIR="$ROOT_DIR/dist"
-STAGE_ROOT="$DIST_DIR/package"
-STAGE_DIR="$STAGE_ROOT/$PLUGIN_SLUG"
-ZIP_PATH="$DIST_DIR/$ZIP_FILE"
-EXCLUDES_FILE="$(mktemp)"
-
-cleanup() {
-  rm -f "$EXCLUDES_FILE"
-}
-
-trap cleanup EXIT
 
 if [ ! -f "$MAIN_PLUGIN_PATH" ]; then
   echo "Main plugin file not found: $MAIN_PLUGIN_FILE" >&2
@@ -47,14 +40,7 @@ if [[ ! "$PLUGIN_SLUG" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
 fi
 
 assert_package_output_paths() {
-  local output_path
-  for output_path in "$DIST_DIR" "$STAGE_ROOT" "$STAGE_DIR" "$ZIP_PATH"; do
-    wp_plugin_base_assert_path_within_root "$output_path" "Package output"
-    if [ -L "$output_path" ]; then
-      echo "Package output must not be a symbolic link: $output_path" >&2
-      exit 1
-    fi
-  done
+  python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" guard "$ROOT_DIR" "$PLUGIN_SLUG" "$ZIP_FILE"
 }
 
 # Reject unsafe output paths before executing a build or removing old artifacts.
@@ -63,6 +49,28 @@ assert_package_output_paths
 wp_plugin_base_assert_path_within_root "$MAIN_PLUGIN_PATH" "Main plugin file"
 wp_plugin_base_assert_path_within_root "$README_PATH" "Readme file"
 wp_plugin_base_assert_path_within_root "$DISTIGNORE_PATH" "Distignore file"
+wp_plugin_base_validate_build_inputs
+if [ -n "${BUILD_SCRIPT:-}" ]; then
+  wp_plugin_base_assert_path_within_root "$(wp_plugin_base_resolve_path "$BUILD_SCRIPT")" "BUILD_SCRIPT"
+fi
+wp_plugin_base_package_lock "$0" "$@"
+
+GENERATION_DIR="$(python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" create "$ROOT_DIR" "$PLUGIN_SLUG" "$ZIP_FILE")"
+STAGE_ROOT="$GENERATION_DIR/package"
+STAGE_DIR="$STAGE_ROOT/$PLUGIN_SLUG"
+ZIP_PATH="$GENERATION_DIR/$ZIP_FILE"
+GENERATION_PUBLISHED=false
+EXCLUDES_FILE="$(mktemp)"
+
+cleanup() {
+  rm -f "$EXCLUDES_FILE"
+  if [ "$GENERATION_PUBLISHED" != true ]; then
+    python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" discard "$ROOT_DIR" "$GENERATION_DIR" || true
+  fi
+}
+
+trap cleanup EXIT
+
 
 # Keep lib/ package-included: optional runtime packs (for example GitHub updater)
 # ship files from lib/wp-plugin-base/ when explicitly enabled.
@@ -79,6 +87,7 @@ cat <<'EOF' > "$EXCLUDES_FILE"
 /dist/
 /node_modules/
 /.wp-plugin-base.env
+/.wp-plugin-base-automation.json
 /.wp-plugin-base-admin-ui/
 EOF
 
@@ -106,6 +115,7 @@ if [ -n "${BUILD_SCRIPT:-}" ]; then
     done < <(wp_plugin_base_csv_to_lines "$BUILD_SCRIPT_ARGS")
   fi
 
+  wp_plugin_base_prepare_build_outputs
   echo "Running build script: $BUILD_SCRIPT"
   (
     cd "$ROOT_DIR"
@@ -113,6 +123,8 @@ if [ -n "${BUILD_SCRIPT:-}" ]; then
   )
   echo "Build script completed."
 fi
+
+wp_plugin_base_validate_build_outputs
 
 if ! wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}" && [ -d "$ROOT_DIR/assets/admin-ui" ] && find "$ROOT_DIR/assets/admin-ui" -type f | grep -q .; then
   echo "ADMIN_UI_PACK_ENABLED=false but assets/admin-ui still contains built files after the configured build step. Remove the stale admin UI assets or re-enable the admin UI pack before packaging." >&2
@@ -149,7 +161,6 @@ mv "$filtered_excludes_file" "$EXCLUDES_FILE"
 # A project-owned build can change output paths, so recheck immediately before
 # the first destructive operation as well as before running the build.
 assert_package_output_paths
-rm -rf "$STAGE_ROOT" "$ZIP_PATH"
 mkdir -p "$STAGE_DIR"
 
 if [ -n "${PACKAGE_INCLUDE:-}" ]; then
@@ -285,20 +296,17 @@ if [ -n "$staged_symlinks" ]; then
   exit 1
 fi
 
-find "$STAGE_DIR" -exec touch -h -t 200001010000.00 {} +
-(cd "$STAGE_ROOT" && find "$PLUGIN_SLUG" -print | LC_ALL=C sort | zip -X -q "$ZIP_PATH" -@)
+wp_plugin_base_validate_build_outputs "$STAGE_DIR"
+python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" normalize "$STAGE_DIR"
+(
+  # Info-ZIP honors implicit environment options even with explicit arguments.
+  unset ZIPOPT ZIP UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT
+  export TZ=UTC
+  cd "$STAGE_ROOT"
+  find "$PLUGIN_SLUG" -print | LC_ALL=C sort | zip -X -q "$ZIP_PATH" -@
+)
+python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" verify "$ZIP_PATH" "$STAGE_DIR"
+python3 "$WP_PLUGIN_BASE_PACKAGE_HELPER" publish "$ROOT_DIR" "$GENERATION_DIR" "$PLUGIN_SLUG" "$ZIP_FILE"
+GENERATION_PUBLISHED=true
 
-if [ ! -f "$ZIP_PATH" ]; then
-  echo "Failed to create package zip." >&2
-  exit 1
-fi
-
-if command -v unzip >/dev/null 2>&1; then
-  zip_listing="$(unzip -Z1 "$ZIP_PATH")"
-  if ! printf '%s\n' "$zip_listing" | grep -q "^$PLUGIN_SLUG/$MAIN_PLUGIN_FILE$"; then
-    echo "Zip archive does not contain the expected plugin root structure." >&2
-    exit 1
-  fi
-fi
-
-echo "Created $ZIP_PATH"
+echo "Created verified package generation: $ZIP_PATH"

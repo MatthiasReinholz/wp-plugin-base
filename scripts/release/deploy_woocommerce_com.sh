@@ -23,7 +23,13 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "release and deployment"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_check_captured_package
 wp_plugin_base_require_vars ZIP_FILE
+ZIP_PATH="${ZIP_PATH_OVERRIDE:-${WP_PLUGIN_BASE_PACKAGE_ZIP:-$ROOT_DIR/dist/$ZIP_FILE}}"
+wp_plugin_base_require_package_input zip_path "$ZIP_PATH"
 
 if [ -z "${WOOCOMMERCE_COM_PRODUCT_ID:-}" ]; then
   echo "WOOCOMMERCE_COM_PRODUCT_ID is empty; skipping WooCommerce.com deploy." >&2
@@ -67,7 +73,6 @@ WOO_PASSWORD_FILE="$WOO_CREDENTIAL_DIR/password.txt"
 )
 unset WOO_COM_USERNAME WOO_COM_APP_PASSWORD
 
-ZIP_PATH="${ZIP_PATH_OVERRIDE:-$ROOT_DIR/dist/$ZIP_FILE}"
 if [ ! -f "$ZIP_PATH" ]; then
   echo "WooCommerce.com deploy ZIP not found: $ZIP_PATH" >&2
   exit 1

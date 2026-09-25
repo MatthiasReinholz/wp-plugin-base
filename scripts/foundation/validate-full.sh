@@ -79,6 +79,7 @@ if [ "${WP_PLUGIN_BASE_SKIP_FAST_VALIDATE:-false}" != "true" ]; then
   bash "$ROOT_DIR/scripts/foundation/validate.sh" --mode "$ASSURANCE_MODE"
 fi
 
+bash "$ROOT_DIR/scripts/foundation/test_existing_application_adoption.sh"
 bash "$ROOT_DIR/scripts/foundation/test_quality_pack_platform.sh"
 
 quality_fixture="$(mktemp -d)"

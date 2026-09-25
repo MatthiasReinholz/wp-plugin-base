@@ -32,6 +32,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Require managed automation profile
+        run: bash .wp-plugin-base/scripts/ci/check_automation_profile.sh ".wp-plugin-base.env"
+
       - name: Read config
         id: config
         shell: bash
@@ -128,6 +131,10 @@ jobs:
             -C "$RUNNER_TEMP/wp-plugin-base" fetch --depth 1 origin "${{ steps.verify.outputs.commit_sha }}"
           git -C "$RUNNER_TEMP/wp-plugin-base" checkout --detach FETCH_HEAD
 
+      - name: Capture existing automation ownership
+        if: ${{ steps.latest.outputs.update_needed == 'true' }}
+        run: bash .wp-plugin-base/scripts/update/capture_automation_ownership.sh ".wp-plugin-base.env"
+
       - name: Refresh vendored foundation directory
         if: ${{ steps.latest.outputs.update_needed == 'true' }}
         run: |
@@ -193,7 +200,7 @@ jobs:
         run: |
           bash .wp-plugin-base/scripts/update/create_or_update_pr.sh \
             "chore/update-wp-plugin-base-${{ steps.verify.outputs.version }}" \
-            "main" \
+            "__DEFAULT_BRANCH__" \
             "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
             "chore: update wp-plugin-base to ${{ steps.verify.outputs.version }}" \
             "$RUNNER_TEMP/foundation-update-pr.md"

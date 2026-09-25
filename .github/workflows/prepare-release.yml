@@ -19,6 +19,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  RELEASE_WORKFLOW_BRANCH: ${{ github.event.repository.default_branch }}
 
 permissions:
   contents: read
@@ -54,11 +55,11 @@ jobs:
             exit 1
           fi
 
-          if [ "$BASE_REF" != "main" ]; then
+          if [ "$BASE_REF" != "$RELEASE_WORKFLOW_BRANCH" ]; then
             encoded_ref="$(jq -nr --arg value "$BASE_REF" '$value|@uri')"
             protected="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${encoded_ref}" --jq '.protected')"
             if [ "$protected" != "true" ]; then
-              echo "Release base ref $BASE_REF must be main or a protected branch." >&2
+              echo "Release base ref $BASE_REF must be the default branch or a protected branch." >&2
               exit 1
             fi
           fi
@@ -69,6 +70,9 @@ jobs:
           ref: ${{ inputs.base_ref }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Require managed automation profile
+        run: bash .wp-plugin-base/scripts/ci/check_automation_profile.sh "${{ inputs.config_path }}"
 
       - name: Resolve target version
         id: version

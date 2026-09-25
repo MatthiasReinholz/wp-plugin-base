@@ -1,0 +1,5 @@
+# Fixture formatting follows the WordPress JavaScript toolchain.
+# Project sync manages the root EditorConfig separately from app-owned sources.
+[*.{ts,tsx,mjs,cjs,scss}]
+indent_style = tab
+indent_size = 4

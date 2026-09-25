@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
     branches:
-      - main
+      - '__DEFAULT_BRANCH__'
   push:
     branches:
       - 'feature/**'
@@ -71,15 +71,16 @@ jobs:
           node-version: ${{ steps.config.outputs.node_version }}
 
       - name: Validate repository
+        id: package
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: bash .wp-plugin-base/scripts/ci/validate_project.sh ".wp-plugin-base.env" "$BRANCH_NAME"
+        run: WP_PLUGIN_BASE_PACKAGE_RESULT_FILE="$GITHUB_OUTPUT" bash .wp-plugin-base/scripts/ci/validate_project.sh ".wp-plugin-base.env" "$BRANCH_NAME"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ steps.config.outputs.plugin_slug }}-package
-          path: dist/${{ steps.config.outputs.zip_file }}
+          path: ${{ steps.package.outputs.zip_path }}
           if-no-files-found: error
 
   secret-scan:

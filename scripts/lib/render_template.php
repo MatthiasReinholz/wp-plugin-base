@@ -28,6 +28,19 @@ $replace = static function (string $text, callable $encode) use ($values): strin
 $identity = static fn(string $value): string => $value;
 $json = static fn(string $value): string => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
+// This restricted Git ref is used inside authored quoted shell/YAML literals
+// and exact GitHub expressions. Validate independently before raw substitution.
+if (str_contains($content, '__DEFAULT_BRANCH__')) {
+    $branch = getenv('DEFAULT_BRANCH');
+    $branch = (false === $branch || '' === $branch) ? 'main' : $branch;
+    if ('HEAD' === $branch || !preg_match('~^[A-Za-z0-9][A-Za-z0-9._/-]*$~D', $branch)
+        || str_contains($branch, '..') || str_contains($branch, '//')
+        || preg_match('~(^|/)(refs|pull)(/|$)|(^|/)\\.|\\.lock(/|$)|[/.]$~', $branch)) {
+        throw new RuntimeException('Unsafe default branch in template rendering.');
+    }
+    $content = str_replace('__DEFAULT_BRANCH__', $branch, $content);
+}
+
 // Rename authored runtime symbols before inserting configuration, so a plugin
 // display name containing a framework-like identifier remains literal data.
 if ('true' === getenv('WP_PLUGIN_BASE_RUNTIME_TEMPLATE') && '' !== (string) getenv('RUNTIME_CLASS_PREFIX')) {

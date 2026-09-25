@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/provider.sh
 . "$SCRIPT_DIR/../lib/provider.sh"
 
-wp_plugin_base_require_commands "Sigstore bundle verification" cosign
+wp_plugin_base_require_commands "Sigstore bundle verification" cosign git
 
 REPOSITORY="${1:-}"
 ARTIFACT_PATH="${2:-}"
@@ -18,9 +18,10 @@ SOURCE_PROVIDER="${5:-${FOUNDATION_RELEASE_SOURCE_PROVIDER:-github-release}}"
 SOURCE_API_BASE="${6:-${FOUNDATION_RELEASE_SOURCE_API_BASE:-}}"
 SOURCE_ISSUER="${7:-${FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER:-}}"
 RELEASE_TAG="${8:-}"
+PLUGIN_BRANCH="${9:-${DEFAULT_BRANCH:-main}}"
 
 if [ -z "$REPOSITORY" ] || [ -z "$ARTIFACT_PATH" ] || [ -z "$BUNDLE_PATH" ]; then
-  echo "Usage: $0 <reference> <artifact-path> <bundle-path> [plugin|foundation] [provider] [api-base] [issuer] [release-tag]" >&2
+  echo "Usage: $0 <reference> <artifact-path> <bundle-path> [plugin|foundation] [provider] [api-base] [issuer] [release-tag] [plugin-branch]" >&2
   exit 1
 fi
 
@@ -42,7 +43,7 @@ identity_regex="${WP_PLUGIN_BASE_SIGSTORE_CERTIFICATE_IDENTITY_REGEXP:-}"
 issuer="${WP_PLUGIN_BASE_SIGSTORE_CERTIFICATE_OIDC_ISSUER:-}"
 
 if [ -z "$identity_regex" ]; then
-  identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex "$SOURCE_PROVIDER" "$SOURCE_API_BASE" "$REPOSITORY" "$VERIFICATION_SCOPE" "$RELEASE_TAG")"
+  identity_regex="$(wp_plugin_base_provider_sigstore_identity_regex "$SOURCE_PROVIDER" "$SOURCE_API_BASE" "$REPOSITORY" "$VERIFICATION_SCOPE" "$RELEASE_TAG" "$PLUGIN_BRANCH")"
 fi
 
 if [ -z "$issuer" ]; then

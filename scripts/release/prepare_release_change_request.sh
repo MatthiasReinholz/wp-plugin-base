@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 RELEASE_TYPE="${1:-}"
 VERSION_OVERRIDE="${2:-}"
-BASE_REF="${3:-main}"
+BASE_REF="${3:-}"
 CONFIG_OVERRIDE="${4:-${WP_PLUGIN_BASE_CONFIG:-.wp-plugin-base.env}}"
 
 if [ -z "$RELEASE_TYPE" ]; then
@@ -23,6 +23,8 @@ fi
 wp_plugin_base_require_commands "release change-request preparation" git perl
 
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
+wp_plugin_base_require_managed_automation "Release preparation"
+BASE_REF="${BASE_REF:-${DEFAULT_BRANCH:-main}}"
 
 derive_repository() {
   local provider="$1"

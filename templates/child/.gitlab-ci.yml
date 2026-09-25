@@ -81,7 +81,7 @@ prepare_release:
     - when: never
   script:
     - test -n "${RELEASE_TYPE:-}" || { echo "Set RELEASE_TYPE to patch, minor, major, or custom when starting the pipeline."; exit 1; }
-    - bash .wp-plugin-base/scripts/release/prepare_release_change_request.sh "${RELEASE_TYPE}" "${RELEASE_VERSION:-}" "${BASE_REF:-main}" ".wp-plugin-base.env"
+    - bash .wp-plugin-base/scripts/release/prepare_release_change_request.sh "${RELEASE_TYPE}" "${RELEASE_VERSION:-}" "${BASE_REF:-__DEFAULT_BRANCH__}" ".wp-plugin-base.env"
 
 update_foundation:
   extends: .wp_plugin_base_runtime
@@ -94,7 +94,7 @@ update_foundation:
   script:
     - bash .wp-plugin-base/scripts/release/install_release_security_tools.sh "$CI_PROJECT_DIR/.release-tools"
     - export PATH="$CI_PROJECT_DIR/.release-tools:$PATH"
-    - bash .wp-plugin-base/scripts/update/run_foundation_update.sh ".wp-plugin-base.env" "${BASE_REF:-main}"
+    - bash .wp-plugin-base/scripts/update/run_foundation_update.sh ".wp-plugin-base.env" "${BASE_REF:-__DEFAULT_BRANCH__}"
 
 release:
   extends: .wp_plugin_base_release_runtime

@@ -14,8 +14,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/require_tools.sh
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
+SYNC_MODE=sync
+if [ "${1:-}" = --capture-automation-ownership ]; then
+  SYNC_MODE=capture-automation-ownership
+  shift
+fi
+
 wp_plugin_base_require_commands "managed file sync" perl php ruby
-bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope project "${1:-}"
+config_scope=project
+if [ "$SYNC_MODE" = capture-automation-ownership ]; then config_scope=sync; fi
+bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope "$config_scope" "${1:-}"
 
 wp_plugin_base_load_config "${1:-}"
 wp_plugin_base_require_vars FOUNDATION_RELEASE_SOURCE_PROVIDER FOUNDATION_RELEASE_SOURCE_REFERENCE FOUNDATION_RELEASE_SOURCE_API_BASE FOUNDATION_VERSION PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION
@@ -48,20 +56,13 @@ managed_template_pairs="$(wp_plugin_base_print_managed_template_pairs "$TEMPLATE
 seed_template_pairs="$(wp_plugin_base_print_required_seed_template_pairs "$TEMPLATE_DIR")" || exit 1
 active_managed_paths="$(wp_plugin_base_print_managed_paths "$TEMPLATE_DIR")" || exit 1
 all_managed_paths="$(wp_plugin_base_print_all_managed_paths "$TEMPLATE_DIR")" || exit 1
-
-# A prefix is persisted once: later loads must not infer a different identity
-# after seed files appear. Existing runtime consumers keep their historic names.
-if { wp_plugin_base_is_true "$REST_OPERATIONS_PACK_ENABLED" || wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; } &&
-  ! grep -Eq '^[[:space:]]*RUNTIME_CLASS_PREFIX=' "$CONFIG_PATH" &&
-  [ -z "${RUNTIME_CLASS_PREFIX:-}" ] &&
-  [ ! -e "$ROOT_DIR/lib/wp-plugin-base/rest-operations" ] &&
-  [ ! -e "$ROOT_DIR/lib/wp-plugin-base/admin-ui" ] &&
-  [ ! -e "$ROOT_DIR/includes/rest-operations" ] &&
-  [ ! -e "$ROOT_DIR/includes/admin-ui" ]; then
-  RUNTIME_CLASS_PREFIX="$(PLUGIN_SLUG="$PLUGIN_SLUG" php -r '$slug = getenv("PLUGIN_SLUG"); echo "Wpb_" . substr(str_replace("-", "_", $slug), 0, 40) . "_" . substr(hash("sha256", $slug), 0, 12) . "_";')"
-  printf '\nRUNTIME_CLASS_PREFIX=%s\n' "$RUNTIME_CLASS_PREFIX" >> "$CONFIG_PATH"
-  export RUNTIME_CLASS_PREFIX
+all_template_pairs=""
+if [ ! -e "$ROOT_DIR/.wp-plugin-base-automation.json" ] && {
+  [ -d "$ROOT_DIR/.github" ] || [ -d "$ROOT_DIR/.gitlab" ] || [ -e "$ROOT_DIR/.gitlab-ci.yml" ];
+}; then
+  all_template_pairs="$(wp_plugin_base_print_all_managed_template_pairs "$TEMPLATE_DIR")" || exit 1
 fi
+
 
 render_template() {
   local source_file="$1"
@@ -89,7 +90,7 @@ render_template() {
   fi
   mkdir -p "$(dirname "$destination_file")"
 
-  export FOUNDATION_REPOSITORY FOUNDATION_RELEASE_SOURCE_PROVIDER FOUNDATION_RELEASE_SOURCE_REFERENCE FOUNDATION_RELEASE_SOURCE_API_BASE FOUNDATION_VERSION PRODUCTION_ENVIRONMENT CODEOWNERS_REVIEWERS
+  export FOUNDATION_REPOSITORY FOUNDATION_RELEASE_SOURCE_PROVIDER FOUNDATION_RELEASE_SOURCE_REFERENCE FOUNDATION_RELEASE_SOURCE_API_BASE FOUNDATION_VERSION PRODUCTION_ENVIRONMENT CODEOWNERS_REVIEWERS DEFAULT_BRANCH
   export PLUGIN_NAME PLUGIN_SLUG MAIN_PLUGIN_FILE README_FILE ZIP_FILE PHP_VERSION NODE_VERSION VERSION_CONSTANT_NAME DISTIGNORE_FILE
   export WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE GITHUB_RELEASE_UPDATER_REPO_URL PLUGIN_RUNTIME_UPDATE_PROVIDER PLUGIN_RUNTIME_UPDATE_SOURCE_URL AUTOMATION_PROVIDER REST_API_NAMESPACE REST_ABILITIES_ENABLED ADMIN_UI_EXPERIMENTAL_DATAVIEWS
   rendered_output="$(mktemp "$(dirname "$destination_file")/.wp-plugin-base-render.XXXXXX")"
@@ -101,6 +102,16 @@ render_template() {
   elif ! php "$SCRIPT_DIR/../lib/render_template.php" "$source_file" > "$rendered_output"; then
     rm -f "$rendered_output"
     return 1
+  fi
+  if [ "$source_file" = "$TEMPLATE_DIR/.gitignore" ] && { [ -n "${BUILD_OUTPUTS:-}" ] || [ -n "${BUILD_OUTPUT_MANIFEST:-}" ]; }; then
+    printf '\n# Application-declared generated build artifacts.\n' >> "$rendered_output"
+    while IFS= read -r generated_path; do
+      [ -n "$generated_path" ] || continue
+      printf '/%s\n' "$generated_path" >> "$rendered_output"
+    done < <(wp_plugin_base_csv_to_lines "${BUILD_OUTPUTS:-}")
+    if [ -n "${BUILD_OUTPUT_MANIFEST:-}" ]; then
+      printf '/%s/\n' "$(dirname "$BUILD_OUTPUT_MANIFEST")" >> "$rendered_output"
+    fi
   fi
   chmod 644 "$rendered_output"
   mv "$rendered_output" "$destination_file"
@@ -258,12 +269,77 @@ remove_disabled_managed_files() {
   local destination_path
   while IFS= read -r destination_path; do
     [ -n "$destination_path" ] || continue
+    case "$destination_path" in
+      .github/*|.gitlab/*|.gitlab-ci.yml)
+        # Host file removal requires byte-level ownership, never just a filename.
+        if grep -Fxq "$destination_path" <<< "$automation_removals"; then
+          rm -f "$ROOT_DIR/$destination_path"
+        fi
+        continue
+        ;;
+    esac
     if ! grep -Fxq "$destination_path" <<< "$active_managed_paths"; then
       wp_plugin_base_assert_path_within_root "$ROOT_DIR/$destination_path" "Managed cleanup"
       rm -f "$ROOT_DIR/$destination_path"
     fi
   done <<< "$all_managed_paths"
 }
+
+# Render hosted automation before any project mutation, then check recorded
+# ownership and conflicts. Other application workflows remain untouched.
+automation_scratch="$(mktemp -d)"
+trap 'rm -rf "$automation_scratch"' EXIT
+: > "$automation_scratch/desired"
+: > "$automation_scratch/legacy"
+for inventory in desired legacy; do
+  template_pairs="$managed_template_pairs"
+  if [ "$inventory" = legacy ]; then template_pairs="$all_template_pairs"; fi
+  while IFS=$'\t' read -r source_file destination_path; do
+    case "$destination_path" in
+      .github/*|.gitlab/*|.gitlab-ci.yml)
+        if [ "$inventory" = legacy ] && [ ! -e "$ROOT_DIR/$destination_path" ]; then continue; fi
+        render_template "$source_file" "$automation_scratch/rendered"
+        digest="$(ruby -rdigest -e 'puts Digest::SHA256.file(ARGV[0]).hexdigest' "$automation_scratch/rendered")"
+        printf '%s\t%s\n' "$digest" "$destination_path" >> "$automation_scratch/$inventory"
+        ;;
+    esac
+  done <<< "$template_pairs"
+done
+export AUTOMATION_PROFILE
+unset WP_PLUGIN_BASE_PRIOR_AUTOMATION_RECEIPT
+# A first update from a pre-receipt release has already replaced the vendor.
+# Reconstruct the previous committed template/config generation with our trusted
+# renderer, never by executing old scripts or claiming files by filename.
+if [ "$SYNC_MODE" = sync ] && [ ! -e "$ROOT_DIR/.wp-plugin-base-automation.json" ] &&
+  { [ -d "$ROOT_DIR/.github" ] || [ -d "$ROOT_DIR/.gitlab" ] || [ -e "$ROOT_DIR/.gitlab-ci.yml" ]; } &&
+  git -C "$ROOT_DIR" rev-parse --verify HEAD >/dev/null 2>&1; then
+  if python3 "$SCRIPT_DIR/recover_automation_ownership.py" "$ROOT_DIR" "$CONFIG_PATH" "$automation_scratch/previous-receipt.json" 2>"$automation_scratch/recovery-error"; then
+    export WP_PLUGIN_BASE_PRIOR_AUTOMATION_RECEIPT="$automation_scratch/previous-receipt.json"
+  else
+    cat "$automation_scratch/recovery-error" >&2
+  fi
+fi
+automation_removals="$(ruby "$SCRIPT_DIR/../lib/automation_ownership.rb" "$ROOT_DIR" "$automation_scratch/desired" "$automation_scratch/legacy" check)" || exit 1
+if [ "$SYNC_MODE" = capture-automation-ownership ]; then
+  wp_plugin_base_require_managed_automation "Legacy automation ownership capture"
+  ruby "$SCRIPT_DIR/../lib/automation_ownership.rb" "$ROOT_DIR" "$automation_scratch/desired" "$automation_scratch/legacy" write
+  echo "Captured byte-verified automation ownership without synchronizing project files."
+  exit 0
+fi
+
+# A prefix is persisted once: later loads must not infer a different identity
+# after seed files appear. Existing runtime consumers keep their historic names.
+if { wp_plugin_base_is_true "$REST_OPERATIONS_PACK_ENABLED" || wp_plugin_base_is_true "$ADMIN_UI_PACK_ENABLED"; } &&
+  ! grep -Eq '^[[:space:]]*RUNTIME_CLASS_PREFIX=' "$CONFIG_PATH" &&
+  [ -z "${RUNTIME_CLASS_PREFIX:-}" ] &&
+  [ ! -e "$ROOT_DIR/lib/wp-plugin-base/rest-operations" ] &&
+  [ ! -e "$ROOT_DIR/lib/wp-plugin-base/admin-ui" ] &&
+  [ ! -e "$ROOT_DIR/includes/rest-operations" ] &&
+  [ ! -e "$ROOT_DIR/includes/admin-ui" ]; then
+  RUNTIME_CLASS_PREFIX="$(PLUGIN_SLUG="$PLUGIN_SLUG" php -r '$slug = getenv("PLUGIN_SLUG"); echo "Wpb_" . substr(str_replace("-", "_", $slug), 0, 40) . "_" . substr(hash("sha256", $slug), 0, 12) . "_";')"
+  printf '\nRUNTIME_CLASS_PREFIX=%s\n' "$RUNTIME_CLASS_PREFIX" >> "$CONFIG_PATH"
+  export RUNTIME_CLASS_PREFIX
+fi
 
 warn_quality_pack_bootstrap_migration_risk
 remove_stale_managed_aliases
@@ -303,8 +379,9 @@ seed_template_once "$TEMPLATE_DIR/CHANGELOG.md" "$ROOT_DIR/CHANGELOG.md"
 # Remove retired foundation-owned test names, but preserve current consumer seeds.
 rm -f "$ROOT_DIR/tests/test-plugin-loads.php" "$ROOT_DIR/tests/PluginLoadsTest.php"
 
-if [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
+if [ "${AUTOMATION_PROFILE:-managed}" = managed ] && [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
   ruby "$SCRIPT_DIR/migrate_action_pins.rb" "$ROOT_DIR" "${WP_PLUGIN_BASE_ACTION_MIGRATION_MANIFEST:-}"
 fi
 
-echo "Synchronized managed project files."
+ruby "$SCRIPT_DIR/../lib/automation_ownership.rb" "$ROOT_DIR" "$automation_scratch/desired" "$automation_scratch/legacy" write
+echo "Synchronized managed project files (${AUTOMATION_PROFILE} automation profile)."

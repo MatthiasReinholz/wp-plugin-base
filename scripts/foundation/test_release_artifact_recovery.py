@@ -68,6 +68,7 @@ class ArtifactRecovery(unittest.TestCase):
         cosign.chmod(0o755)
         with zipfile.ZipFile(self.remote / 'standard-plugin.zip', 'w') as archive:
             archive.writestr('standard-plugin/standard-plugin.php', '<?php // verified bytes\n')
+            archive.writestr('standard-plugin/readme.txt', 'Verified readme\n')
         (self.remote / 'standard-plugin.zip.sigstore.json').write_text('{}')
         (self.remote / 'standard-plugin.zip.sbom.cdx.json').write_text('{}')
         self.environment = dict(os.environ, PATH=f'{self.bin}:{os.environ["PATH"]}',
@@ -95,6 +96,37 @@ class ArtifactRecovery(unittest.TestCase):
                                   (self.remote / 'standard-plugin.zip').read_bytes())
                 self.assertEqual((self.project / 'dist/package/standard-plugin/standard-plugin.php').read_text(),
                                   '<?php // verified bytes\n')
+
+    def test_both_hosts_reject_all_output_symlinks_before_any_mutation(self):
+        outside = self.directory / 'outside'
+        outside.mkdir()
+        sentinel = outside / 'sentinel'
+        sentinel.write_text('preserve external data')
+        cases = (
+            'dist', 'dist/package', 'dist/package/standard-plugin',
+            'dist/standard-plugin.zip', 'dist/standard-plugin.zip.sigstore.json',
+            'dist/standard-plugin.zip.sbom.cdx.json', 'dist/.generations',
+            'dist/package-generation.json', 'dist/.package.lock',
+        )
+        for provider in ('github', 'gitlab'):
+            for signature_status in ('0', '1'):
+                for relative in cases:
+                    with self.subTest(provider=provider, signature=signature_status, path=relative):
+                        dist = self.project / 'dist'
+                        if dist.is_symlink():
+                            dist.unlink()
+                        elif dist.exists():
+                            shutil.rmtree(dist)
+                        link = self.project / relative
+                        link.parent.mkdir(parents=True, exist_ok=True)
+                        directory_link = relative in ('dist', 'dist/package', 'dist/package/standard-plugin', 'dist/.generations')
+                        link.symlink_to(outside if directory_link else sentinel, target_is_directory=directory_link)
+                        result = self.run_script(f'restore_{provider}_release_assets.sh', '1.2.3', '.wp-plugin-base.env', FIXTURE_SIGNATURE_EXIT=signature_status)
+                        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertIn('symbolic link', result.stderr)
+                        self.assertEqual(sentinel.read_text(), 'preserve external data')
+                        self.assertEqual(list(outside.iterdir()), [sentinel])
+                        self.assertFalse((self.directory / 'mutation').exists())
 
     def test_signature_failure_never_replaces_existing_payload(self):
         (self.project / 'dist').mkdir(exist_ok=True)

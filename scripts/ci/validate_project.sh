@@ -43,6 +43,7 @@ wp_plugin_base_quality_pack_validation_hint() {
 
 managed_paths="$(wp_plugin_base_print_managed_paths)" || exit 1
 required_seed_paths="$(wp_plugin_base_print_required_seed_paths)" || exit 1
+WP_PLUGIN_BASE_ACTIVE_MANAGED_PATHS="$managed_paths" ruby "$SCRIPT_DIR/../lib/automation_ownership.rb" validate "$ROOT_DIR" "${AUTOMATION_PROFILE:-managed}"
 
 while IFS= read -r required_path; do
   [ -n "$required_path" ] || continue
@@ -162,14 +163,29 @@ if [ -z "$BRANCH_NAME" ] && git -C "$ROOT_DIR" symbolic-ref --quiet --short HEAD
   BRANCH_NAME="$(git -C "$ROOT_DIR" symbolic-ref --quiet --short HEAD)"
 fi
 
+package_result="$(mktemp)"
+trap 'rm -f "$package_result"' EXIT
+WP_PLUGIN_BASE_PACKAGE_RESULT_FILE="$package_result" bash "$SCRIPT_DIR/build_zip.sh" "$CONFIG_OVERRIDE"
+# shellcheck source=../lib/package_generation.sh
+. "$SCRIPT_DIR/../lib/package_generation.sh"
+wp_plugin_base_capture_package "$package_result"
+
+# Generated PHP/JS must receive the same syntax validation as source files.
 bash "$SCRIPT_DIR/lint_php.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/lint_js.sh" "$CONFIG_OVERRIDE"
+while IFS= read -r artifact; do
+  case "$artifact" in
+    *.php) php -l "$artifact" ;;
+    *.js) node --check "$artifact" ;;
+  esac
+done < <(find "$WP_PLUGIN_BASE_PACKAGE_DIR" -type f \( -name '*.php' -o -name '*.js' \) -print | sort)
 bash "$SCRIPT_DIR/check_forbidden_files.sh" "$CONFIG_OVERRIDE"
 bash "$SCRIPT_DIR/check_versions.sh" "" "$CONFIG_OVERRIDE"
 
+if [ "${AUTOMATION_PROFILE:-managed}" = managed ]; then
 case "${AUTOMATION_PROVIDER:-github}" in
   github)
-    bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR"
+    bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR" "${DEFAULT_BRANCH:-main}"
     ;;
   gitlab)
     bash "$SCRIPT_DIR/check_gitlab_ci.sh" "$CONFIG_OVERRIDE"
@@ -179,6 +195,7 @@ case "${AUTOMATION_PROVIDER:-github}" in
     exit 1
     ;;
 esac
+fi
 
 if wp_plugin_base_is_true "${REST_OPERATIONS_PACK_ENABLED:-false}"; then
   bash "$SCRIPT_DIR/scan_rest_operation_contract.sh" "$CONFIG_OVERRIDE"
@@ -189,7 +206,9 @@ if wp_plugin_base_is_true "${WP_PLUGIN_BASE_STRICT_DEPLOY_ENV_PROTECTION:-false}
   deploy_protection_args+=(--strict)
 fi
 
-if [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
+if [ "${AUTOMATION_PROFILE:-managed}" = local ]; then
+  echo "Local automation profile: hosted workflow and deployment-environment checks are inapplicable."
+elif [ "${AUTOMATION_PROVIDER:-github}" = "github" ]; then
   if [ "${#deploy_protection_args[@]}" -gt 0 ]; then
     bash "$SCRIPT_DIR/check_deploy_environment_protection.sh" "${deploy_protection_args[@]}" "$CONFIG_OVERRIDE"
   else
@@ -208,10 +227,14 @@ if [ -n "$BRANCH_NAME" ]; then
   bash "$SCRIPT_DIR/check_release_branch.sh" "$BRANCH_NAME" "$CONFIG_OVERRIDE"
 fi
 
-bash "$SCRIPT_DIR/build_zip.sh" "$CONFIG_OVERRIDE"
 
 if wp_plugin_base_is_true "${ADMIN_UI_PACK_ENABLED:-false}"; then
   bash "$SCRIPT_DIR/check_admin_ui_pack.sh" "$CONFIG_OVERRIDE"
+fi
+
+outer_package_result="${WP_PLUGIN_BASE_PROJECT_PACKAGE_RESULT_FILE:-${WP_PLUGIN_BASE_PACKAGE_RESULT_FILE:-}}"
+if [ -n "$outer_package_result" ]; then
+  cat "$package_result" >> "$outer_package_result"
 fi
 
 echo "Validated project repository at $ROOT_DIR"

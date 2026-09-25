@@ -34,6 +34,7 @@ case "$OUTPUT_SCOPE" in
   project)
     {
       echo "automation_provider=${AUTOMATION_PROVIDER}"
+      echo "default_branch=${DEFAULT_BRANCH:-main}"
       echo "automation_api_base=${AUTOMATION_API_BASE}"
       echo "trusted_git_hosts=${TRUSTED_GIT_HOSTS}"
       echo "plugin_slug=${PLUGIN_SLUG}"

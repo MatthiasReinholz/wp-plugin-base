@@ -2034,8 +2034,13 @@ fi
 wordpress_org_deploy_fixture="$(mktemp -d)"
 cp -R "$ROOT_DIR/tests/fixtures/standard-plugin/." "$wordpress_org_deploy_fixture/"
 mkdir -p "$wordpress_org_deploy_fixture/bin"
+WPORG_REAL_GIT="$(command -v git)"
+export WPORG_REAL_GIT
 cat > "$wordpress_org_deploy_fixture/bin/git" <<'EOF'
 #!/usr/bin/env bash
+if [ "$1" = check-ref-format ] && [ "$2" = --branch ]; then
+  exec "$WPORG_REAL_GIT" "$@"
+fi
 if [ "$1" = "-C" ] && [ "$3" = "tag" ] && [ "$4" = "--list" ]; then
   printf '%s\n' "${WPORG_LATEST_REPO_VERSION:-1.2.3}"
   exit 0
