@@ -2,13 +2,14 @@
 
 ## v1.9.0
 
-* fix: retain Plugin Check finding locations in JSON reports
-* fix: preserve complete managed manifests and propagate staging failures
-* Read foundation SARIF assertions from the action catalog
-* Preserve supported minimatch APIs across admin tooling
-* Harden release trust, runtime contracts, dependency maintenance and CI
-* Isolate generated runtime classes and preserve ability request input (#342)
-* Keep security scans enforceable across reporting capabilities (#341)
+* Isolate generated runtime classes per plugin and validate REST/Abilities input consistently, including nullable values, normalized input, and permission configuration.
+* Preserve published release bytes and provenance on retries; constrain authenticated source fetching, update branches, and dependency publication credentials.
+* Verify WordPress.org working-copy operations and compare exact package content before permitting release repair.
+* Reject unsafe generation/build paths, symlink escapes, excluded runtime files, and incomplete foundation runtime packages.
+* Centralize approved action pins, migrate reviewed child workflow references, stage migrated files, and clarify foundation versus child dependency ownership.
+* Refresh development dependencies with compatible PHP 8.0 and Python 3.10 locks, coherent admin starters, and scoped overrides; guard admin saves and test real browser behavior.
+* Preserve customized child files and PHPCS overlays; resolve complete managed manifests before mutations, retry interrupted output, and fail closed on listing or update-staging failures. Make generated agent guidance idempotent, isolate Git fixture environments, and clean only owned temporary WordPress environments.
+* Harden tool installation, preserve file paths in Plugin Check diagnostics, keep security enforcement independent of SARIF reporting permissions, and require all independent validation, bootstrap, and runtime jobs to succeed; document migration and operational acceptance requirements.
 
 ## v1.8.3
 
