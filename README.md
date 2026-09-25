@@ -97,6 +97,7 @@ Fast local validation depends on these commands being available:
 - `php`
 - `node`
 - `ruby`
+- `python3` (Python 3.10 or newer) for package generations, recovery, and import
 - `perl`
 - `jq`
 - `rsync`
@@ -110,7 +111,6 @@ Full local validation and optional flows need additional tools:
 - `gh` for GitHub release and pull request automation
 - `curl` for GitLab release publication, repair, and API-backed update flows
 - `docker` for WordPress readiness validation, Plugin Check, and the full foundation validation suite
-- `python3` for WordPress.org deployment credential handling
 - `svn` for WordPress.org deployment
 - `wp` is not required locally; release-time POT generation uses the pinned `@wordpress/env` bundle when `POT_FILE` is configured
 

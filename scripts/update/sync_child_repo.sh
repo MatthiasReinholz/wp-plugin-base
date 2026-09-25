@@ -20,7 +20,7 @@ if [ "${1:-}" = --capture-automation-ownership ]; then
   shift
 fi
 
-wp_plugin_base_require_commands "managed file sync" perl php ruby
+wp_plugin_base_require_commands "managed file sync" perl php ruby python3
 config_scope=project
 if [ "$SYNC_MODE" = capture-automation-ownership ]; then config_scope=sync; fi
 bash "$SCRIPT_DIR/../ci/validate_config.sh" --scope "$config_scope" "${1:-}"

@@ -40,7 +40,7 @@ if [ -z "$ASSURANCE_MODE" ]; then
   fi
 fi
 
-wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker
+wp_plugin_base_require_commands "full foundation validation" git php node ruby perl rsync zip unzip jq docker python3
 
 quality_fixture=""
 strict_plugin_check_fixture=""
