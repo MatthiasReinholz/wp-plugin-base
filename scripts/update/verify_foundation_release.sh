@@ -244,13 +244,13 @@ download_release_asset() {
 allowed_authors="${FOUNDATION_ALLOWED_RELEASE_AUTHORS:-github-actions[bot]}"
 verify_sigstore_script="${WP_PLUGIN_BASE_VERIFY_SIGSTORE_SCRIPT:-$SCRIPT_DIR/../release/verify_sigstore_bundle.sh}"
 WORK_DIR="$(mktemp -d)"
-wp_plugin_base_provider_write_auth_header "$SOURCE_PROVIDER" "$WORK_DIR/auth-header"
 
 cleanup() {
   rm -rf "$WORK_DIR"
 }
 
 trap cleanup EXIT
+wp_plugin_base_provider_write_auth_header "$SOURCE_PROVIDER" "$WORK_DIR/auth-header"
 
 case "$SOURCE_PROVIDER" in
   github|github-release)
