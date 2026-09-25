@@ -47,6 +47,14 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install native Subversion test tools
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Verify native Subversion test tools
+        run: |
+          svn --version --quiet
+          svnadmin --version --quiet
+
       - name: Install foundation assurance tools
         run: |
           bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools"
@@ -95,6 +103,14 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
+
+      - name: Install native Subversion test tools
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Verify native Subversion test tools
+        run: |
+          svn --version --quiet
+          svnadmin --version --quiet
 
       - name: Bootstrap strict-local foundation tools
         run: |

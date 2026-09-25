@@ -60,22 +60,63 @@ module BuildOutputs
     path
   end
 
-  def generated_path(value)
+  # Configuration accepts ./ aliases and contained absolute source paths. Keep
+  # lexical and resolved identities so an output declaration cannot erase an
+  # input through a different spelling, symlink alias, or hard link.
+  def protected_source_paths(root)
+    %w[MAIN_PLUGIN_FILE README_FILE BUILD_SCRIPT DISTIGNORE_FILE
+      WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE CONFIG_PATH].flat_map do |key|
+      value = ENV[key].to_s
+      next [] if value.empty?
+
+      absolute = File.expand_path(value, root)
+      begin
+        [absolute, File.realpath(absolute)]
+      rescue Errno::ENOENT, Errno::ENOTDIR
+        [absolute]
+      end
+    end.uniq
+  end
+
+  def protects_source?(root, value, sources, directory: false)
+    output = File.expand_path(value, root)
+    sources.any? do |source|
+      next true if source == output || source.start_with?(output + '/') || File.identical?(source, output)
+      next false unless directory
+
+      # Identity comparisons also cover case aliases on case-insensitive file
+      # systems, including an absent optional file beneath an existing parent.
+      ancestor = File.dirname(source)
+      matched = false
+      loop do
+        if File.identical?(ancestor, output)
+          matched = true
+          break
+        end
+        parent = File.dirname(ancestor)
+        break if parent == ancestor
+
+        ancestor = parent
+      end
+      matched
+    end
+  end
+
+  def generated_path(value, root, sources)
     value = relative(value, 'Generated output')
-    first = value.split('/').first
-    protected_sources = [ENV['MAIN_PLUGIN_FILE'], ENV['README_FILE'], ENV['BUILD_SCRIPT'],
-      ENV['DISTIGNORE_FILE'], ENV['WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE'],
-      ENV['CONFIG_PATH'].to_s.delete_prefix(ENV['ROOT_DIR'].to_s + '/')]
+    # Reserved roots are case-insensitive to keep the policy portable to default
+    # macOS/Windows file systems, where DIST and dist identify the same tree.
+    first = value.split('/').first.downcase
     if %w[.git .github .gitlab .wp-plugin-base dist node_modules vendor].include?(first) ||
         first.start_with?('.wp-plugin-base') ||
-        %w[.gitlab-ci.yml .gitignore .gitattributes .editorconfig AGENTS.md CONTRIBUTING.md SECURITY.md uninstall.php.example].include?(first) ||
-        protected_sources.any? { |source| source && !source.empty? && (source == value || source.start_with?(value + '/')) }
+        %w[.gitlab-ci.yml .gitignore .gitattributes .editorconfig agents.md contributing.md security.md uninstall.php.example].include?(first) ||
+        protects_source?(root, value, sources)
       raise ContractError, "Generated output uses a reserved/source path: #{value}"
     end
     value
   end
 
-  def manifest_inventory(root, manifest)
+  def manifest_inventory(root, manifest, source_root, sources)
     path = contained(root, manifest, 'BUILD_OUTPUT_MANIFEST', forbid_links: true)
     raise ContractError, "Required build artifact manifest is missing: #{manifest}" unless File.file?(path)
     raise ContractError, 'Build artifact manifest exceeds 16 MiB.' if File.size(path) > 16 * 1024 * 1024
@@ -92,7 +133,7 @@ module BuildOutputs
               artifact['sha256'].is_a?(String) && artifact['sha256'].match?(/\A[0-9a-f]{64}\z/)
         raise ContractError, 'Every artifact must contain exactly path and a lowercase SHA-256 digest.'
       end
-      name = generated_path(artifact['path'])
+      name = generated_path(artifact['path'], source_root, sources)
       unless name.start_with?(prefix) && name != manifest && !entries.key?(name)
         raise ContractError, "Duplicate or out-of-directory artifact manifest entry: #{name}"
       end
@@ -122,16 +163,23 @@ module BuildOutputs
 
   def run(mode, stage_root)
     root = File.realpath(ENV.fetch('ROOT_DIR'))
-    outputs = csv(ENV['BUILD_OUTPUTS']).map { |value| generated_path(value) }
+    sources = protected_source_paths(root)
+    # Main/readme are always source inputs. The custom script is required before
+    # destructive preparation; sync retains its managed-admin first-generation
+    # exception and the builder also checks the script before invoking this phase.
+    required_sources = %w[MAIN_PLUGIN_FILE README_FILE]
+    required_sources << 'BUILD_SCRIPT' if mode == 'prepare'
+    required_sources.each do |key|
+      value = ENV[key].to_s
+      next if value.empty?
+      raise ContractError, "Required source input not found: #{key}=#{value}" unless File.file?(File.expand_path(value, root))
+    end
+    outputs = csv(ENV['BUILD_OUTPUTS']).map { |value| generated_path(value, root, sources) }
     manifest = ENV['BUILD_OUTPUT_MANIFEST'].to_s
     unless manifest.empty?
-      manifest = generated_path(manifest)
+      manifest = generated_path(manifest, root, sources)
       raise ContractError, 'BUILD_OUTPUT_MANIFEST must live in a dedicated generated directory.' if File.dirname(manifest) == '.'
-      prefix = File.dirname(manifest) + '/'
-      protected_sources = [ENV['MAIN_PLUGIN_FILE'], ENV['README_FILE'], ENV['BUILD_SCRIPT'],
-        ENV['DISTIGNORE_FILE'], ENV['WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE'],
-        ENV['CONFIG_PATH'].to_s.delete_prefix(root + '/')]
-      if protected_sources.compact.any? { |source| source.start_with?(prefix) }
+      if protects_source?(root, File.dirname(manifest), sources, directory: true)
         raise ContractError, 'Generated manifest directory must not contain required source or configuration files.'
       end
     end
@@ -177,7 +225,7 @@ module BuildOutputs
       path = contained(target, name, 'Required build artifact', forbid_links: true)
       raise ContractError, "Required build artifact is missing: #{name}" unless File.file?(path)
     end
-    manifest_inventory(target, manifest) unless manifest.empty?
+    manifest_inventory(target, manifest, root, sources) unless manifest.empty?
   end
 end
 

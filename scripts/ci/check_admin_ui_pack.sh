@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CONFIG_OVERRIDE="${1:-}"
 
-wp_plugin_base_require_commands "admin UI pack validation" gzip unzip php
+wp_plugin_base_require_commands "admin UI pack validation" gzip unzip php python3
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
 # DataViews 19 uses public WordPress theme APIs introduced in WordPress 7.1.
@@ -160,17 +160,17 @@ if [ "$total_asset_gzip_bytes" -gt "$MAX_TOTAL_GZIP_BYTES" ]; then
 fi
 
 zip_listing="$(unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT; unzip -Z1 "$ZIP_PATH")"
-if ! grep -Fq "$PLUGIN_SLUG/assets/admin-ui/index.js" <<<"$zip_listing"; then
+if ! grep -Fxq "$PLUGIN_SLUG/assets/admin-ui/index.js" <<<"$zip_listing"; then
   echo "Admin UI package zip does not contain assets/admin-ui/index.js." >&2
   exit 1
 fi
 
-if ! grep -Fq "$PLUGIN_SLUG/assets/admin-ui/index.asset.php" <<<"$zip_listing"; then
+if ! grep -Fxq "$PLUGIN_SLUG/assets/admin-ui/index.asset.php" <<<"$zip_listing"; then
   echo "Admin UI package zip does not contain assets/admin-ui/index.asset.php." >&2
   exit 1
 fi
 
-if ! grep -Fq "$PLUGIN_SLUG/assets/admin-ui/style-index.css" <<<"$zip_listing"; then
+if ! grep -Fxq "$PLUGIN_SLUG/assets/admin-ui/style-index.css" <<<"$zip_listing"; then
   echo "Admin UI package zip does not contain assets/admin-ui/style-index.css." >&2
   exit 1
 fi
@@ -180,14 +180,34 @@ if grep -Fq "$PLUGIN_SLUG/.wp-plugin-base-admin-ui/" <<<"$zip_listing"; then
   exit 1
 fi
 
-while IFS= read -r asset_file; do
-  [ -n "$asset_file" ] || continue
-  asset_relative_path="${asset_file#"$ROOT_DIR"/}"
+# Assets may live in a captured generation or in the application's build output.
+# Resolve their archive names relative to that selected asset root, never ROOT_DIR.
+# Reading each exact ZIP member also checks its CRC and rejects duplicate entries;
+# listing membership alone cannot prove that the selected asset bytes were packed.
+python3 - "$ZIP_PATH" "$ADMIN_UI_ASSETS_DIR" "$PLUGIN_SLUG" <<'PYTHON'
+from collections import Counter
+from pathlib import Path
+import sys
+import zipfile
 
-  if ! grep -Fq "$PLUGIN_SLUG/$asset_relative_path" <<<"$zip_listing"; then
-    echo "Admin UI package zip is missing built asset $asset_relative_path." >&2
-    exit 1
-  fi
-done < <(find "$ADMIN_UI_ASSETS_DIR" -type f | sort)
+archive_path, assets_path, slug = sys.argv[1:]
+assets = Path(assets_path)
+try:
+    with zipfile.ZipFile(archive_path) as archive:
+        names = Counter(archive.namelist())
+        for asset in sorted(assets.rglob("*")):
+            if asset.is_symlink():
+                raise ValueError("Admin UI built assets must not contain symbolic links.")
+            if not asset.is_file():
+                continue
+            relative = "assets/admin-ui/" + asset.relative_to(assets).as_posix()
+            member = slug + "/" + relative
+            if names[member] != 1:
+                raise ValueError(f"Admin UI package zip requires exactly one built asset {relative}.")
+            if archive.read(member) != asset.read_bytes():
+                raise ValueError(f"Admin UI package zip bytes differ from built asset {relative}.")
+except (OSError, RuntimeError, ValueError, zipfile.BadZipFile) as error:
+    raise SystemExit(str(error)) from error
+PYTHON
 
 echo "Admin UI pack validation passed."

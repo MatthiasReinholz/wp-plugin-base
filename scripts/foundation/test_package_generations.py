@@ -101,6 +101,77 @@ class PackageGenerations(unittest.TestCase):
         # A paused consumer later hashes and uploads these captured bytes.
         self.assertEqual(hashlib.sha256(Path(captured["zip_path"]).read_bytes()).hexdigest(), captured["sha256"])
 
+    def build_admin_fixture(self):
+        self.configure(
+            ADMIN_UI_PACK_ENABLED="true", BUILD_SCRIPT="build.sh",
+            PACKAGE_INCLUDE="standard-plugin.php,readme.txt,assets,lib,includes",
+        )
+        shutil.copytree(ROOT / "templates/child/admin-ui-pack/lib", self.child / "lib")
+        shutil.copytree(ROOT / "templates/child/admin-ui-pack-seed-common/includes", self.child / "includes", dirs_exist_ok=True)
+        (self.child / "build.sh").write_text("#!/bin/sh\nexit 0\n")
+        assets = self.child / "assets/admin-ui"
+        (assets / "chunks").mkdir(parents=True)
+        for name, content in {
+            "index.js": "console.log('first generation');\n",
+            "index.asset.php": "<?php return ['dependencies' => ['wp-element'], 'version' => 'first'];\n",
+            "style-index.css": "body { color: blue; }\n",
+            "style-index-rtl.css": "body { direction: rtl; }\n",
+            "chunks/lazy.js": "console.log('lazy first generation');\n",
+            "index.js.LICENSE.txt": "Fixture license notice\n",
+        }.items():
+            (assets / name).write_text(content)
+        return self.build()
+
+    def check_admin_fixture(self, record=None):
+        environment = dict(self.environment)
+        if record is not None:
+            environment.update(
+                WP_PLUGIN_BASE_PACKAGE_DIR=record["package_dir"],
+                WP_PLUGIN_BASE_PACKAGE_ZIP=record["zip_path"],
+            )
+        return subprocess.run(["bash", str(ROOT / "scripts/ci/check_admin_ui_pack.sh")],
+                              cwd=self.child, env=environment, capture_output=True, text=True)
+
+    def test_admin_assets_use_the_captured_generation_after_another_build(self):
+        first = self.build_admin_fixture()
+        result = self.check_admin_fixture(first)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        (self.child / "assets/admin-ui/index.js").write_text("console.log('second generation');\n")
+        second = self.build()
+        self.assertNotEqual(first["sha256"], second["sha256"])
+        result = self.check_admin_fixture(first)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_admin_legacy_fallback_requires_matching_asset_bytes(self):
+        self.build_admin_fixture()
+        result = self.check_admin_fixture()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        (self.child / "assets/admin-ui/chunks/lazy.js").write_text("different later build bytes\n")
+        result = self.check_admin_fixture()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("bytes differ from built asset assets/admin-ui/chunks/lazy.js", result.stderr)
+
+    def test_admin_generation_requires_exact_unique_asset_members_and_content(self):
+        first = self.build_admin_fixture()
+        original = Path(first["zip_path"])
+        member = "standard-plugin/assets/admin-ui/chunks/lazy.js"
+        for kind in ("missing", "suffix-only", "duplicate", "changed"):
+            with self.subTest(kind=kind):
+                altered = self.base / f"admin-{kind}.zip"
+                with zipfile.ZipFile(original) as source, zipfile.ZipFile(altered, "w") as target:
+                    for entry in source.infolist():
+                        if entry.filename == member and kind in ("missing", "suffix-only"):
+                            continue
+                        data = source.read(entry)
+                        if entry.filename == member and kind == "changed":
+                            data += b"changed"
+                        target.writestr(entry, data)
+                    if kind in ("suffix-only", "duplicate"):
+                        target.writestr(member + (".backup" if kind == "suffix-only" else ""), source.read(member))
+                result = self.check_admin_fixture(dict(first, zip_path=str(altered)))
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("built asset assets/admin-ui/chunks/lazy.js", result.stderr)
+
     def test_result_requires_complete_unique_fields_bound_to_descriptor(self):
         result_path = self.base / "result"
         record = self.build(WP_PLUGIN_BASE_PACKAGE_RESULT_FILE=str(result_path))

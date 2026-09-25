@@ -15,6 +15,8 @@ Clean strict bootstrap runs independently alongside ordinary validation, the ful
 
 New commits to the same pull request cancel obsolete foundation CI runs; unrelated pull requests and branches retain separate concurrency groups. Version-independent policy and full packaging fixtures run once. Separate real WordPress jobs select the container's PHP version explicitly for PHP 8.2–8.5, plus the WordPress 6.9 Abilities boundary. Current WordPress coverage is pinned to 7.1.2. Update that pin when reviewing WordPress releases; do not confuse the runner's PHP version with the WordPress container's version. PHP 8.1 is no longer part of the supported foundation CI matrix.
 
+The primary validation and clean-bootstrap jobs install and verify Subversion so native local-repository deployment tests run instead of being skipped. These qualify package publication mechanics without accessing a live WordPress.org account.
+
 ## Repeatable Engineering Evaluation
 
 Evaluate proposed changes against the previous stable foundation using equivalent disposable plugin fixtures, fixed tool versions and the same runner size. Preserve logs and artifact digests. Use at least five successful repetitions for elapsed-time comparisons, report median and range, and report cold and warm caches separately.
