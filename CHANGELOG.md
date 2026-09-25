@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.0
+
+* feat: support local conformance and verified package generations (#346)
+
 ## v1.9.0
 
 * Isolate generated runtime classes per plugin and validate REST/Abilities input consistently, including nullable values, normalized input, and permission configuration.
