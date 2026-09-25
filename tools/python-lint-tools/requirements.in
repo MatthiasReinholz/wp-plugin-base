@@ -1,6 +1,6 @@
 codespell==2.4.3
 yamllint==1.38.0
 # Patch the installer used by lint-only and combined tool environments.
-pip==26.2
+pip==26.2.1
 # Python 3.10/3.11 venvs also seed setuptools; replace vulnerable bundled copies.
 setuptools==83.0.0
