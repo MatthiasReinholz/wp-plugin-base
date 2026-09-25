@@ -113,6 +113,7 @@ run_variant() {
   WP_PLUGIN_BASE_ROOT="$fixture_dir" bash "$ROOT_DIR/scripts/update/sync_child_repo.sh"
   WP_PLUGIN_BASE_ROOT="$fixture_dir" bash "$ROOT_DIR/scripts/ci/validate_project.sh"
   ( cd "$fixture_dir/.wp-plugin-base-admin-ui" && npm run lint:js )
+  node "$ROOT_DIR/tests/runtime/admin-toolchain-contracts.cjs" "$fixture_dir/.wp-plugin-base-admin-ui"
   if [ "${CI:-}" = true ]; then
     node "$fixture_dir/.wp-plugin-base-admin-ui/node_modules/@playwright/test/cli.js" install --with-deps chromium
   else

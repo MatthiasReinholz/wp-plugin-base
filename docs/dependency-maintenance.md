@@ -85,8 +85,10 @@ also uses Composer's real solver to reject incompatible locked PHP requirements.
 The four committed npm bundles were audited against the current npm advisory
 service. Compatible fixes address `adm-zip` 0.6.1, `smol-toml` 1.7.1,
 `js-yaml` 4.3.2, `svgo` 3.3.5, and `colord` 2.9.4. These replace vulnerable archive,
-configuration, SVG, and color parsers. The `js-yaml` and `svgo` overrides only target
-the affected major series, preserving unrelated dependency API contracts. All four
+configuration, SVG, and color parsers. The `js-yaml`, `svgo` and `minimatch` overrides only target
+the affected major series, preserving unrelated dependency API contracts. The
+minimatch correction retains v3 callers while newer lint consumers receive the
+v10 named-export API; a real typed-parser regression covers that boundary. All four
 lockfile audits reported zero advisories after the fixes. This result is dated;
 repeat audits because advisory data changes independently of source code.
 
