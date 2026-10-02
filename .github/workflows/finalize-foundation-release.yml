@@ -56,6 +56,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp-plugin-base-release-driver"
           cp -R scripts "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts"
           cp -R docs "$RUNNER_TEMP/wp-plugin-base-release-driver/docs"
+          cp -R tools "$RUNNER_TEMP/wp-plugin-base-release-driver/tools"
 
       - name: Verify merged commit is reachable from main
         env:
