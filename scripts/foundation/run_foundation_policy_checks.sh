@@ -44,6 +44,7 @@ bash "$ROOT_DIR/scripts/foundation/test_foundation_release_metadata_backcompat.s
 bash "$ROOT_DIR/scripts/foundation/test_dependency_inventory.sh"
 bash "$ROOT_DIR/scripts/foundation/test_external_dependency_updates.sh"
 bash "$ROOT_DIR/scripts/foundation/test_gitlab_release_flow_contracts.sh"
+python3 "$ROOT_DIR/scripts/foundation/test_wordpress_test_plugins.py"
 bash "$ROOT_DIR/scripts/foundation/test_plugin_check_finding_formatting.sh"
 bash "$ROOT_DIR/scripts/foundation/test_plugin_check_output_normalization.sh"
 bash "$ROOT_DIR/scripts/foundation/test_php_timeout_fallback.sh"

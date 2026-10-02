@@ -15,6 +15,8 @@ CONFIG_OVERRIDE="${1:-}"
 wp_plugin_base_require_commands "Plugin Check" docker jq npm php zip unzip
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 wp_plugin_base_require_vars PLUGIN_SLUG
+# Reject invalid dependency configuration before installing tools or starting Docker.
+php "$SCRIPT_DIR/../lib/wordpress_test_plugins.php" "$WORDPRESS_TEST_PLUGINS" >/dev/null
 
 PACKAGE_ROOT="${WP_PLUGIN_BASE_PACKAGE_DIR:-$ROOT_DIR/dist/package/$PLUGIN_SLUG}"
 wp_plugin_base_assert_path_within_root "$PACKAGE_ROOT" "Plugin Check package"
@@ -69,18 +71,8 @@ while [ "$attempt" -le "$max_attempts" ]; do
   wp_env_port="$((20000 + (RANDOM % 10000)))"
   wp_env_tests_port="$((30000 + (RANDOM % 10000)))"
 
-  WP_PLUGIN_BASE_TARGET_ROOT="$ROOT_DIR" \
-  WP_PLUGIN_BASE_WP_ENV_PORT="$wp_env_port" \
-  WP_PLUGIN_BASE_WP_ENV_TESTS_PORT="$wp_env_tests_port" \
-  php -r '
-    $config = [
-      "plugins" => [getenv("WP_PLUGIN_BASE_TARGET_ROOT")],
-      "port" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_PORT"),
-      "testsPort" => (int) getenv("WP_PLUGIN_BASE_WP_ENV_TESTS_PORT"),
-      "testsEnvironment" => false,
-    ];
-    file_put_contents($argv[1], json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
-  ' "$wp_env_config"
+  php "$SCRIPT_DIR/../lib/wordpress_test_plugins.php" "$WORDPRESS_TEST_PLUGINS" \
+    "$ROOT_DIR" "$wp_env_port" "$wp_env_tests_port" > "$wp_env_config"
 
   : > "$wp_env_start_log"
 

@@ -137,6 +137,10 @@
       "default": "false",
       "pattern": "^(true|false)$"
     },
+    "WORDPRESS_TEST_PLUGINS": {
+      "default": "",
+      "pattern": "^$|^[a-z0-9]+(-[a-z0-9]+)*@[0-9]+(\\.[0-9]+)+(,[a-z0-9]+(-[a-z0-9]+)*@[0-9]+(\\.[0-9]+)+)*$"
+    },
     "WORDPRESS_QUALITY_PACK_ENABLED": {
       "default": "false",
       "pattern": "^(true|false)$"
