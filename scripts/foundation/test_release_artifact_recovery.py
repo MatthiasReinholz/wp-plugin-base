@@ -284,9 +284,9 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
         )
         npm = self.bin / 'npm'
         npm.write_text('#!/usr/bin/env bash\nset -eu\n'
-                       'test "$*" = "ci --no-audit --no-fund"\n'
-                       'test -f .npmrc && test -f package.json && test -f package-lock.json\n'
-                       'touch npm-installed\n')
+                        'test "$*" = "ci --no-audit --no-fund"\n'
+                        'test -f .npmrc && test -f package.json && test -f package-lock.json\n'
+                        'touch npm-installed\n')
         npm.chmod(0o755)
         for index, workflow in enumerate(workflows):
             with self.subTest(workflow=workflow):
@@ -297,7 +297,7 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                 # Populate both real checkout layouts, then execute the workflow's
                 # own preservation command rather than reconstructing its copy list.
                 for prefix in ('', '.wp-plugin-base', '.wp-plugin-base-release-driver',
-                               '.wp-plugin-base-release-driver/.wp-plugin-base'):
+                                '.wp-plugin-base-release-driver/.wp-plugin-base'):
                     for directory in ('scripts', 'docs', 'templates', 'tools'):
                         shutil.copytree(ROOT / directory, workspace / prefix / directory)
                 steps = json.loads(subprocess.check_output([
@@ -310,7 +310,7 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                 self.assertEqual(len(commands), 1)
                 environment = dict(self.environment, RUNNER_TEMP=str(runner))
                 subprocess.run(['bash', '-e', '-c', commands[0]], cwd=workspace,
-                               env=environment, check=True, capture_output=True, text=True)
+                                env=environment, check=True, capture_output=True, text=True)
                 # A historical checkout must not supply missing trusted dependencies.
                 shutil.rmtree(workspace)
                 workspace.mkdir()
@@ -325,7 +325,7 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                 self.assertTrue((destination / 'npm-installed').is_file())
                 for name in ('.npmrc', 'package.json', 'package-lock.json'):
                     self.assertEqual((destination / name).read_bytes(),
-                                     (ROOT / 'tools/wordpress-env' / name).read_bytes())
+                                      (ROOT / 'tools/wordpress-env' / name).read_bytes())
 
     def test_missing_driver_tooling_fails_before_copy_or_npm_in_conditional(self):
         driver = self.directory / 'incomplete-driver'
