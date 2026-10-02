@@ -382,6 +382,7 @@ if [[ "$CONFIG_SCOPE" =~ ^(project|ci|readiness|release|deploy-structure|deploy)
     done < <(wp_plugin_base_csv_to_lines "$TRUSTED_GIT_HOSTS")
   fi
 
+  php "$SCRIPT_DIR/../lib/wordpress_test_plugins.php" "$WORDPRESS_TEST_PLUGINS" >/dev/null
   validate_regex "$WORDPRESS_READINESS_ENABLED" '^(true|false)$' 'WORDPRESS_READINESS_ENABLED'
   validate_regex "$WORDPRESS_QUALITY_PACK_ENABLED" '^(true|false)$' 'WORDPRESS_QUALITY_PACK_ENABLED'
   validate_regex "$GITHUB_CODE_SCANNING_UPLOAD_ENABLED" '^(true|false)$' 'GITHUB_CODE_SCANNING_UPLOAD_ENABLED'

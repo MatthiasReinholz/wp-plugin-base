@@ -312,6 +312,7 @@ Optional keys:
 - `POT_PROJECT_NAME`
 - `WORDPRESS_ORG_SLUG`
 - `WORDPRESS_READINESS_ENABLED`
+- `WORDPRESS_TEST_PLUGINS`
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
 - `GITHUB_CODE_SCANNING_UPLOAD_ENABLED`
@@ -398,6 +399,8 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 `TRUSTED_GIT_HOSTS` allows explicitly trusted Git API/auth hosts for self-managed GitLab or GitHub Enterprise instances. Use hostnames only. Private-network, link-local, localhost, and `*.internal` hosts are rejected.
 
 `FOUNDATION_RELEASE_SOURCE_SIGSTORE_ISSUER` is only needed for self-managed GitLab foundation sources. `gitlab.com` uses its standard issuer automatically; self-managed GitLab must set the issuer explicitly.
+
+`WORDPRESS_TEST_PLUGINS` installs dependencies before the child plugin in the isolated Plugin Check environment. Use comma-separated WordPress.org slugs and exact numeric release versions, for example `WORDPRESS_TEST_PLUGINS=woocommerce@11.1.2`. Versions must contain at least two numeric components; URLs, floating versions, duplicate slugs, and whitespace are rejected. Dependencies are downloaded from `https://downloads.wordpress.org/plugin/<slug>.<version>.zip` and never added to the packaged plugin. Leave this empty for plugins without runtime dependencies. Version pins select a release; they do not provide artifact digest verification.
 
 `WORDPRESS_QUALITY_PACK_ENABLED=true` enables the broader PHP quality pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. Full quality-pack mode manages PHPCS/PHPStan/PHPUnit support files, and seeds a child-owned `phpstan.neon` overlay for project-specific paths, excludes, bootstrap files, and scan files.
 
