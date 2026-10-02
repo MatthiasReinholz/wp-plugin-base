@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.1
+
+* Fix isolated Plugin Check startup for dependent plugins with `WORDPRESS_TEST_PLUGINS`, for example `woocommerce@11.1.2`. Explicitly pinned WordPress.org dependencies are installed before the child plugin and never included in its release ZIP. The configuration rejects URLs, floating versions, duplicate slugs and whitespace.
+* Refresh WordPress environment tooling pins to `brace-expansion` 2.1.7 and `fast-uri` 3.1.8 to resolve denial-of-service and URI normalization advisories.
+* Existing children without test dependencies keep the previous behavior. Children declaring `Requires Plugins` should configure exact dependency versions after adopting this verified foundation release.
+
 ## v1.10.0
 
 * Add `AUTOMATION_PROFILE=local` conformance without foundation-owned hosted publishers, scheduled updates or deployment credentials, while preserving release eligibility checks. Managed automation remains the default; development readiness accepts matching experimental versions.
