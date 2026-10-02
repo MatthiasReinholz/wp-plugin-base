@@ -8,20 +8,20 @@ WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'
 wp_plugin_base_wordpress_tools_dir() {
   local script_dir
 
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  printf '%s\n' "$(cd "$script_dir/../../tools/wordpress-env" && pwd)"
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || return 1
+  (cd "$script_dir/../../tools/wordpress-env" && pwd)
 }
 
 wp_plugin_base_install_wordpress_env() {
   local destination_dir="$1"
   local source_dir
 
-  source_dir="$(wp_plugin_base_wordpress_tools_dir)"
+  source_dir="$(wp_plugin_base_wordpress_tools_dir)" || return 1
 
-  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/"
+  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/" || return 1
 
   (
-    cd "$destination_dir"
+    cd "$destination_dir" || return 1
     npm ci --no-audit --no-fund >/dev/null
   )
 }

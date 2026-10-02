@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.2
+
+* Preserve pinned WordPress tooling alongside trusted release helpers in plugin, prerelease and foundation release workflows. Detached release drivers can now install their isolated WordPress environment after the original checkout is replaced or removed.
+* Fail immediately when a trusted driver lacks its tooling directory or cannot copy its locked inputs, including calls made from shell conditionals.
+* Qualify all seven workflow preservation commands with cold-install fixtures that verify the trusted package manifests and reject incomplete snapshots before copying files or running npm.
+
 ## v1.10.1
 
 * Fix isolated Plugin Check startup for dependent plugins with `WORDPRESS_TEST_PLUGINS`, for example `woocommerce@11.1.2`. Explicitly pinned WordPress.org dependencies are installed before the child plugin and never included in its release ZIP. The configuration rejects URLs, floating versions, duplicate slugs and whitespace.

@@ -272,6 +272,80 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_workflow_driver_snapshots_install_cold_wordpress_tooling(self):
+        workflows = (
+            '.github/workflows/finalize-release.yml',
+            '.github/workflows/release.yml',
+            '.github/workflows/finalize-foundation-release.yml',
+            '.github/workflows/release-foundation.yml',
+            'templates/child/.github/workflows/finalize-release.yml',
+            'templates/child/.github/workflows/release.yml',
+            'templates/child/.github/workflows/publish-tag-release.yml',
+        )
+        npm = self.bin / 'npm'
+        npm.write_text('#!/usr/bin/env bash\nset -eu\n'
+                        'test "$*" = "ci --no-audit --no-fund"\n'
+                        'test -f .npmrc && test -f package.json && test -f package-lock.json\n'
+                        'touch npm-installed\n')
+        npm.chmod(0o755)
+        for index, workflow in enumerate(workflows):
+            with self.subTest(workflow=workflow):
+                workspace = self.directory / f'workspace-{index}'
+                workspace.mkdir()
+                runner = self.directory / f'runner-{index}'
+                runner.mkdir()
+                # Populate both real checkout layouts, then execute the workflow's
+                # own preservation command rather than reconstructing its copy list.
+                for prefix in ('', '.wp-plugin-base', '.wp-plugin-base-release-driver',
+                                '.wp-plugin-base-release-driver/.wp-plugin-base'):
+                    for directory in ('scripts', 'docs', 'templates', 'tools'):
+                        shutil.copytree(ROOT / directory, workspace / prefix / directory)
+                steps = json.loads(subprocess.check_output([
+                    'ruby', '-ryaml', '-rjson', '-e',
+                    'puts JSON.generate(YAML.load_file(ARGV[0]).fetch("jobs").values.flat_map { |job| job.fetch("steps", []) })',
+                    str(ROOT / workflow)], text=True))
+                commands = [step['run'] for step in steps if step.get('name') in (
+                    'Preserve current trusted release helpers',
+                    'Isolate trusted release helpers from packaged source')]
+                self.assertEqual(len(commands), 1)
+                environment = dict(self.environment, RUNNER_TEMP=str(runner))
+                subprocess.run(['bash', '-e', '-c', commands[0]], cwd=workspace,
+                                env=environment, check=True, capture_output=True, text=True)
+                # A historical checkout must not supply missing trusted dependencies.
+                shutil.rmtree(workspace)
+                workspace.mkdir()
+                destination = workspace / 'cold-install'
+                destination.mkdir()
+                driver = runner / 'wp-plugin-base-release-driver'
+                result = subprocess.run([
+                    'bash', '-c', 'source "$1/scripts/lib/wordpress_tooling.sh"; '
+                    'wp_plugin_base_install_wordpress_env "$2"', '_', str(driver), str(destination)],
+                    cwd=workspace, env=environment, capture_output=True, text=True, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue((destination / 'npm-installed').is_file())
+                for name in ('.npmrc', 'package.json', 'package-lock.json'):
+                    self.assertEqual((destination / name).read_bytes(),
+                                      (ROOT / 'tools/wordpress-env' / name).read_bytes())
+
+    def test_missing_driver_tooling_fails_before_copy_or_npm_in_conditional(self):
+        driver = self.directory / 'incomplete-driver'
+        shutil.copytree(ROOT / 'scripts', driver / 'scripts')
+        destination = self.directory / 'cold-install'
+        destination.mkdir()
+        for command in ('cp', 'npm'):
+            stub = self.bin / command
+            stub.write_text('#!/usr/bin/env bash\ntouch "$FIXTURE_MUTATION"\nexit 0\n')
+            stub.chmod(0o755)
+        result = subprocess.run([
+            'bash', '-c', 'source "$1/scripts/lib/wordpress_tooling.sh"; '
+            'if wp_plugin_base_install_wordpress_env "$2"; then exit 99; fi',
+            '_', str(driver), str(destination)], cwd=self.project, env=self.environment,
+            capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('tools/wordpress-env', result.stderr)
+        self.assertFalse((self.directory / 'mutation').exists())
+        self.assertEqual(list(destination.iterdir()), [])
+
     def test_reusable_repair_commands_honor_custom_config_path(self):
         (self.project / '.wp-plugin-base').symlink_to(ROOT, target_is_directory=True)
         subprocess.run(['bash', str(ROOT / 'scripts/update/sync_child_repo.sh')],

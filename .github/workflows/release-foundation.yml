@@ -62,6 +62,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp-plugin-base-release-driver"
           cp -R .wp-plugin-base-release-driver/scripts "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts"
           cp -R .wp-plugin-base-release-driver/docs "$RUNNER_TEMP/wp-plugin-base-release-driver/docs"
+          cp -R .wp-plugin-base-release-driver/tools "$RUNNER_TEMP/wp-plugin-base-release-driver/tools"
           rm -rf .wp-plugin-base-release-driver
 
       - name: Verify release tag is annotated

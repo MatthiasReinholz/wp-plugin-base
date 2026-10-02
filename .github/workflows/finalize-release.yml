@@ -66,6 +66,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp-plugin-base-release-driver"
           cp -R .wp-plugin-base/scripts "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts"
           cp -R .wp-plugin-base/docs "$RUNNER_TEMP/wp-plugin-base-release-driver/docs"
+          cp -R .wp-plugin-base/tools "$RUNNER_TEMP/wp-plugin-base-release-driver/tools"
           cp -R .wp-plugin-base/templates "$RUNNER_TEMP/wp-plugin-base-release-driver/templates"
 
       - name: Verify merged commit is reachable from the configured default branch
