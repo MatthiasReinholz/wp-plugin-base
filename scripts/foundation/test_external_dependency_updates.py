@@ -51,6 +51,7 @@ if any('Bearer fixture' in arg for arg in args):
 for key in ('-fsSLo','-o'):
     if key in args: output=args[args.index(key)+1]
 if os.environ.get('FAIL_DOWNLOAD') == 'true': sys.exit(1)
+if os.environ.get('FAIL_BUNDLE') == 'true' and url.endswith('.sigstore.json'): sys.exit(22)
 version=os.environ['CANDIDATE_VERSION']
 if 'api.github.com' in url:
     data=json.dumps([{'tag_name': ('v' if 'plugin-check/' not in url else '')+version,'draft':False,'prerelease':False,'author':{'login':'davidperezgar'},'published_at':'2020-01-01T00:00:00Z'}]).encode()
@@ -62,6 +63,7 @@ elif url.endswith('_checksums.txt'):
     import hashlib
     data=''.join(hashlib.sha256(asset.encode()).hexdigest()+'  '+asset+'\\n' for asset in ['syft_'+version+'_'+platform+'.tar.gz' for platform in ['linux_amd64','darwin_amd64','darwin_arm64']]).encode()
 else: data=url.rsplit('/',1)[-1].encode()
+if os.environ.get('BAD_CHECKSUM') == 'true' and url.endswith('_checksums.txt'): data=b'0'*64 + data[64:]
 if output: pathlib.Path(output).write_bytes(data)
 else: sys.stdout.buffer.write(data)
 ''')
@@ -247,10 +249,20 @@ sys.exit(1 if os.environ.get('FAIL_SIGNATURE') == 'true' else 0)
         self.assertEqual(arguments[0], "verify-blob")
         self.assertTrue(arguments[arguments.index("--bundle") + 1].endswith("_checksums.txt.sigstore.json"))
         self.assertEqual(arguments[arguments.index("--certificate-identity") + 1],
-                         "https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main")
+                        "https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main")
         self.assertEqual(arguments[arguments.index("--certificate-oidc-issuer") + 1],
-                         "https://token.actions.githubusercontent.com")
+                        "https://token.actions.githubusercontent.com")
         self.assertNotIn("--insecure-ignore-tlog", arguments)
+
+    def test_missing_bundle_and_bad_checksum_preserve_release_pins(self):
+        before = candidate.files_for(self.root, "syft-binary")
+        for boundary in ("FAIL_BUNDLE", "BAD_CHECKSUM"):
+            with self.subTest(boundary=boundary):
+                self.env[boundary] = "true"
+                self.prepare("syft-binary", failure=True)
+                self.assertEqual(candidate.files_for(self.root, "syft-binary"), before)
+                self.assertFalse(self.output.exists())
+                del self.env[boundary]
 
     def test_bad_signature_cannot_change_release_tool_pins(self):
         before = candidate.files_for(self.root, "syft-binary")
