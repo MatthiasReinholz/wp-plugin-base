@@ -2,7 +2,8 @@
 
 ## v1.10.5
 
-* Maintenance release.
+* Bind npm patch preflight and application to the verified project work tree. Nested admin projects inside Git checkouts no longer silently skip patch paths; exact installed-byte verification remains mandatory.
+* Remove inherited Git environment variables case-insensitively, including Windows spellings. Qualify real linked-worktree, nested-project and standalone installs, hostile Git context, and idempotent application without changing catalog artifacts, package versions or audit policy.
 
 ## v1.10.4
 
