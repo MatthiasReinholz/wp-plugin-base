@@ -210,6 +210,12 @@ continues patch/minor checks; standalone React 19 proposals are excluded from
 these three directories. Revisit all four packages together with that runtime
 migration, rather than updating only React or React DOM.
 
+The existing-application fixture retains TypeScript 6 because its pinned
+`typescript-eslint` 8.70.0 parser supports `>=4.8.4 <6.1.0`. A TypeScript 7
+upgrade must include a supported parser migration and full fixture qualification;
+Dependabot continues compatible compiler updates while excluding standalone major
+proposals for this fixture.
+
 The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
 is also represented in Dependabot configuration because the calendar-version
 2026 releases require Python 3.11. Revisit the bound and automation policy together
