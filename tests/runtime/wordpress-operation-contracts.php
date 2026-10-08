@@ -123,6 +123,25 @@ add_action(
 	'wp_abilities_api_init',
 	static function () use ( $operations ) {
 		Runtime_Pack_Test_WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operations( 'runtime-pack-ready', 'runtime-pack-ready', $operations );
+
+		// A duplicate registration exercises core's real nullable failure result.
+		$diagnostics = array();
+		$collect = static function ( $function, $message ) use ( &$diagnostics ) {
+			if ( 'Runtime_Pack_Test_WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operation' === $function ) {
+				$diagnostics[] = $message;
+			}
+		};
+		add_action( 'doing_it_wrong_run', $collect, 10, 2 );
+		add_filter( 'doing_it_wrong_trigger_error', '__return_false' );
+		try {
+			Runtime_Pack_Test_WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operations( 'runtime-pack-ready', 'runtime-pack-ready', array( $operations[0] ) );
+		} finally {
+			remove_action( 'doing_it_wrong_run', $collect, 10 );
+			remove_filter( 'doing_it_wrong_trigger_error', '__return_false' );
+		}
+		if ( 1 !== count( $diagnostics ) || false === strpos( $diagnostics[0], 'runtime-pack-ready/contract-echo' ) ) {
+			throw new RuntimeException( 'Core registration failure did not emit the adapter ability diagnostic.' );
+		}
 	}
 );
 

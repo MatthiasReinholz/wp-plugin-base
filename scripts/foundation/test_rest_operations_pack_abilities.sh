@@ -86,8 +86,17 @@ function wp_register_ability_category( $slug, $args ) {
 }
 
 function wp_register_ability( $name, $args ) {
+  if ( ! empty( $GLOBALS['wp_plugin_base_registration_fails'] ) ) {
+    return null;
+  }
   $GLOBALS['wp_plugin_base_registered_abilities'][ $name ] = $args;
   return (object) $args;
+}
+
+function esc_html__( $text ) { return $text; }
+function esc_html( $text ) { return $text; }
+function _doing_it_wrong( $function, $message, $version ) {
+  $GLOBALS['wp_plugin_base_registration_warnings'][] = $message;
 }
 
 function is_user_logged_in() {
@@ -189,6 +198,19 @@ $operation = array(
 
 WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_category( 'example-plugin', 'Example Plugin' );
 WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operations( 'example-plugin', 'example-plugin', $operation );
+
+if ( ! empty( $GLOBALS['wp_plugin_base_registration_warnings'] ) ) {
+  fwrite( STDERR, "Successful ability registration must not emit failure diagnostics.\n" );
+  exit( 1 );
+}
+$GLOBALS['wp_plugin_base_registration_fails'] = true;
+WP_Plugin_Base_REST_Operations_Abilities_Adapter::register_operations( 'example-plugin', 'example-plugin', $operation );
+$GLOBALS['wp_plugin_base_registration_fails'] = false;
+if ( 1 !== count( $GLOBALS['wp_plugin_base_registration_warnings'] ?? array() ) ||
+  false === strpos( $GLOBALS['wp_plugin_base_registration_warnings'][0], 'example/settings-read' ) ) {
+  fwrite( STDERR, "Core's null registration failure must emit the named ability diagnostic.\n" );
+  exit( 1 );
+}
 
 if ( empty( $GLOBALS['wp_plugin_base_registered_ability_categories']['example-plugin'] ) ) {
   fwrite( STDERR, "Expected ability category registration.\n" );

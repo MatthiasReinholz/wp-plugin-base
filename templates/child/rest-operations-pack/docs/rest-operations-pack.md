@@ -93,3 +93,8 @@ Abilities use the same capability and scope evaluator as REST through core's req
 Upgrading the foundation refreshes this managed adapter automatically. Existing operation manifests remain child-owned: review schemas for callers that previously sent undeclared fields or relied on defaults satisfying required fields before deploying the stricter validation.
 
 Disabling `REST_OPERATIONS_PACK_ENABLED` is also a manual reconciliation step. Sync removes the managed bootstrap, but it does not rewrite child-owned plugin entrypoints or seeded operation files. Remove the `require_once __DIR__ . '/lib/wp-plugin-base/rest-operations/bootstrap.php';` line from the main plugin file before validation or packaging will pass.
+
+Ability registration follows the WordPress 6.9+ nullable `WP_Ability` return
+contract: `null` reports registration failure through the existing diagnostic.
+Successful registration must not emit a failure warning. The adapter does not
+assume undocumented `false` or `WP_Error` registration results.
