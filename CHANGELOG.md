@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.10.4
+
+* Add an explicit, integrity-bound npm backport catalog with one canonical installer and a separate read-only audit verifier. Verify all physical package copies, exact source/lock bytes and security regressions before qualifying an advisory.
+* Qualify the reviewed braces 3.0.3 depth-limit backport without changing package versions or audit thresholds. Preserve raw findings and compute residual advisory severity from complete verified dependency paths; unrelated findings and malformed reports fail closed.
+* Integrate opt-in, hash-bound application manifests with the security pack and required full-suite regression coverage, including hostile npm configuration, mixed advisories and hidden package rejection.
+* Refresh compatible PHPStan 2.2.17, PHPUnit 9.6.38 and basic-starter source-map-js 1.2.2 lock records while retaining existing runtime requirements.
+
 ## v1.10.3
 
 * Match the WordPress Abilities API nullable registration contract while preserving failure diagnostics and static-analysis compatibility.

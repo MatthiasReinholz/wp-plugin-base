@@ -51,6 +51,16 @@
       "lockfile": "tests/fixtures/existing-application/package-lock.json"
     },
     {
+      "id": "npm-remediation-regression-fixture",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/tests/fixtures/npm-remediation"
+      },
+      "lockfile": "tests/fixtures/npm-remediation/package-lock.json"
+    },
+    {
       "id": "markdownlint-tooling",
       "tier": "lockfile-backed",
       "update": {

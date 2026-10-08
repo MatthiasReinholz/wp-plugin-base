@@ -30,3 +30,8 @@ indent_style = tab
 [LICENSE]
 indent_style = unset
 indent_size = unset
+
+[scripts/security/catalog/*.patch]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false

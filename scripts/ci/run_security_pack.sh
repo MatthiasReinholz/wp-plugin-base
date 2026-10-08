@@ -38,6 +38,12 @@ audit_npm_lockfile() {
     exit 1
   fi
 
+  if [ -e "$audit_dir/npm-remediations.json" ] || [ -L "$audit_dir/npm-remediations.json" ]; then
+    # Explicit reviewed backports require installed-byte verification; never patch during audit.
+    node "$SCRIPT_DIR/../security/npm-remediation.mjs" audit --project-root "$audit_dir" --audit-level "$audit_level" || return $?
+    return
+  fi
+
   npm_audit_command() {
     (
       cd "$audit_dir"

@@ -13,3 +13,6 @@
 /CONTRIBUTING.md export-ignore
 /SECURITY.md export-ignore
 /uninstall.php.example export-ignore
+
+# Preserve the reviewed unified-diff artifact, including blank context lines.
+scripts/security/catalog/*.patch -whitespace
