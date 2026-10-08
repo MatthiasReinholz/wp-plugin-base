@@ -167,3 +167,34 @@ child manifest engines and CI runtime with the complete dependency graph.
 Keep npm updates enabled for the child-owned package
 through the managed Dependabot configuration. GitLab users should configure their
 chosen dependency updater for the same child-owned paths.
+
+## October 2026 tooling maintenance
+
+WordPress environment tooling is pinned to 11.17.0 with `simple-git` 4.0.2
+explicitly overridden until upstream adopts its security fixes. Version 4 removes
+its default CommonJS export. The isolated installer applies the maintained
+`scripts/lib/patch_wordpress_env_git.cjs` adaptation to the two upstream imports,
+using the supported named export. It verifies exact package versions and both
+upstream source SHA-256 digests before writing either file; drift aborts install.
+No unsafe Git options or global module interception are introduced. Remove the
+patch and override together when an upstream release supports patched simple-git.
+The real wp-env download implementation is tested with clone, repeated fetch,
+branch advancement and tag checkout, plus rejection of modified source files. The refreshed
+lock also resolves patched `http-cache-semantics` and `proxy-addr` versions.
+This removes the critical and high findings that previously stopped foundation
+checks and unrelated dependency candidates. Keep the override scoped to this
+isolated development tool; it does not change plugin runtime dependencies.
+Qualify actual WordPress environment lifecycle behavior whenever updating it.
+
+The advisory audit still reports moderate findings through upstream `js-yaml` 3
+and its `argparse`/`sprintf-js` chain. There is no patched compatible `sprintf-js`
+release at this review. Retain the existing high-severity failure threshold and
+track upstream remediation; do not accept npm's suggested downgrade of the
+WordPress environment tool to an obsolete major as a security fix. Tooling checks
+now retain npm audit, install, and signature-verification diagnostics in CI logs,
+so a future finding can be diagnosed without reproducing a silent failure.
+
+Syft changed its publisher signature format to Sigstore bundles. Candidate
+preparation verifies the bundle against the same exact release workflow identity
+and OIDC issuer before accepting platform checksums. Missing bundles, invalid
+signatures, or mismatched archive checksums still fail before pin mutation.

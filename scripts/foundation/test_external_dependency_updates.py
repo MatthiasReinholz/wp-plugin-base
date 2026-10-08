@@ -57,7 +57,7 @@ if 'api.github.com' in url:
 elif 'auth.docker.io' in url: data=b'{"token":"fixture"}'
 elif 'registry-1.docker.io' in url: data=('docker-content-digest: sha256:'+'f'*64+'\\r\\n').encode()
 elif '/archive/' in url: data=pathlib.Path(os.environ['PUC_ARCHIVE']).read_bytes()
-elif url.endswith('.pem'): data=b'-----BEGIN CERTIFICATE-----\\nfixture\\n-----END CERTIFICATE-----'
+elif url.endswith(('.pem', '.sig')): raise SystemExit('Obsolete detached Syft signature requested')
 elif url.endswith('_checksums.txt'):
     import hashlib
     data=''.join(hashlib.sha256(asset.encode()).hexdigest()+'  '+asset+'\\n' for asset in ['syft_'+version+'_'+platform+'.tar.gz' for platform in ['linux_amd64','darwin_amd64','darwin_arm64']]).encode()
@@ -66,7 +66,12 @@ if output: pathlib.Path(output).write_bytes(data)
 else: sys.stdout.buffer.write(data)
 ''')
         (self.bin / "curl").chmod(0o755)
-        (self.bin / "cosign").write_text('#!/usr/bin/env bash\n[[ "${FAIL_SIGNATURE:-false}" != true ]]\n')
+        (self.bin / "cosign").write_text('''#!/usr/bin/env python3
+import json, os, pathlib, sys
+pathlib.Path(os.environ['COSIGN_ARGUMENTS']).write_text(json.dumps(sys.argv[1:]))
+sys.exit(1 if os.environ.get('FAIL_SIGNATURE') == 'true' else 0)
+''')
+        self.env["COSIGN_ARGUMENTS"] = str(Path(self.temporary.name) / "cosign-arguments.json")
         (self.bin / "cosign").chmod(0o755)
         self.output = Path(self.temporary.name) / "outputs"
 
@@ -235,6 +240,17 @@ else: sys.stdout.buffer.write(data)
         self.prepare(dependency, failure=True)
         self.assertEqual(candidate.files_for(self.root, dependency), before)
         self.assertFalse(self.output.exists())
+
+    def test_syft_bundle_keeps_exact_publisher_identity(self):
+        self.prepare("syft-binary")
+        arguments = json.loads(Path(self.env["COSIGN_ARGUMENTS"]).read_text())
+        self.assertEqual(arguments[0], "verify-blob")
+        self.assertTrue(arguments[arguments.index("--bundle") + 1].endswith("_checksums.txt.sigstore.json"))
+        self.assertEqual(arguments[arguments.index("--certificate-identity") + 1],
+                         "https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main")
+        self.assertEqual(arguments[arguments.index("--certificate-oidc-issuer") + 1],
+                         "https://token.actions.githubusercontent.com")
+        self.assertNotIn("--insecure-ignore-tlog", arguments)
 
     def test_bad_signature_cannot_change_release_tool_pins(self):
         before = candidate.files_for(self.root, "syft-binary")

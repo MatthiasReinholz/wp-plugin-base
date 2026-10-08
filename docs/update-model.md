@@ -141,7 +141,9 @@ archives, failed downloads, and publication integrity checks without remote writ
 
 ## Publisher Verification And Reviewed Pins
 
-Syft candidates must match its signed checksum manifest. The verifier requires the
+Syft candidates must match its checksum manifest authenticated by the publisher's
+`_checksums.txt.sigstore.json` bundle. Detached `.pem`/`.sig` artifacts are no
+longer published and are not an unsigned fallback. The verifier requires the
 exact `anchore/syft` release workflow identity on `refs/heads/main` and GitHub's OIDC
 issuer. Cosign candidates must have valid Sigstore bundles from
 `keyless@projectsigstore.iam.gserviceaccount.com` with the Google Accounts issuer.

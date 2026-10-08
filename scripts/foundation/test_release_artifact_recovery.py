@@ -288,6 +288,13 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                         'test -f .npmrc && test -f package.json && test -f package-lock.json\n'
                         'touch npm-installed\n')
         npm.chmod(0o755)
+        node = self.bin / 'node'
+        node.write_text('#!/usr/bin/env bash\nset -eu\n'
+                        'test -f "$1"\n'
+                        'test "${1##*/}" = patch_wordpress_env_git.cjs\n'
+                        'test -f "$2/npm-installed"\n'
+                        'touch "$2/compatibility-patched"\n')
+        node.chmod(0o755)
         for index, workflow in enumerate(workflows):
             with self.subTest(workflow=workflow):
                 workspace = self.directory / f'workspace-{index}'
@@ -323,9 +330,24 @@ pathlib.Path(os.environ['FIXTURE_MUTATION']).write_text(' '.join(sys.argv[1:]))
                     cwd=workspace, env=environment, capture_output=True, text=True, check=False)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue((destination / 'npm-installed').is_file())
+                self.assertTrue((destination / 'compatibility-patched').is_file())
                 for name in ('.npmrc', 'package.json', 'package-lock.json'):
                     self.assertEqual((destination / name).read_bytes(),
                                       (ROOT / 'tools/wordpress-env' / name).read_bytes())
+
+    def test_installer_propagates_patch_rejection_in_conditional(self):
+        destination = self.directory / 'rejected-install'
+        destination.mkdir()
+        for name, body in [('npm', 'exit 0'), ('node', 'exit 42')]:
+            stub = self.bin / name
+            stub.write_text('#!/usr/bin/env bash\n' + body + '\n')
+            stub.chmod(0o755)
+        result = subprocess.run([
+            'bash', '-c', 'source "$1/scripts/lib/wordpress_tooling.sh"; '
+            'if wp_plugin_base_install_wordpress_env "$2"; then exit 99; '
+            'else exit "$?"; fi', '_', str(ROOT), str(destination)],
+            cwd=self.project, env=self.environment, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 42, result.stderr)
 
     def test_missing_driver_tooling_fails_before_copy_or_npm_in_conditional(self):
         driver = self.directory / 'incomplete-driver'
