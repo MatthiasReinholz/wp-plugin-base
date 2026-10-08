@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.5
+
+* Maintenance release.
+
 ## v1.10.4
 
 * Add an explicit, integrity-bound npm backport catalog with one canonical installer and a separate read-only audit verifier. Verify all physical package copies, exact source/lock bytes and security regressions before qualifying an advisory.
