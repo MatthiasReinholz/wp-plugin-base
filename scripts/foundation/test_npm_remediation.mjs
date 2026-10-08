@@ -3,9 +3,9 @@ import { after, before, test } from 'node:test';
 import { createHash } from 'node:crypto';
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyRemediations, verifyRemediations, run } from '../security/npm-remediation.mjs';
+import { applyRemediations, verifyRemediations, run, within, npmRelative } from '../security/npm-remediation.mjs';
 import { classifyAudit } from '../security/npm-audit-report.mjs';
 
 const fixture = fileURLToPath(new URL('../../tests/fixtures/npm-remediation/', import.meta.url));
@@ -168,4 +168,35 @@ test('unexplained severity inflation and extra graph edges fail closed', () => {
   assert.throws(() => classifyAudit(JSON.stringify(inflated), 1, verified), /Unexplained aggregate/);
   const extra = report(); extra.vulnerabilities.braces.effects.push('absent');
   assert.throws(() => classifyAudit(JSON.stringify(extra), 1, verified), /Incomplete reverse/);
+});
+
+test('containment follows POSIX and Windows separators, drive and UNC rules', () => {
+  for (const [implementation, root, inside, outside] of [
+    [posix, '/project', '/project/node_modules/braces', ['/', '/outside', '/project-escape/file', '/project/../outside']],
+    [win32, 'C:/project', 'C:/project/node_modules/braces', ['C:/', 'C:/outside', 'C:/project-escape/file', 'C:/project/../outside', 'D:/project/file', '//server/share/file']],
+    [win32, 'C:/Project', 'c:/project/node_modules/braces', ['c:/outside']],
+    [win32, '//server/share/project', '//server/share/project/node_modules/braces', ['//server/share/outside', '//other/share/project/file', '//server/other/project/file']],
+  ]) {
+    assert.equal(within(root, inside, implementation), true);
+    assert.equal(npmRelative(root, inside, implementation), 'node_modules/braces');
+    for (const path of outside) {
+      assert.equal(within(root, path, implementation), false, path);
+      assert.throws(() => npmRelative(root, path, implementation), /escapes root/);
+    }
+  }
+  assert.equal(within('C:\\project', 'C:\\project\\..\\outside', win32), false);
+  assert.equal(npmRelative('C:\\project', 'C:\\project\\node_modules\\braces\\lib\\parse.js', win32), 'node_modules/braces/lib/parse.js');
+});
+
+test('symlinked CLI invocation executes verification rather than silently succeeding', () => {
+  const root = project();
+  const alias = join(root, 'remediation-cli.mjs');
+  symlinkSync(cli, alias);
+  const failed = run(process.execPath, [alias, 'verify', '--project-root', root], root);
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /Installed bytes differ/);
+  applyRemediations(root);
+  const passed = run(process.execPath, [alias, 'verify', '--project-root', root], root);
+  assert.equal(passed.status, 0, passed.stderr);
+  assert.match(passed.stdout, /"operation": "verify"/);
 });

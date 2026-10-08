@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
-import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import nativePath, { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
@@ -14,10 +14,18 @@ const catalogPaths = Object.freeze({ 'braces-3.0.3': 'braces-3.0.3.json' });
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-const within = (root, path) => {
-  const part = relative(root, path);
-  return part !== '..' && !part.startsWith('../') && !isAbsolute(part);
-};
+export function within(root, path, implementation = nativePath) {
+  const part = implementation.relative(root, path);
+  return part !== '..' && !part.startsWith(`..${implementation.sep}`) && !implementation.isAbsolute(part);
+}
+export function npmRelative(root, path, implementation = nativePath) {
+  assert(within(root, path, implementation), 'Relative npm path escapes root');
+  return implementation.relative(root, path).split(implementation.sep).join('/');
+}
+export function isMainModule(moduleURL, entry = process.argv[1]) {
+  return Boolean(entry) && existsSync(entry)
+    && nativePath.relative(realpathSync(resolve(entry)), realpathSync(fileURLToPath(moduleURL))) === '';
+}
 function exactKeys(value, keys, label) {
   assert(record(value), `Invalid ${label}`);
   assert.deepEqual(Object.keys(value).sort(), [...keys].sort(), `Unknown or missing ${label} fields`);
@@ -27,7 +35,7 @@ function checkedFile(root, path) {
   const full = resolve(root, path);
   assert(within(root, full), 'File path escapes root');
   let parent = root;
-  for (const part of relative(root, full).split('/')) {
+  for (const part of relative(root, full).split(sep)) {
     parent = join(parent, part);
     assert(!lstatSync(parent).isSymbolicLink(), 'Symlinked provenance path');
   }
@@ -57,7 +65,7 @@ function fileHashes(root) {
       if (entry.isDirectory()) visit(path);
       else {
         assert(entry.isFile(), 'Unexpected package file type');
-        result[relative(root, path)] = hash(path);
+        result[npmRelative(root, path)] = hash(path);
       }
     }
   }
@@ -123,7 +131,7 @@ function installedPackages(root) {
 }
 export function inspectRemediations(projectRoot) {
   const root = resolve(projectRoot);
-  assert(lstatSync(root).isDirectory() && realpathSync(root) === root, 'Project root must be a physical directory');
+  assert(lstatSync(root).isDirectory() && nativePath.relative(realpathSync(root), root) === '', 'Project root must be a physical directory');
   const manifest = json(checkedFile(root, 'npm-remediations.json'));
   exactKeys(manifest, ['schemaVersion', 'packageSha256', 'lockfileSha256', 'remediations'], 'remediation manifest');
   assert.equal(manifest.schemaVersion, 1, 'Unsupported remediation schema');
@@ -149,7 +157,7 @@ export function inspectRemediations(projectRoot) {
     assert(instances.length > 0, `No installed instances of ${entry.package}`);
     for (const item of instances) {
       assert(item.name === entry.package && item.version === entry.upstreamVersion, 'Unreviewed package identity or version');
-      const pin = lock.packages[relative(root, item.path)];
+      const pin = lock.packages[npmRelative(root, item.path)];
       assert(pin && !pin.link && pin.version === entry.upstreamVersion && pin.integrity === entry.upstreamIntegrity && pin.resolved === entry.upstreamTarball, 'Unreviewed package lock entry');
     }
     return { entry, instances: instances.map(item => item.path) };
@@ -166,7 +174,7 @@ export function verifyRemediations(projectRoot) {
       assert.equal(result.status, 0, `Security regression failed: ${result.stderr}`);
     }
     verified.push({ id: entry.id, package: entry.package, advisory: entry.advisory,
-      range: entry.advisoryRange, severity: entry.advisorySeverity, nodes: instances.map(path => relative(state.root, path)) });
+      range: entry.advisoryRange, severity: entry.advisorySeverity, nodes: instances.map(path => npmRelative(state.root, path)) });
   }
   return verified;
 }
@@ -179,7 +187,7 @@ export function applyRemediations(projectRoot) {
       const actual = fileHashes(path);
       if (isDeepStrictEqual(actual, entry.installedFiles)) continue;
       assert.deepEqual(actual, entry.pristineFiles, `Pristine bytes differ: ${path}`);
-      const args = ['apply', `--directory=${relative(state.root, path)}`, join(catalogRoot, entry.patchPath)];
+      const args = ['apply', `--directory=${npmRelative(state.root, path)}`, join(catalogRoot, entry.patchPath)];
       const check = run('git', [...args, '--check'], state.root);
       assert.equal(check.status, 0, `Cannot apply reviewed patch: ${check.stderr}`);
       pending.push(args);
@@ -205,7 +213,7 @@ export function auditRemediations(projectRoot, level = 'high') {
   assert.equal(decision.blocked.length, 0, `Unremediated dependencies meet ${level} audit threshold`);
   return decision;
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   try {
     const [operation, flag, projectRoot, levelFlag, level] = process.argv.slice(2);
     assert(['apply', 'verify', 'audit'].includes(operation) && flag === '--project-root' && projectRoot, 'Usage: npm-remediation.mjs apply|verify|audit --project-root PATH [--audit-level LEVEL]');

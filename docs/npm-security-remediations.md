@@ -72,6 +72,10 @@ rejected. The only supported build cache is
 of regular files. Other cache layouts, manifests, directories and links are
 rejected. Cache contents are application build data, outside the npm package
 inventory; this path contract is not a general executable-content classifier.
+Containment uses native path separators and rejects drive/UNC escapes; npm lock,
+audit and inventory keys are normalized to forward slashes on every platform.
+CLI entrypoint identity compares physical module paths, so case or symlink aliases
+cannot silently skip a command; importing the module does not execute the CLI.
 An npm v3 lockfile and the complete installed dependency graph are
 required. Do not qualify a production-only installation of an admin toolchain.
 
