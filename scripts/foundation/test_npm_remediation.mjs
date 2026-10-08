@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
@@ -44,6 +45,38 @@ test('real pristine parser is rejected; exact patch passes attack/semantics test
   assert.equal(digest(join(root, 'package.json')), packageHash);
   assert.equal(digest(join(root, 'package-lock.json')), lockHash);
   assert.equal(readJson(join(root, 'node_modules/braces/package.json')).version, '3.0.3');
+});
+
+test('subprocess isolation removes Git environment keys irrespective of casing', () => {
+  const result = run(process.execPath, ['-e', 'console.log(JSON.stringify(Object.keys(process.env).filter(key => /^git_/i.test(key))))'], temporary,
+    { ...process.env, Git_Dir: 'untrusted-directory', git_work_tree: 'untrusted-work-tree', GIT_INDEX_FILE: 'untrusted-index' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), []);
+});
+
+test('real CLI patches a nested project in a linked worktree despite inherited Git context', () => {
+  const repository = mkdtempSync(join(temporary, 'repository-'));
+  const worktree = join(temporary, 'linked-worktree');
+  for (const args of [
+    ['init'],
+    ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-m', 'Fixture'],
+    ['worktree', 'add', '--detach', worktree],
+  ]) {
+    const result = run('git', ['-c', 'commit.gpgsign=false', '-c', `core.hooksPath=${join(temporary, 'no-hooks')}`, ...args], repository);
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const root = join(worktree, '.wp-plugin-base-admin-ui');
+  cpSync(baseline, root, { recursive: true });
+  manifest(root);
+  assert.throws(() => verifyRemediations(root), /Installed bytes differ/);
+  const result = spawnSync(process.execPath, [cli, 'apply', '--project-root', root], {
+    cwd: root, encoding: 'utf8', timeout: 120000,
+    env: { ...process.env, GIT_DIR: join(temporary, 'nonexistent-git-dir'), GIT_WORK_TREE: repository },
+  });
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  assert.match(result.stdout, /braces-3.0.3/);
+  assert.equal(verifyRemediations(root)[0].nodes[0], 'node_modules/braces');
+  assert.deepEqual(applyRemediations(root), verifyRemediations(root));
 });
 
 test('all nested physical copies are patched; drift in the second copy prevents first mutation', () => {
