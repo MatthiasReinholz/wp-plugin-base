@@ -255,3 +255,12 @@ reviewed scalar values. Custom scripts and comments are preserved. See the
 first-upgrade requirements.
 
 The real WordPress browser fixture may contact its disposable localhost server from `scripts/foundation/test_runtime_packs_wordpress.sh`. The workflow host audit scopes that exception to this exact test entrypoint; it does not allow local/private production endpoints or private hosts in project configuration.
+
+## Explicit npm backports
+
+Projects that need a maintained npm security backport can use the finite,
+integrity-bound foundation catalog and a hash-bound application manifest. The
+security pack verifies installed bytes and the full advisory graph without
+mutating packages or changing severity policy. See
+[npm security remediations](npm-security-remediations.md) for installation,
+qualification, unsupported layouts and removal requirements.

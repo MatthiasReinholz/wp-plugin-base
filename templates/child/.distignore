@@ -27,3 +27,5 @@
 /packages
 /routes
 /.wp-plugin-base-automation.json
+
+npm-remediations.json

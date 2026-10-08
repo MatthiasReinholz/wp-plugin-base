@@ -1,0 +1,8 @@
+{
+  "name": "foundation-npm-remediation-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "braces": "3.0.3"
+  }
+}
