@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.3
+
+* Align dependency updates with supported WordPress and Python runtimes (#369)
+* fix: restore secure foundation tooling and signed Syft updates (#365)
+
 ## v1.10.2
 
 * Preserve pinned WordPress tooling alongside trusted release helpers in plugin, prerelease and foundation release workflows. Detached release drivers can now install their isolated WordPress environment after the original checkout is replaced or removed.
