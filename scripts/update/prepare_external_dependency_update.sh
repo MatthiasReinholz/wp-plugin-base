@@ -68,18 +68,6 @@ update_platform_hashes() {
   python3 "$CANDIDATE_HELPER" hashes "$@"
 }
 
-decode_publisher_certificate() {
-  python3 - "$1" <<'PY_CERT'
-import base64
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-content = path.read_bytes()
-if not content.startswith(b"-----BEGIN CERTIFICATE-----"):
-    path.write_bytes(base64.b64decode(content.strip(), validate=True))
-PY_CERT
-}
-
 compute_sha256() {
   local file="$1"
   if [ "$SHA256_BIN" = "sha256sum" ]; then
@@ -507,14 +495,12 @@ verify_release_security_assets() {
 
   local checksums="syft_${version}_checksums.txt"
   local suffix
-  for suffix in '' '.pem' '.sig'; do
+  for suffix in '' '.sigstore.json'; do
     curl -fsSLo "$TMP_DIR/$checksums$suffix" \
       "https://github.com/anchore/syft/releases/download/v${version}/${checksums}${suffix}"
   done
-  decode_publisher_certificate "$TMP_DIR/$checksums.pem"
   cosign verify-blob "$TMP_DIR/$checksums" \
-    --certificate "$TMP_DIR/$checksums.pem" \
-    --signature "$TMP_DIR/$checksums.sig" \
+    --bundle "$TMP_DIR/$checksums.sigstore.json" \
     --certificate-identity 'https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main' \
     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 

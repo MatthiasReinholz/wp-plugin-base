@@ -64,9 +64,10 @@ fi
 cp "$NPMRC" "$PACKAGE_JSON" "$PACKAGE_LOCK" "$INSTALL_DIR/"
 (
   cd "$INSTALL_DIR"
-  NPM_CONFIG_CACHE="$CACHE_DIR" npm audit --package-lock-only --audit-level=high >/dev/null
-  NPM_CONFIG_CACHE="$CACHE_DIR" npm ci --no-audit --no-fund >/dev/null
-  NPM_CONFIG_CACHE="$CACHE_DIR" npm audit signatures >/dev/null
+  NPM_CONFIG_CACHE="$CACHE_DIR" npm audit --package-lock-only --audit-level=high
+  NPM_CONFIG_CACHE="$CACHE_DIR" npm ci --no-audit --no-fund
+  NPM_CONFIG_CACHE="$CACHE_DIR" npm audit signatures
+  node "$ROOT_DIR/scripts/foundation/test_wordpress_env_git.cjs" "$INSTALL_DIR"
 )
 
 echo "wordpress-env tooling policy checks passed."

@@ -22,7 +22,8 @@ wp_plugin_base_install_wordpress_env() {
 
   (
     cd "$destination_dir" || return 1
-    npm ci --no-audit --no-fund >/dev/null
+    npm ci --no-audit --no-fund >/dev/null || return 1
+    node "$source_dir/../../scripts/lib/patch_wordpress_env_git.cjs" "$destination_dir"
   )
 }
 
