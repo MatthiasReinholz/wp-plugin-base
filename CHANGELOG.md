@@ -2,8 +2,9 @@
 
 ## v1.10.3
 
-* Align dependency updates with supported WordPress and Python runtimes (#369)
-* fix: restore secure foundation tooling and signed Syft updates (#365)
+* Verify Syft publisher Sigstore bundles against the exact trusted release workflow and issuer; reject missing signatures and mismatched checksums before changing tool pins.
+* Restore secure isolated WordPress Git tooling while retaining its Node 22-compatible environment. Adapt the two upstream imports only after exact source/version checks, with real clone/fetch/checkout and drift-rejection coverage.
+* Align React, TypeScript and Python update policies with their supported runtimes. Refresh hash-locked Python tooling and qualify the pinned Semgrep scanner against all production permission rules and safe controls in required CI.
 
 ## v1.10.2
 
