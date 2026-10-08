@@ -170,7 +170,8 @@ chosen dependency updater for the same child-owned paths.
 
 ## October 2026 tooling maintenance
 
-WordPress environment tooling is pinned to 11.17.0 with `simple-git` 4.0.2
+WordPress environment tooling retains 11.16.0 and its Node 22-compatible
+Playground graph, with `simple-git` 4.0.2
 explicitly overridden until upstream adopts its security fixes. Version 4 removes
 its default CommonJS export. The isolated installer applies the maintained
 `scripts/lib/patch_wordpress_env_git.cjs` adaptation to the two upstream imports,

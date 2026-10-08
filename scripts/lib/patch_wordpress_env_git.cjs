@@ -1,4 +1,4 @@
-// Temporary compatibility patch for @wordpress/env 11.17.0 and simple-git 4.
+// Temporary compatibility patch for @wordpress/env 11.16.0 and simple-git 4.
 // Validate every upstream file before writing; remove once upstream uses named imports.
 'use strict';
 const fs = require('node:fs');
@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const root = path.resolve(process.argv[2]);
 const packageRoot = path.join(root, 'node_modules/@wordpress/env');
 const readPackage = (name) => JSON.parse(fs.readFileSync(path.join(root, 'node_modules', name, 'package.json'), 'utf8'));
-if (readPackage('@wordpress/env').version !== '11.17.0' || readPackage('simple-git').version !== '4.0.2') {
+if (readPackage('@wordpress/env').version !== '11.16.0' || readPackage('simple-git').version !== '4.0.2') {
   throw new Error('WordPress environment compatibility patch requires reviewed package versions');
 }
 const patches = [
