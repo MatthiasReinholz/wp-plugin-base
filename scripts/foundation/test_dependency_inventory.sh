@@ -19,18 +19,31 @@ run_expected_failure() {
 make_fixture() {
   local fixture_dir
 
-  fixture_dir="$(mktemp -d)"
-  mkdir -p "$fixture_dir"
-  rsync -a --exclude '.git' "$ROOT_DIR/" "$fixture_dir/"
+  fixture_dir="$(mktemp -d)" || return 1
+  if ! rsync -a --exclude '.git' "$ROOT_DIR/" "$fixture_dir/"; then
+    rm -rf "$fixture_dir"
+    return 1
+  fi
   printf '%s\n' "$fixture_dir"
 }
 
-pass_fixture="$(make_fixture)"
+pass_fixture=""
+missing_dependabot_fixture=""
+missing_lockfile_fixture=""
+broken_pin_fixture=""
 trap 'rm -rf "$pass_fixture" "$missing_dependabot_fixture" "$missing_lockfile_fixture" "$broken_pin_fixture"' EXIT
+pass_fixture="$(make_fixture)"
 bash "$VALIDATOR" "$pass_fixture" >/dev/null
 
 missing_dependabot_fixture="$(make_fixture)"
-perl -0pi -e 's/\n\s*- package-ecosystem: pip\n\s*directory: \/tools\/python-semgrep\n\s*schedule:\n\s*interval: weekly\n\s*open-pull-requests-limit: 10\n\s*commit-message:\n\s*prefix: chore\n\s*include: scope\n//' "$missing_dependabot_fixture/.github/dependabot.yml"
+ruby -ryaml -e '
+  path = ARGV.fetch(0)
+  config = YAML.load_file(path)
+  config.fetch("updates").reject! do |entry|
+    entry["package-ecosystem"] == "pip" && entry["directory"] == "/tools/python-semgrep"
+  end
+  File.write(path, YAML.dump(config))
+' "$missing_dependabot_fixture/.github/dependabot.yml"
 run_expected_failure "$missing_dependabot_fixture" "Dependency inventory validation unexpectedly passed when a required Dependabot entry was removed."
 
 missing_lockfile_fixture="$(make_fixture)"

@@ -199,3 +199,34 @@ Syft changed its publisher signature format to Sigstore bundles. Candidate
 preparation verifies the bundle against the same exact release workflow identity
 and OIDC issuer before accepting platform checksums. Missing bundles, invalid
 signatures, or mismatched archive checksums still fail before pin mutation.
+
+## Runtime-aligned major updates
+
+The admin starters and existing-application fixture externalize React to
+WordPress. WordPress 6.9 and 7.1.3 both publish React 18.3.1, so their development
+React, React DOM and corresponding type packages must remain on the matching
+major until the supported WordPress runtime is deliberately requalified. Dependabot
+continues patch/minor checks; standalone React 19 proposals are excluded from
+these three directories. Revisit all four packages together with that runtime
+migration, rather than updating only React or React DOM.
+
+The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
+is also represented in Dependabot configuration because the calendar-version
+2026 releases require Python 3.11. Revisit the bound and automation policy together
+when intentionally raising the Python support floor. These compatibility rules do
+not suppress advisory scanning or permit vulnerable dependencies.
+
+The October maintenance batch also advances the two hash-locked Python installer
+pins to pip 26.2.1 and setuptools 84.0.0, and the Semgrep scanner to 1.179.0 with
+its compatible PyJWT 2.15.1 dependency. The existing `rpds-py<2026` support bound
+remains intact. Qualify the combined locks on the minimum Python 3.10 interpreter
+and run the real scanner against unsafe fixtures before release.
+
+The required full foundation CI job also installs the pinned scanner and runs
+Semgrep's native rule tests against the actual production rule directory and
+`tests/fixtures/semgrep/wordpress-security.php`. Every existing rule has an unsafe
+case and a checked-permission control. This verifies detection behavior instead
+of merely accepting a successful package install. The October local QEMU host
+could install both supported Python graphs but could not execute either the
+previous or updated scanner binary because its CPU ISA is below the binary's
+requirement; scanner execution must pass on the supported CI runner before merge.
