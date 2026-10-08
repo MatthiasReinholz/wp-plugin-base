@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.4
+
+* chore: qualify compatible PHP quality-tool and starter patches (#374)
+
 ## v1.10.3
 
 * Match the WordPress Abilities API nullable registration contract while preserving failure diagnostics and static-analysis compatibility.
