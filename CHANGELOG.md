@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.10.3
+
+* Match the WordPress Abilities API nullable registration contract while preserving failure diagnostics and static-analysis compatibility.
+* Refresh compatible admin starter lock entries for patched shell-quote 1.12.0 and source-map-js 1.2.2 without changing starter runtime package majors.
+* Verify Syft publisher Sigstore bundles against the exact trusted release workflow and issuer; reject missing signatures and mismatched checksums before changing tool pins.
+* Restore secure isolated WordPress Git tooling while retaining its Node 22-compatible environment. Adapt the two upstream imports only after exact source/version checks, with real clone/fetch/checkout and drift-rejection coverage.
+* Align React, TypeScript and Python update policies with their supported runtimes. Refresh hash-locked Python tooling and qualify the pinned Semgrep scanner against all production permission rules and safe controls in required CI.
+
 ## v1.10.2
 
 * Preserve pinned WordPress tooling alongside trusted release helpers in plugin, prerelease and foundation release workflows. Detached release drivers can now install their isolated WordPress environment after the original checkout is replaced or removed.

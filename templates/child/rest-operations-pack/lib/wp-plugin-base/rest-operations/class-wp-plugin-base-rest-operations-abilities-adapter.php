@@ -123,7 +123,7 @@ if ( ! class_exists( 'WP_Plugin_Base_REST_Operations_Abilities_Adapter' ) ) {
 			}
 
 			$registered = wp_register_ability( $name, $args );
-			if ( ( null === $registered || false === $registered || is_wp_error( $registered ) ) && function_exists( '_doing_it_wrong' ) ) {
+			if ( null === $registered && function_exists( '_doing_it_wrong' ) ) {
 				_doing_it_wrong(
 					__METHOD__,
 					sprintf(
