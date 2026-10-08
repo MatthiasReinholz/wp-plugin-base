@@ -118,3 +118,9 @@ manifest, and rerun the normal raw audit and application tests. Remove a catalog
 entry only after supported consumers have migrated; retain historical release
 provenance. A changed upstream advisory contract requires renewed review rather
 than a broader match.
+
+Patch preflight and application set Git's work tree explicitly to the verified npm
+project root. This supports nested admin projects inside ordinary or linked Git
+worktrees as well as standalone projects. Inherited Git environment variables are
+removed before execution, and exact installed-byte verification remains required
+after application; a successful Git exit alone is never accepted as patch proof.

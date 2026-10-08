@@ -47,7 +47,7 @@ function checkedHash(root, path, expected) {
   assert.equal(hash(checkedFile(root, path)), expected, `Reviewed hash changed: ${path}`);
 }
 export function run(command, args, cwd, environment = process.env) {
-  const env = Object.fromEntries(Object.entries(environment).filter(([key]) => !key.startsWith('GIT_')));
+  const env = Object.fromEntries(Object.entries(environment).filter(([key]) => !/^GIT_/i.test(key)));
   const result = spawnSync(command, args, { cwd, env, encoding: 'utf8', timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
   assert(!result.error && !result.signal, `${command} did not complete`);
   return result;
@@ -187,7 +187,8 @@ export function applyRemediations(projectRoot) {
       const actual = fileHashes(path);
       if (isDeepStrictEqual(actual, entry.installedFiles)) continue;
       assert.deepEqual(actual, entry.pristineFiles, `Pristine bytes differ: ${path}`);
-      const args = ['apply', `--directory=${npmRelative(state.root, path)}`, join(catalogRoot, entry.patchPath)];
+      // Git otherwise discovers a parent repository and silently skips nested-project paths.
+      const args = [`--work-tree=${state.root}`, 'apply', `--directory=${npmRelative(state.root, path)}`, join(catalogRoot, entry.patchPath)];
       const check = run('git', [...args, '--check'], state.root);
       assert.equal(check.status, 0, `Cannot apply reviewed patch: ${check.stderr}`);
       pending.push(args);
