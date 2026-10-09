@@ -12,20 +12,40 @@ wp_plugin_base_wordpress_tools_dir() {
   (cd "$script_dir/../../tools/wordpress-env" && pwd)
 }
 
-wp_plugin_base_install_wordpress_env() {
+# Callers provide a private, empty directory; no partially qualified tool is activated.
+wp_plugin_base_install_wordpress_env() (
   local destination_dir="$1"
-  local source_dir
+  local source_dir staging_dir
 
   source_dir="$(wp_plugin_base_wordpress_tools_dir)" || return 1
-
-  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/" || return 1
-
+  if [ -L "$destination_dir" ] || [ ! -d "$destination_dir" ] || \
+    [ -n "$(find "$destination_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+    echo 'WordPress tooling destination must be a private empty physical directory.' >&2
+    return 1
+  fi
+  destination_dir="$(cd "$destination_dir" && pwd -P)" || return 1
+  staging_dir="$(mktemp -d "${destination_dir}.staging.XXXXXX")" || return 1
+  trap 'rm -rf "$staging_dir"' EXIT
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$staging_dir/" || return 1
   (
-    cd "$destination_dir" || return 1
-    npm ci --no-audit --no-fund >/dev/null || return 1
-    node "$source_dir/../../scripts/lib/patch_wordpress_env_git.cjs" "$destination_dir"
-  )
+    cd "$staging_dir" || return 1
+    npm ci --no-audit --no-fund >/dev/null || return $?
+    node "$source_dir/../../scripts/lib/patch_wordpress_env_git.cjs" "$staging_dir" || return $?
+  ) || return $?
+  node - "$staging_dir" "$destination_dir" <<'NODE'
+const fs = require('node:fs');
+const [source, destination] = process.argv.slice(2);
+const target = fs.lstatSync(destination);
+if (target.isSymbolicLink() || !target.isDirectory() || fs.readdirSync(destination).length) {
+  throw new Error('WordPress tooling activation requires the original empty directory');
 }
+// rename fails instead of nesting or replacing a newly populated destination.
+fs.renameSync(source, destination);
+NODE
+)
 
 # The caller owns this isolated directory and must remove it on exit.
 wp_plugin_base_install_npm_audit() {
