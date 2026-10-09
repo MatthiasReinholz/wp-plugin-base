@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.6
+
+* Maintenance release.
+
 ## v1.10.5
 
 * Bind npm patch preflight and application to the verified project work tree. Nested admin projects inside Git checkouts no longer silently skip patch paths; exact installed-byte verification remains mandatory.
