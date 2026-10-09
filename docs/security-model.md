@@ -85,6 +85,7 @@ The hardened baseline audits literal workflow and repo-local-script references t
 - `woocommerce.com`
 - `auth.docker.io`
 - `registry-1.docker.io`
+- `registry.npmjs.org` (integrity-locked npm tooling bootstrap and dependency audits)
 - `token.actions.githubusercontent.com`
 - `accounts.google.com` (Cosign publisher certificate issuer)
 

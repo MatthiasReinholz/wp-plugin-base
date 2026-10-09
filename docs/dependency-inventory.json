@@ -21,6 +21,16 @@
       "lockfile": "tools/wordpress-env/package-lock.json"
     },
     {
+      "id": "npm-audit-producer-tooling",
+      "tier": "lockfile-backed",
+      "update": {
+        "kind": "dependabot",
+        "ecosystem": "npm",
+        "directory": "/tools/npm-audit"
+      },
+      "lockfile": "tools/npm-audit/package-lock.json"
+    },
+    {
       "id": "admin-ui-basic-starter-tooling",
       "tier": "lockfile-backed",
       "update": {

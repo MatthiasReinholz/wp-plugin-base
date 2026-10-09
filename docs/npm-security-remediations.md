@@ -88,10 +88,56 @@ with its complete installed development graph as well, even though the ordinary
 root audit defaults to production dependencies. The caller's configured severity
 threshold is preserved.
 
-The audit command explicitly includes development, optional and peer dependencies,
-sets the project prefix, disables workspace/global selection and pins the public
-npm registry. These CLI settings override inherited omit, production, workspace
-and registry defaults. The raw report remains visible. npm report version,
+Audit evidence uses npm's official `@npmcli/arborist` 9.9.2 audit API and
+`npm-audit-report` 7.0.0 JSON reporter, installed as ordinary unbundled dependencies
+from `tools/npm-audit`. A small source-owned adapter calls `audit({ fix: false })`
+and the official reporter; it does not rewrite findings or implement dependency
+resolution. On both qualified immutable consumer graphs, fresh-cache reports
+match npm 11.19.0's complete nodes, edges, advisory sources and severities. One
+ancestor's aggregate version range differs between the producer versions; that
+raw value is retained, not normalized. Registry metadata can also change counts
+and suggested fixes between captures. npm 10.9.9 omitted reciprocal advisory
+edges and remains unsuitable for this proof. Incomplete reports stay rejected.
+
+The unbundled tool lock resolves patched published dependencies and has zero
+self-audit findings at qualification. The direct APIs and every locked dependency
+support the retained Node 22.12+ floor. Application installation and builds keep
+their existing package manager; ambient npm only bootstraps the locked audit tool.
+The adapter receives explicit registry, complete inclusion and workspace options,
+so it does not load application or user npm configuration as audit policy.
+
+The security pack installs this tool once into an isolated temporary directory
+using its committed integrity lock, with lifecycle scripts and generated bin links
+disabled. The adapter loads the explicit physical API package paths. Before code
+is loaded, the verifier binds the installed manifest/lock/config and the entire
+`node_modules` tree to signed source. The inventory digest hashes the compact JSON
+array of sorted `[forward-slash-relative-path, SHA256-of-file-bytes]` pairs; no
+files, including bundled dependencies or hidden metadata, are omitted. Extra files,
+changed bytes, symlinks and special files fail closed. Both direct package identities
+must match their lock entries. Evidence records their actual versions, tarball
+URLs, integrity values and the complete lock/tree digests. Audit cache stays inside
+the isolated tool directory, which the security pack removes on exit or interruption.
+
+For a standalone audit, use the same bootstrap and pass its explicit directory:
+
+```bash
+audit_tools="$(mktemp -d)"
+trap 'rm -rf "$audit_tools"' EXIT
+source .wp-plugin-base/scripts/lib/wordpress_tooling.sh
+wp_plugin_base_install_npm_audit "$audit_tools"
+node .wp-plugin-base/scripts/security/npm-remediation.mjs audit \
+  --project-root .wp-plugin-base-admin-ui --audit-level high \
+  --audit-tools "$audit_tools"
+```
+
+Dependabot monitors the tool lock. An update requires renewed real consumer graph,
+self-audit and supported-Node qualification plus an independently reviewed inventory
+digest; changing only a version or lock must fail verification.
+
+The audit API explicitly includes development, optional and peer dependencies,
+sets the project path, disables workspace/global selection and pins the public
+npm registry. These settings are independent of inherited omit, production,
+workspace and registry defaults. The raw report remains visible. npm report version,
 exit status, counts, severity consistency, every dependency edge in both
 directions, cycles and exact affected-node coverage are checked. Each raw node's
 severity must equal the maximum of its complete source edges. Only the exact

@@ -2,17 +2,18 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, posix, win32 } from 'node:path';
+import { delimiter, join, posix, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyRemediations, verifyRemediations, run, within, npmRelative } from '../security/npm-remediation.mjs';
+import { applyRemediations, verifyRemediations, run, within, npmRelative, qualifiedAuditProducer } from '../security/npm-remediation.mjs';
 import { classifyAudit } from '../security/npm-audit-report.mjs';
 
 const fixture = fileURLToPath(new URL('../../tests/fixtures/npm-remediation/', import.meta.url));
 const cli = fileURLToPath(new URL('../security/npm-remediation.mjs', import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), 'foundation-npm-remediation-'));
 const baseline = join(temporary, 'baseline');
+const auditTools = join(temporary, 'audit-tools');
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
 const writeJson = (path, value) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n');
@@ -28,6 +29,11 @@ function project() {
   return root;
 }
 before(() => {
+  mkdirSync(auditTools);
+  const library = fileURLToPath(new URL('../lib/wordpress_tooling.sh', import.meta.url));
+  const bootstrap = run('bash', ['-c', 'source "$1"; wp_plugin_base_install_npm_audit "$2"', 'fixture', library, auditTools], temporary,
+    { ...process.env, NPM_CONFIG_OMIT: 'dev', NPM_CONFIG_REGISTRY: 'https://invalid.example', NPM_CONFIG_IGNORE_SCRIPTS: 'false', NPM_CONFIG_PREFIX: join(temporary, 'wrong-prefix') });
+  assert.equal(bootstrap.status, 0, bootstrap.stderr);
   mkdirSync(baseline);
   for (const file of ['package.json', 'package-lock.json']) cpSync(join(fixture, file), join(baseline, file));
   const install = run('npm', ['ci', '--ignore-scripts', '--include=dev', '--include=optional', '--include=peer', '--no-audit', '--no-fund', '--registry=https://registry.npmjs.org'], baseline);
@@ -116,16 +122,48 @@ for (const [name, change, pattern] of [
 ]) test(`${name} fails closed`, () => assert.throws(() => applyRemediations(changeProject(change)), pattern));
 function changeProject(change) { const root = project(); change(root); return root; }
 
-test('real audit neutralizes inherited omit, registry and workspace defaults without mutation', () => {
+test('real audit uses the locked producer despite incompatible ambient npm and hostile defaults', () => {
   const root = project();
   applyRemediations(root);
   const beforeHash = digest(join(root, 'node_modules/braces/lib/parse.js'));
-  const result = run(process.execPath, [cli, 'audit', '--project-root', root, '--audit-level', 'high'], root,
-    { ...process.env, NPM_CONFIG_OMIT: 'dev', NPM_CONFIG_REGISTRY: 'https://invalid.example', NPM_CONFIG_WORKSPACES: 'true', NODE_ENV: 'production' });
+  const fakeBin = join(root, 'fake-bin');
+  mkdirSync(fakeBin);
+  writeFileSync(join(fakeBin, 'npm'), '#!/usr/bin/env node\nprocess.exit(42);\n');
+  chmodSync(join(fakeBin, 'npm'), 0o755);
+  const result = run(process.execPath, [cli, 'audit', '--project-root', root, '--audit-level', 'high', '--audit-tools', auditTools], root,
+    { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH}`, NPM_CONFIG_OMIT: 'dev', NPM_CONFIG_REGISTRY: 'https://invalid.example', NPM_CONFIG_WORKSPACES: 'true', NODE_ENV: 'production' });
   assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.match(result.stdout, /GHSA-vfj7-8cjw-p6xm/);
   assert.match(result.stdout, /locallyRemediated/);
+  assert.match(result.stdout, /"version": "9\.9\.2"/);
+  assert.match(result.stdout, /"version": "7\.0\.0"/);
   assert.equal(digest(join(root, 'node_modules/braces/lib/parse.js')), beforeHash);
+});
+
+test('locked producer bootstrap preserves npm failure inside a shell conditional', () => {
+  const destination = mkdtempSync(join(temporary, 'failed-bootstrap-'));
+  const fakeBin = mkdtempSync(join(temporary, 'failing-npm-'));
+  writeFileSync(join(fakeBin, 'npm'), '#!/usr/bin/env node\nprocess.exit(73);\n');
+  chmodSync(join(fakeBin, 'npm'), 0o755);
+  const library = fileURLToPath(new URL('../lib/wordpress_tooling.sh', import.meta.url));
+  const result = run('bash', ['-c', 'source "$1"; if wp_plugin_base_install_npm_audit "$2"; then exit 99; else exit $?; fi', 'fixture', library, destination], temporary,
+    { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH}` });
+  assert.equal(result.status, 73, result.stderr);
+});
+
+test('audit producer identity rejects missing, spoofed, changed, extra and linked files', () => {
+  assert.throws(() => qualifiedAuditProducer(), /explicit locked tooling/);
+  const linkedRoot = mkdtempSync(join(temporary, 'linked-producer-root-'));
+  for (const file of ['package.json', 'package-lock.json', '.npmrc']) cpSync(join(auditTools, file), join(linkedRoot, file));
+  symlinkSync(join(auditTools, 'node_modules'), join(linkedRoot, 'node_modules'), 'dir');
+  assert.throws(() => qualifiedAuditProducer(linkedRoot), /Linked or escaped audit producer root/);
+  for (const file of ['package.json', 'node_modules/@npmcli/arborist/lib/index.js', 'node_modules/extra.js', 'node_modules/linked.js']) {
+    const root = mkdtempSync(join(temporary, 'spoofed-producer-'));
+    cpSync(auditTools, root, { recursive: true });
+    if (file.endsWith('linked.js')) symlinkSync('../package.json', join(root, file));
+    else writeFileSync(join(root, file), file === 'package.json' ? JSON.stringify({ name: 'npm', version: '11.19.0' }) : 'console.log("forged evidence");');
+    assert.throws(() => qualifiedAuditProducer(root), /Reviewed (npm producer tree changed|hash changed)|Linked audit producer file/);
+  }
 });
 
 test('standard build cache data is accepted but cannot conceal executable packages', () => {

@@ -27,6 +27,18 @@ wp_plugin_base_install_wordpress_env() {
   )
 }
 
+# The caller owns this isolated directory and must remove it on exit.
+wp_plugin_base_install_npm_audit() {
+  local destination_dir="$1"
+  local source_dir
+
+  source_dir="$(wp_plugin_base_wordpress_tools_dir)/../npm-audit" || return 1
+  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/" || return 1
+  npm ci --prefix="$destination_dir" --ignore-scripts --bin-links=false --engine-strict \
+    --include=dev --include=optional --include=peer --workspaces=false --global=false \
+    --registry=https://registry.npmjs.org --no-audit --no-fund >/dev/null || return $?
+}
+
 wp_plugin_base_wordpress_env() {
   local install_dir="$1"
   shift
