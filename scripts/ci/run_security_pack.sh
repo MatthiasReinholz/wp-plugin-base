@@ -25,6 +25,7 @@ COMPOSER_WORK_DIR="$(mktemp -d)"
 COMPOSER_CACHE_DIR="$(mktemp -d)"
 NPM_CACHE_DIR="$(mktemp -d)"
 SEMGREP_TOOLS_DIR=''
+NPM_AUDIT_TOOLS_DIR=''
 SEMGREP_SARIF_PATH="$ROOT_DIR/dist/semgrep-security.sarif"
 
 audit_npm_lockfile() {
@@ -40,7 +41,12 @@ audit_npm_lockfile() {
 
   if [ -e "$audit_dir/npm-remediations.json" ] || [ -L "$audit_dir/npm-remediations.json" ]; then
     # Explicit reviewed backports require installed-byte verification; never patch during audit.
-    node "$SCRIPT_DIR/../security/npm-remediation.mjs" audit --project-root "$audit_dir" --audit-level "$audit_level" || return $?
+    if [ -z "$NPM_AUDIT_TOOLS_DIR" ]; then
+      NPM_AUDIT_TOOLS_DIR="$(mktemp -d)" || return 1
+      NPM_CONFIG_CACHE="$NPM_CACHE_DIR" wp_plugin_base_install_npm_audit "$NPM_AUDIT_TOOLS_DIR" || return $?
+    fi
+    node "$SCRIPT_DIR/../security/npm-remediation.mjs" audit --project-root "$audit_dir" \
+      --audit-level "$audit_level" --audit-tools "$NPM_AUDIT_TOOLS_DIR" || return $?
     return
   fi
 
@@ -56,12 +62,18 @@ audit_npm_lockfile() {
 
 cleanup() {
   rm -rf "$COMPOSER_WORK_DIR" "$COMPOSER_CACHE_DIR" "$NPM_CACHE_DIR"
+  if [ -n "$NPM_AUDIT_TOOLS_DIR" ]; then
+    rm -rf "$NPM_AUDIT_TOOLS_DIR"
+  fi
   if [ -n "$SEMGREP_TOOLS_DIR" ]; then
     rm -rf "$SEMGREP_TOOLS_DIR"
   fi
 }
 
 trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for required_file in \
   "$ROOT_DIR/.phpcs-security.xml.dist" \

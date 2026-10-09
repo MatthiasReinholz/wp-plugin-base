@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.6
+
+* Acquire remediation audit evidence through integrity-locked official npm Arborist and report APIs. Complete advisory graphs no longer depend on the ambient npm CLI version; the existing strict classifier, raw findings and configured thresholds remain unchanged.
+* Isolate audit tooling and cache, verify its complete installed file inventory before loading code, and retain the Node 22 runtime floor. Qualify both real consumer graphs, hostile configuration, producer drift and unsupported links; monitor the public tool lock with Dependabot.
+
 ## v1.10.5
 
 * Bind npm patch preflight and application to the verified project work tree. Nested admin projects inside Git checkouts no longer silently skip patch paths; exact installed-byte verification remains mandatory.

@@ -643,6 +643,7 @@ declare -a default_allowed_hosts=(
   'woocommerce.com'
   'auth.docker.io'
   'registry-1.docker.io'
+  'registry.npmjs.org'
   'token.actions.githubusercontent.com'
   'accounts.google.com'
 )

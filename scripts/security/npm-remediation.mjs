@@ -200,27 +200,73 @@ export function applyRemediations(projectRoot) {
   }
   return verifyRemediations(state.root);
 }
-export function auditRemediations(projectRoot, level = 'high') {
+function producerTreeHash(root) {
+  const inventory = [];
+  function visit(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      assert(!entry.isSymbolicLink(), 'Linked audit producer file');
+      if (entry.isDirectory()) visit(path);
+      else {
+        assert(entry.isFile(), 'Special audit producer file');
+        inventory.push([npmRelative(root, path), hash(path)]);
+      }
+    }
+  }
+  visit(root);
+  inventory.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+  return createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+}
+export function qualifiedAuditProducer(directory) {
+  assert(typeof directory === 'string' && directory.length > 0, 'Audit requires explicit locked tooling');
+  const root = realpathSync(resolve(directory));
+  assert(lstatSync(root).isDirectory(), 'Invalid audit tooling directory');
+  const source = fileURLToPath(new URL('../../tools/npm-audit/', import.meta.url));
+  for (const file of ['package.json', 'package-lock.json', '.npmrc']) checkedHash(root, file, hash(join(source, file)));
+  const tooling = json(join(source, 'package.json'));
+  const lock = json(join(source, 'package-lock.json'));
+  exactKeys(tooling.auditProducer, ['treeSha256'], 'audit producer');
+  const modules = join(root, 'node_modules');
+  assert(lstatSync(modules).isDirectory() && !lstatSync(modules).isSymbolicLink()
+    && within(root, realpathSync(modules)), 'Linked or escaped audit producer root');
+  const treeSha256 = producerTreeHash(modules);
+  assert.equal(treeSha256, tooling.auditProducer.treeSha256, 'Reviewed npm producer tree changed');
+  const packages = Object.entries(tooling.devDependencies).map(([name, version]) => {
+    const pin = lock.packages[`node_modules/${name}`];
+    const metadata = json(join(root, 'node_modules', name, 'package.json'));
+    assert(pin.version === version && pin.resolved.startsWith('https://registry.npmjs.org/') && typeof pin.integrity === 'string', 'Unqualified audit tooling lock');
+    assert(metadata.name === name && metadata.version === version, 'Unqualified audit package identity');
+    return { name, version, resolved: pin.resolved, integrity: pin.integrity };
+  });
+  return { root, name: 'npm-audit-api', packages, lockfileSha256: hash(join(source, 'package-lock.json')), treeSha256 };
+}
+export function auditRemediations(projectRoot, level = 'high', auditTools) {
   const root = resolve(projectRoot);
+  const { root: producerRoot, ...producer } = qualifiedAuditProducer(auditTools);
   const verified = verifyRemediations(root);
-  // Explicit CLI options override inherited omit/production/workspace/registry defaults.
-  const args = ['audit', '--json', '--audit-level=info', '--include=dev', '--include=optional', '--include=peer',
-    '--workspaces=false', '--global=false', '--audit=true', `--prefix=${root}`, '--registry=https://registry.npmjs.org'];
-  const result = run('npm', args, root);
+  // The official APIs receive explicit options; ambient npm/config never acquires evidence.
+  const worker = fileURLToPath(new URL('./acquire-npm-audit.mjs', import.meta.url));
+  const result = run(process.execPath, [worker, '--project-root', root, '--audit-tools', producerRoot], root);
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);
   const decision = classifyAudit(result.stdout, result.status, verified, level);
-  console.log(JSON.stringify({ verified, ...decision }, null, 2));
+  console.log(JSON.stringify({ producer, verified, ...decision }, null, 2));
   assert.equal(decision.blocked.length, 0, `Unremediated dependencies meet ${level} audit threshold`);
   return decision;
 }
 if (isMainModule(import.meta.url)) {
   try {
-    const [operation, flag, projectRoot, levelFlag, level] = process.argv.slice(2);
-    assert(['apply', 'verify', 'audit'].includes(operation) && flag === '--project-root' && projectRoot, 'Usage: npm-remediation.mjs apply|verify|audit --project-root PATH [--audit-level LEVEL]');
-    assert(process.argv.length === 5 || (operation === 'audit' && process.argv.length === 7 && levelFlag === '--audit-level'), 'Unexpected CLI arguments');
+    const [operation, flag, projectRoot, ...remaining] = process.argv.slice(2);
+    assert(['apply', 'verify', 'audit'].includes(operation) && flag === '--project-root' && projectRoot, 'Usage: npm-remediation.mjs apply|verify|audit --project-root PATH [--audit-level LEVEL --audit-tools PATH]');
+    const options = new Map();
+    assert(remaining.length % 2 === 0, 'Incomplete CLI option');
+    for (let index = 0; index < remaining.length; index += 2) {
+      const key = remaining[index];
+      assert(operation === 'audit' && ['--audit-level', '--audit-tools'].includes(key) && !options.has(key), 'Unexpected or duplicate CLI option');
+      options.set(key, remaining[index + 1]);
+    }
     const result = operation === 'apply' ? applyRemediations(projectRoot)
-      : operation === 'verify' ? verifyRemediations(projectRoot) : auditRemediations(projectRoot, level);
+      : operation === 'verify' ? verifyRemediations(projectRoot) : auditRemediations(projectRoot, options.get('--audit-level'), options.get('--audit-tools'));
     if (operation !== 'audit') console.log(JSON.stringify({ operation, verified: result }, null, 2));
   } catch (error) {
     console.error(`npm remediation failed: ${error.message}`);
