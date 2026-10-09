@@ -18,7 +18,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 PACKAGE_COMMAND = r'''
-import json, os
+import hashlib, json, os
 from pathlib import Path
 import shlex, shutil, sys
 args = sys.argv[1:]
@@ -58,7 +58,18 @@ elif command == 'npm':
     payload.write_text(json.dumps({'tool': 'markdownlint-cli2',
                                   'version': os.environ.get('FIXTURE_VERSION', 'old')}))
 elif command == 'node':
-    print(json.dumps(json.loads(Path(args[0]).read_text()) | {'arguments': args[1:]}))
+    if Path(args[0]).name == 'npm-remediation.mjs':
+        assert Path(args[0]).is_file() and args[1:3] == ['apply', '--project-root'] and len(args) == 4
+        root = Path(args[3])
+        manifest = json.loads((root / 'npm-remediations.json').read_text())
+        assert manifest['packageSha256'] == hashlib.sha256((root / 'package.json').read_bytes()).hexdigest()
+        assert manifest['lockfileSha256'] == hashlib.sha256((root / 'package-lock.json').read_bytes()).hexdigest()
+        if os.environ.get('FIXTURE_REMEDIATION_FAILURE') == '1':
+            raise SystemExit(73)
+        (root / '.fixture-remediated').write_text('verified')
+    else:
+        assert (Path(args[0]).parents[2] / '.fixture-remediated').is_file()
+        print(json.dumps(json.loads(Path(args[0]).read_text()) | {'arguments': args[1:]}))
 elif command == 'curl':
     output = Path(args[args.index('-fsSLo') + 1])
     if os.environ.get('FIXTURE_CORRUPT_DOWNLOAD') == '1':
@@ -105,6 +116,7 @@ class ToolInstaller(unittest.TestCase):
             # Only the isolated test copy trusts these local fixture archives.
             source = re.sub(rf"{tool}_sha256='[a-f0-9]+'", f"{tool}_sha256='{digest}'", source)
         self.script.write_text(source)
+        shutil.copytree(ROOT / 'scripts/security', self.project / 'scripts/security')
         for directory in ('python-lint-tools', 'python-semgrep', 'markdownlint'):
             shutil.copytree(ROOT / 'tools' / directory, self.project / 'tools' / directory,
                             ignore=shutil.ignore_patterns('node_modules'))
@@ -224,6 +236,16 @@ class ToolInstaller(unittest.TestCase):
         before = self.snapshot()
         self.assertNotEqual(self.install('shellcheck', FIXTURE_CORRUPT_DOWNLOAD='1').returncode, 0)
         self.assertEqual(self.snapshot(), before)
+
+    def test_failed_remediation_does_not_activate_prepared_environments(self):
+        self.assert_installed('yamllint,markdownlint-cli2')
+        before = self.snapshot()
+        result = self.install('codespell,markdownlint-cli2', FIXTURE_REMEDIATION_FAILURE='1')
+        self.assertEqual(result.returncode, 73)
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.run_tool('markdownlint-cli2')['version'], 'old')
+        self.assertEqual(len(list(self.destination.glob('.python-tools-venv.*'))), 1)
+        self.assertEqual(len(list(self.destination.glob('.node-tools.*'))), 1)
 
     def test_legacy_environment_remains_usable_during_upgrade(self):
         legacy = self.destination / '.python-tools-venv'

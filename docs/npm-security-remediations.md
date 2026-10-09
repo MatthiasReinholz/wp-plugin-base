@@ -79,6 +79,15 @@ cannot silently skip a command; importing the module does not execute the CLI.
 An npm v3 lockfile and the complete installed dependency graph are
 required. Do not qualify a production-only installation of an admin toolchain.
 
+The foundation's Markdown tool bundle uses the same explicit manifest in
+`tools/markdownlint/npm-remediations.json`. The existing lint-tool bootstrap keeps
+npm lifecycle scripts disabled, copies this reviewed manifest into its staged
+installation, and calls the canonical installer before activating any wrapper.
+Git is required for this step. A failed patch, byte check or regression aborts
+activation and preserves previously installed tools. The full strict-local gate
+executes the resulting Markdown tool against the real repository. Tool lock
+updates must include renewed manifest-hash review and audit qualification.
+
 ## Audit integration
 
 The security pack detects the explicit manifest in a root or admin UI npm
