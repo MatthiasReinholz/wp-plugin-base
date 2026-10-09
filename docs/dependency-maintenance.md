@@ -80,6 +80,22 @@ phpstan-wordpress 2.0.4 and PHPUnit 9.6.37. Actual locked installation, platform
 checks and quality-tool execution passed on PHP 8.0, including actual Doctrine object instantiation. The full foundation gate
 also uses Composer's real solver to reject incompatible locked PHP requirements.
 
+## October 9, 2026 Markdown Tooling Review
+
+The latest compatible Markdown CLI still depends on `braces` 3.0.3. Its staged
+bootstrap now uses the foundation's canonical integrity-bound depth-limit
+backport before activating the tool; no second patch implementation or npm
+lifecycle hook is introduced. The raw upstream advisory remains visible, and
+read-only qualification verifies the installed bytes and complete advisory graph.
+See [the shared remediation contract](npm-security-remediations.md) for provenance,
+manifest ownership and removal criteria.
+
+The `smol-toml` override advances from 1.7.1 to the published compatible 1.9.0 fix,
+retaining its Node 18+ requirement and the bundle's existing Node floor. The
+existing package API and full repository Markdown commands are qualified with
+the new lock. Unrelated low-severity KaTeX findings remain visible; this is not a
+claim that the complete tool graph has zero raw findings.
+
 ## September 25, 2026 Review
 
 The four committed npm bundles were audited against the current npm advisory

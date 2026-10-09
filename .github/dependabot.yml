@@ -147,6 +147,12 @@ updates:
     directory: /tools/npm-audit
     schedule:
       interval: weekly
+    # Major API upgrades require renewed Node-floor and evidence qualification.
+    ignore:
+      - dependency-name: '@npmcli/arborist'
+        update-types: ['version-update:semver-major']
+      - dependency-name: npm-audit-report
+        update-types: ['version-update:semver-major']
     open-pull-requests-limit: 10
     commit-message:
       prefix: chore

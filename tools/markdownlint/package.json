@@ -7,6 +7,6 @@
     "markdownlint-cli2": "0.23.3"
   },
   "overrides": {
-    "smol-toml": "1.7.1"
+    "smol-toml": "1.9.0"
   }
 }

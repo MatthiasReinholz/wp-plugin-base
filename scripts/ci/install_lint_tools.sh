@@ -303,18 +303,26 @@ if [ "$needs_python_tools" = true ]; then
 fi
 
 if tool_requested markdownlint-cli2; then
-  if [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package.json" ] || [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package-lock.json" ]; then
-    echo "Committed markdown lint lock files are missing." >&2
+  if [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package.json" ] || [ ! -f "$MARKDOWNLINT_TOOLS_DIR/package-lock.json" ] ||
+    [ ! -f "$MARKDOWNLINT_TOOLS_DIR/npm-remediations.json" ]; then
+    echo "Committed markdown lint lock or remediation files are missing." >&2
+    exit 1
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Git is required to apply the reviewed Markdown tooling remediation." >&2
     exit 1
   fi
 
   NODE_TOOLS_DIR="$(mktemp -d "$DEST_DIR/.node-tools.XXXXXXXX")"
   cp "$MARKDOWNLINT_TOOLS_DIR/package.json" "$NODE_TOOLS_DIR/package.json"
   cp "$MARKDOWNLINT_TOOLS_DIR/package-lock.json" "$NODE_TOOLS_DIR/package-lock.json"
+  cp "$MARKDOWNLINT_TOOLS_DIR/npm-remediations.json" "$NODE_TOOLS_DIR/npm-remediations.json"
   (
     cd "$NODE_TOOLS_DIR"
     NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm ci --ignore-scripts --no-audit --no-fund >/dev/null
   )
+  # Qualify every installed copy before any new wrapper can become active.
+  node "$ROOT_DIR/scripts/security/npm-remediation.mjs" apply --project-root "$NODE_TOOLS_DIR" >/dev/null
   if [ ! -f "$NODE_TOOLS_DIR/node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs" ]; then
     echo "Node installation is missing markdownlint-cli2." >&2
     exit 1

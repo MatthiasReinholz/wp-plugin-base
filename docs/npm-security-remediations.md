@@ -79,6 +79,15 @@ cannot silently skip a command; importing the module does not execute the CLI.
 An npm v3 lockfile and the complete installed dependency graph are
 required. Do not qualify a production-only installation of an admin toolchain.
 
+The foundation's Markdown tool bundle uses the same explicit manifest in
+`tools/markdownlint/npm-remediations.json`. The existing lint-tool bootstrap keeps
+npm lifecycle scripts disabled, copies this reviewed manifest into its staged
+installation, and calls the canonical installer before activating any wrapper.
+Git is required for this step. A failed patch, byte check or regression aborts
+activation and preserves previously installed tools. The full strict-local gate
+executes the resulting Markdown tool against the real repository. Tool lock
+updates must include renewed manifest-hash review and audit qualification.
+
 ## Audit integration
 
 The security pack detects the explicit manifest in a root or admin UI npm
@@ -133,6 +142,11 @@ node .wp-plugin-base/scripts/security/npm-remediation.mjs audit \
 Dependabot monitors the tool lock. An update requires renewed real consumer graph,
 self-audit and supported-Node qualification plus an independently reviewed inventory
 digest; changing only a version or lock must fail verification.
+Automatic major upgrades of the two direct audit APIs are held for explicit
+qualification: Arborist 10 and npm-audit-report 8 require Node 22.22.2+, above
+the retained 22.12 floor. Patch and minor updates remain monitored. A deliberate
+major migration must qualify the supported Node floor, complete consumer graphs
+and full installed inventory together; it must not bypass the existing verifier.
 
 The audit API explicitly includes development, optional and peer dependencies,
 sets the project path, disables workspace/global selection and pins the public
