@@ -11,6 +11,20 @@ const first = path.join(root, 'node_modules/@wordpress/env/lib/download-sources.
 const second = path.join(root, 'node_modules/@wordpress/env/lib/runtime/docker/download-wp-phpunit.js');
 const originalFirst = fs.readFileSync(first);
 const originalSecond = fs.readFileSync(second);
+for (const [name, version] of [['@wordpress/env', '11.17.0'], ['simple-git', '4.0.3']]) {
+  const manifest = path.join(root, 'node_modules', name, 'package.json');
+  const original = fs.readFileSync(manifest);
+  try {
+    const upgraded = JSON.parse(original);
+    upgraded.version = version;
+    fs.writeFileSync(manifest, JSON.stringify(upgraded));
+    assert.throws(() => execFileSync(process.execPath, [patch, root], { stdio: 'pipe' }));
+    assert.deepEqual(fs.readFileSync(first), originalFirst);
+    assert.deepEqual(fs.readFileSync(second), originalSecond);
+  } finally {
+    fs.writeFileSync(manifest, original);
+  }
+}
 try {
   fs.appendFileSync(second, '\n// Unreviewed source drift\n');
   assert.throws(() => execFileSync(process.execPath, [patch, root], { stdio: 'pipe' }));
@@ -19,6 +33,20 @@ try {
   fs.writeFileSync(second, originalSecond);
 }
 execFileSync(process.execPath, [patch, root], { stdio: 'pipe' });
+const patchedFirst = fs.readFileSync(first);
+const patchedSecond = fs.readFileSync(second);
+execFileSync(process.execPath, [patch, root], { stdio: 'pipe' });
+assert.deepEqual(fs.readFileSync(first), patchedFirst, 'Repeated application preserves exact patched bytes');
+assert.deepEqual(fs.readFileSync(second), patchedSecond);
+try {
+  fs.unlinkSync(second);
+  fs.symlinkSync(first, second);
+  assert.throws(() => execFileSync(process.execPath, [patch, root], { stdio: 'pipe' }), /Linked compatibility input/);
+  assert.deepEqual(fs.readFileSync(first), patchedFirst);
+} finally {
+  fs.unlinkSync(second);
+  fs.writeFileSync(second, patchedSecond);
+}
 const { downloadGitSource } = require(path.join(root, 'node_modules/@wordpress/env/lib/download-sources.js'));
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'wp-env-git-'));
 const upstream = path.join(temporary, 'upstream');
@@ -36,7 +64,7 @@ const git = (...args) => execFileSync('git', ['-C', upstream, ...args], { stdio:
   for (const content of ['initial', 'updated']) {
     fs.writeFileSync(path.join(upstream, 'content.txt'), content);
     git('add', 'content.txt');
-    git('commit', '-m', content);
+    git('-c', 'commit.gpgsign=false', '-c', `core.hooksPath=${path.join(temporary, 'no-hooks')}`, 'commit', '-m', content);
     await downloadGitSource(source, options);
     assert.equal(fs.readFileSync(path.join(clonePath, 'content.txt'), 'utf8'), content);
     assert.equal(progress.at(-1), 1);

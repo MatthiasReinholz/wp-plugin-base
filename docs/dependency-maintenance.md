@@ -193,6 +193,12 @@ its default CommonJS export. The isolated installer applies the maintained
 `scripts/lib/patch_wordpress_env_git.cjs` adaptation to the two upstream imports,
 using the supported named export. It verifies exact package versions and both
 upstream source SHA-256 digests before writing either file; drift aborts install.
+Exact already-adapted bytes are accepted idempotently; unknown versions, changed
+bytes and linked inputs are rejected. The installer prepares an isolated sibling
+staging directory and activates it only after npm and adaptation both succeed.
+It accepts only the private empty directory supplied by its callers; an existing
+installation is never overwritten. Failed preparation, including a partial source
+write, is discarded without publishing a usable partial tool installation.
 No unsafe Git options or global module interception are introduced. Remove the
 patch and override together when an upstream release supports patched simple-git.
 The real wp-env download implementation is tested with clone, repeated fetch,
@@ -202,6 +208,13 @@ This removes the critical and high findings that previously stopped foundation
 checks and unrelated dependency candidates. Keep the override scoped to this
 isolated development tool; it does not change plugin runtime dependencies.
 Qualify actual WordPress environment lifecycle behavior whenever updating it.
+An upstream update intentionally blocks until reviewed: a successful dependency
+resolution is not compatibility evidence. When upstream fixes its imports, remove
+the adaptation and override in one owned change, run the real Git-source tests,
+the WordPress runtime and Plugin Check gates, and the unchanged dependency audit.
+Do not merely refresh expected hashes to make an unknown release pass. Keep
+published foundation releases immutable and adopt the newly qualified release
+through normal signed update validation.
 
 The advisory audit still reports moderate findings through upstream `js-yaml` 3
 and its `argparse`/`sprintf-js` chain. There is no patched compatible `sprintf-js`

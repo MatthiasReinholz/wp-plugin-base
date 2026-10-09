@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.7
+
+* Qualify WordPress tooling in an isolated staging directory before atomic activation. Reject unknown dependency versions, source drift and linked inputs; accept exact previously adapted bytes idempotently without changing the existing compatibility transformation. Preserve existing installations and test failed preparation, activation conflicts and actual Git operations.
+* Publish the previously merged Markdown tooling qualification: apply the existing reviewed braces backport before wrapper activation, retain failed-install recovery, and update compatible smol-toml to 1.9.0. Keep published releases immutable and require explicit upstream-fix retirement review.
+* Keep audit producer major upgrades gated on runtime and evidence requalification while retaining patch/minor monitoring and unchanged audit thresholds.
+
 ## v1.10.6
 
 * Acquire remediation audit evidence through integrity-locked official npm Arborist and report APIs. Complete advisory graphs no longer depend on the ambient npm CLI version; the existing strict classifier, raw findings and configured thresholds remain unchanged.
