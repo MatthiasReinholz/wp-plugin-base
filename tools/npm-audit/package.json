@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@npmcli/arborist": "9.9.2",
-    "npm-audit-report": "7.0.0"
+    "npm-audit-report": "8.0.0"
   },
   "auditProducer": {
     "treeSha256": "3cdf3300520fbaa9c056391f0d203da7c5ce8077f11320556c17c20951204892"
