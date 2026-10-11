@@ -13,7 +13,7 @@ Each successful generation contains `package/<slug>/`, the configured ZIP, and
 `generation.json`. The descriptor binds the ZIP SHA-256 to every staged path,
 file digest and mode. Later builds never reuse or delete a completed generation.
 Managed release jobs capture its paths once and use them for Plugin Check,
-channel preflight, SBOM generation, signing, attestation, upload and deployment.
+channel preflight, SBOM generation, signing, optional GitHub attestation, upload and deployment.
 A checksum of the compatibility ZIP is not a lease on those mutable bytes.
 
 For an application-owned local consumer:

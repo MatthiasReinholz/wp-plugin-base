@@ -221,9 +221,9 @@ GitHub-managed repos receive `.github/dependabot.yml` and should keep Dependabot
 
 Managed child CI also runs a separate `gitleaks` secret-scan job by default. That job installs only the pinned scanner binary, scans the project checkout, and fails the workflow if secrets are detected.
 
-Release publishing now emits three independent trust artifacts:
+Release publishing emits these trust artifacts:
 
-- GitHub build attestation for the released package
+- GitHub build attestation for the released package when `GITHUB_ARTIFACT_ATTESTATIONS_ENABLED=true` (default)
 - CycloneDX SBOM for the packaged release contents
 - Sigstore keyless bundle for the released blob
 
@@ -316,6 +316,7 @@ Optional keys:
 - `WORDPRESS_QUALITY_PACK_ENABLED`
 - `WORDPRESS_SECURITY_PACK_ENABLED`
 - `GITHUB_CODE_SCANNING_UPLOAD_ENABLED`
+- `GITHUB_ARTIFACT_ATTESTATIONS_ENABLED`
 - `RELEASE_READINESS_MODE`
 - `WOOCOMMERCE_QIT_ENABLED`
 - `WOOCOMMERCE_COM_PRODUCT_ID`
@@ -407,6 +408,8 @@ Set `CODEOWNERS_REVIEWERS` only if you want the generated project files to inclu
 `WORDPRESS_SECURITY_PACK_ENABLED=true` enables a narrower security-focused pack during WordPress readiness validation. It is a readiness submode and therefore requires `WORDPRESS_READINESS_ENABLED=true`. That pack runs explicit `WordPress.Security`, `WordPress.DB`, and `WordPress.WP.Capabilities` sniffs, blocks risky public endpoint patterns, and audits root Composer/npm runtime dependencies when lock files are present.
 
 `GITHUB_CODE_SCANNING_UPLOAD_ENABLED` defaults to `true`. Set it to `false` when GitHub code-scanning ingestion is unavailable. This controls only dashboard upload: Semgrep execution, failure enforcement, and the downloadable SARIF artifact remain enabled.
+
+`GITHUB_ARTIFACT_ATTESTATIONS_ENABLED` defaults to `true`. Set it to `false` for private repositories without GitHub Enterprise Cloud, where GitHub cannot store build attestations. This skips only the GitHub plugin attestation step in stable, prerelease and host-repair publication. SBOM generation, Sigstore signing, signing-identity verification, immutable asset checks and foundation source verification remain required. Enabled attestations still fail publication on error. See [GitHub's availability requirements](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
 
 `RELEASE_READINESS_MODE=security-sensitive` is an opt-in fail-closed release profile for plugins with elevated security requirements. It requires `WORDPRESS_READINESS_ENABLED=true`, `WORDPRESS_QUALITY_PACK_ENABLED=true`, `WORDPRESS_SECURITY_PACK_ENABLED=true`, strict Plugin Check warnings, full Plugin Check coverage without check/category/ignore/severity filters, and the default high admin UI npm audit threshold.
 

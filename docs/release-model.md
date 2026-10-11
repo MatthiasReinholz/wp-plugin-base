@@ -13,6 +13,16 @@ The shared release model is:
 - publish only succeeds for versions that match the merge commit of the correct merged release or hotfix PR
 - release workflows attach the available release evidence for the selected host
 
+GitHub plugin build attestations default to enabled. A private repository without
+Enterprise Cloud can set `GITHUB_ARTIFACT_ATTESTATIONS_ENABLED=false` in its tracked
+`.wp-plugin-base.env`. Stable finalization, prerelease publication and explicit
+host repair then skip only GitHub attestation storage. Package signing, signing
+identity verification, SBOMs and immutable payload checks remain required. This
+does not disable foundation release attestations or foundation update verification.
+When enabled, attestation failures still stop publication.
+Recovery reads the configuration recorded in its target tag, so a setting changed
+on today's default branch does not change an older release's attestation policy.
+
 ## Distribution Channels At Release Time
 
 | Channel | Default | Enablement | Notes |
