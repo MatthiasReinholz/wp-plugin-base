@@ -131,13 +131,13 @@ Before `update-foundation` opens a PR, it verifies:
 - the release author is on the allowed author list
 - the vendored refresh is performed from the verified commit SHA, not by re-resolving the tag later
 
-For GitHub-hosted releases, consumers can also verify a released plugin ZIP independently after downloading it from the authoritative release host:
+For GitHub-hosted releases with `GITHUB_ARTIFACT_ATTESTATIONS_ENABLED=true`, consumers can also verify a released plugin ZIP independently after downloading it from the authoritative release host:
 
 ```bash
 gh attestation verify --owner <github-owner> path/to/plugin.zip
 ```
 
-That verifies the GitHub build attestation attached to the published release artifact without relying on local trust in the release notes alone. GitLab downstreams still rely on the Sigstore bundle and release metadata verification path documented below.
+That verifies the GitHub build attestation attached to the published release artifact without relying on local trust in the release notes alone. GitHub projects with attestations disabled and GitLab downstreams use the required Sigstore bundle verification path documented below. Disabling plugin attestations does not change foundation source verification.
 
 Release workflows now also attach a CycloneDX SBOM for the packaged artifact contents and a Sigstore keyless bundle for the released blob. Those cover different trust questions:
 

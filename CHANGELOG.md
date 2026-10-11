@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.8
+
+* Add an explicit GitHub plugin attestation setting for private repositories without Enterprise Cloud. The default remains enabled.
+* Preserve mandatory package signing, signing identity verification, SBOMs, immutable payload checks, and foundation source provenance across all release paths.
+* Test configuration validation and release workflow boundaries, and document historical-tag recovery behavior.
+
 ## v1.10.7
 
 * Qualify WordPress tooling in an isolated staging directory before atomic activation. Reject unknown dependency versions, source drift and linked inputs; accept exact previously adapted bytes idempotently without changing the existing compatibility transformation. Preserve existing installations and test failed preparation, activation conflicts and actual Git operations.
