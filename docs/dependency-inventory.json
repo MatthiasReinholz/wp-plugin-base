@@ -213,7 +213,7 @@
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "SYFT_VERSION='1.52.0'"
+        "pattern": "SYFT_VERSION='1.54.1'"
       }
     },
     {
