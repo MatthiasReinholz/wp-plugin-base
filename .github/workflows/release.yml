@@ -152,7 +152,7 @@ jobs:
           bash "$RUNNER_TEMP/wp-plugin-base-release-driver/scripts/ci/check_release_context.sh" "$RELEASE_CONFIG_PATH" "$RELEASE_WORKFLOW_BRANCH" "$ALLOW_HISTORICAL_BRANCH"
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: ${{ steps.config.outputs.php_version }}
 
