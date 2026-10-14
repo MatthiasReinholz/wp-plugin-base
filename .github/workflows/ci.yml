@@ -71,7 +71,7 @@ jobs:
         run: WP_PLUGIN_BASE_PACKAGE_RESULT_FILE="$GITHUB_OUTPUT" bash .wp-plugin-base/scripts/ci/validate_project.sh "${{ inputs.config_path }}" "$BRANCH_NAME"
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ steps.config.outputs.plugin_slug }}-package
           path: ${{ steps.package.outputs.zip_path }}
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload Semgrep report artifact
         if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: semgrep-security-report
           path: dist/semgrep-security.sarif
