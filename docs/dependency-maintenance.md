@@ -322,10 +322,10 @@ WordPress environment tooling remains blocked at 11.16.0:
 | --- | --- |
 | Current pin | `@wordpress/env` 11.16.0, `simple-git` override 4.0.2 |
 | Latest evaluated | 11.17.0 (Dependabot #391) |
-| Reason | 11.17.0 requires `@wp-playground/cli` ^3.1.56. Playground 3.1.55 and later declare Node >=24.18.0 and npm >=11.16.0, so `engine-strict` installation fails on the supported Node 22 floor. |
+| Reason | 11.17.0 requires `@wp-playground/cli` ^3.1.56, which pins `@php-wasm/*` packages that declare Node >=24.18.0 and npm >=11.16.0 from 3.1.55, so `engine-strict` installation fails on the supported Node 22 floor. |
 | Owner | Foundation maintainers |
 | Next review | 2026-11-19 |
-| Upstream | [WordPress/wordpress-playground#4322](https://github.com/WordPress/wordpress-playground/pull/4322) |
+| Cause | [WordPress/wordpress-playground#4322](https://github.com/WordPress/wordpress-playground/pull/4322) (merged) raised the engine floor; adopt with a deliberate Node 24 floor migration |
 
 The two adapted upstream files are byte-identical in 11.17.0, which still
 requires `simple-git` ^3.32.3 through the default import, so the adaptation and
