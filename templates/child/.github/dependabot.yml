@@ -8,3 +8,9 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+  - package-ecosystem: npm
+    # Shared @wordpress/* packages are qualified together; keep them in one update.
+    groups:
+      wordpress-packages:
+        patterns:
+          - "@wordpress/*"

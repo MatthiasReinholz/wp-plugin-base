@@ -12,6 +12,13 @@ import unittest
 FOUNDATION = Path(__file__).resolve().parents[2]
 
 
+def yaml_updates(path):
+    script = "puts JSON.generate(Psych.safe_load(File.read(ARGV[0]), aliases: false).fetch('updates'))"
+    result = subprocess.run(["ruby", "-rpsych", "-rjson", "-e", script, str(path)],
+                            check=True, text=True, stdout=subprocess.PIPE)
+    return json.loads(result.stdout)
+
+
 class LocalConformance(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="wpb-local-contract-")
@@ -140,6 +147,9 @@ class LocalConformance(unittest.TestCase):
 
     def test_first_upgrade_uses_committed_previous_templates(self):
         self.configure(AUTOMATION_PROFILE="managed", FOUNDATION_VERSION="v1.9.0")
+        # A root package adds an npm Dependabot entry, whose current generation
+        # differs from the previous one; recovery must still reproduce the old bytes.
+        (self.root / "package.json").write_text("{}\n")
         templates = self.root / ".wp-plugin-base/templates"
         legacy = json.loads((FOUNDATION / "tests/fixtures/legacy-automation-templates.json").read_text())
         # The fixture stays byte-exact to its source commit. This setup renders it with
@@ -154,13 +164,16 @@ class LocalConformance(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content)
         self.run_script("update/sync_child_repo.sh")
+        # Earlier renderers emitted no npm groups; the previous template generation
+        # must still render those exact bytes.
+        self.assertTrue(all("groups" not in update for update in yaml_updates(self.root / ".github/dependabot.yml")))
         (self.root / ".wp-plugin-base-automation.json").unlink()
         old_workflow_bytes = (self.root / ".github/workflows/release.yml").read_bytes()
         self.run_script("update/capture_automation_ownership.sh")
         self.run_script("ci/validate_project.sh")
         self.assertEqual(old_workflow_bytes, (self.root / ".github/workflows/release.yml").read_bytes())
         (self.root / ".wp-plugin-base-automation.json").unlink()
-        subprocess.run(["git", "-C", str(self.root), "add", "-f", ".wp-plugin-base/templates", ".wp-plugin-base.env", ".github"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "add", "-f", ".wp-plugin-base/templates", ".wp-plugin-base.env", ".github", "package.json"], check=True)
         subprocess.run(["git", "-C", str(self.root), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "Record previous published template generation"], check=True)
         shutil.rmtree(templates)
         shutil.copytree(FOUNDATION / "templates", templates)
@@ -176,6 +189,9 @@ class LocalConformance(unittest.TestCase):
         self.assertEqual(json.loads((self.root / ".wp-plugin-base-automation.json").read_text())["profile"], "managed")
         self.assertIn("v1.9.1", (self.root / "CONTRIBUTING.md").read_text())
         self.assertIn("steps.package.outputs.zip_path", (self.root / ".github/workflows/ci.yml").read_text())
+        updates = {update["package-ecosystem"]: update for update in yaml_updates(self.root / ".github/dependabot.yml")}
+        self.assertEqual(updates["npm"]["groups"], {"wordpress-packages": {"patterns": ["@wordpress/*"]}})
+        self.assertNotIn("groups", updates["github-actions"])
 
     def v183_fixture(self, *, commit=False, qit=False):
         fixture = json.loads((FOUNDATION / "tests/fixtures/legacy-v183-automation.json").read_text())

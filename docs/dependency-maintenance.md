@@ -133,9 +133,11 @@ result before installation. The effective admin tooling runtime floor is Node.js
 LTS series; Node.js 26 and newer also satisfy the declared engines. Align the
 child manifest engines and CI runtime with the complete dependency graph.
 
-Keep npm updates enabled for the child-owned package
-through the managed Dependabot configuration. GitLab users should configure their
-chosen dependency updater for the same child-owned paths.
+Keep npm updates enabled for the child-owned package through the managed
+Dependabot configuration. Each managed npm entry, root and admin UI, groups
+`@wordpress/*` updates (`wordpress-packages`) into one proposal per directory;
+existing children receive the group on their next foundation sync. GitLab users
+should configure their chosen dependency updater for the same child-owned paths.
 
 ## October 20, 2026 Advisory Review
 
