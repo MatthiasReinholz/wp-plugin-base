@@ -45,7 +45,7 @@ assert 'Requires at least: 7.1' in (root / 'existing-application.php').read_text
 assert 'padding-left:12px' in (root / 'build/index.css').read_text()
 assert 'padding-right:12px' in (root / 'build/index-rtl.css').read_text()
 licenses = (root / 'build/licenses.txt').read_text()
-assert '@wordpress/dataviews@19.1.0' in licenses and 'GNU GENERAL PUBLIC LICENSE' in licenses
+assert '@wordpress/dataviews@20.0.0' in licenses and 'GNU GENERAL PUBLIC LICENSE' in licenses
 manifest = json.loads((root / 'build/manifest.json').read_text())
 chunks = [item for item in manifest['artifacts'] if item['path'].endswith('.js') and item['path'] != 'build/index.js']
 assert len(chunks) >= 2, 'Actual lazy application and vendor chunks must be emitted.'

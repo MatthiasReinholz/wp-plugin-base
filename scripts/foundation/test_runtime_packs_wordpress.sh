@@ -103,7 +103,7 @@ run_variant() {
 
   if [ "$enable_dataviews" = "true" ]; then
     printf '\nADMIN_UI_STARTER=dataviews\n' >> "$fixture_dir/.wp-plugin-base.env"
-    # DataViews 19 uses the public wp-theme package introduced in WordPress 7.1.
+    # The DataViews starter uses the public wp-theme package introduced in WordPress 7.1.
     perl -0pi -e 's/Stable tag: 1.5.0/Stable tag: 1.5.0\nRequires at least: 7.1/' "$fixture_dir/readme.txt"
     perl -0pi -e 's/Plugin Name: Runtime Pack Ready/Plugin Name: Runtime Pack Ready\n * Requires at least: 7.1/' "$fixture_dir/runtime-pack-ready.php"
   fi

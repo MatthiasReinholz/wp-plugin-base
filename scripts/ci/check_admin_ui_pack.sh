@@ -13,7 +13,7 @@ CONFIG_OVERRIDE="${1:-}"
 wp_plugin_base_require_commands "admin UI pack validation" gzip unzip php python3
 wp_plugin_base_load_config "$CONFIG_OVERRIDE"
 
-# DataViews 19 uses public WordPress theme APIs introduced in WordPress 7.1.
+# The DataViews starter uses public WordPress theme APIs introduced in WordPress 7.1.
 # Require honest installation metadata before accepting its built artifacts.
 if [ "${ADMIN_UI_STARTER:-basic}" = dataviews ]; then
   for metadata_path in "$MAIN_PLUGIN_FILE" "$README_FILE"; do

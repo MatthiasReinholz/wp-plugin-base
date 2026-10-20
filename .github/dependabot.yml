@@ -76,7 +76,7 @@ updates:
       - dependency-name: "@types/react-dom"
         update-types:
           - version-update:semver-major
-      # typescript-eslint 8.70 supports TypeScript >=4.8.4 <6.1.0.
+      # typescript-eslint 8.72 supports TypeScript >=4.8.4 <6.1.0.
       - dependency-name: "typescript"
         update-types:
           - version-update:semver-major
