@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DEST_DIR="${1:-}"
-SYFT_VERSION='1.54.1'
+SYFT_VERSION='1.55.0'
 COSIGN_VERSION='3.1.3'
 
 if [ -z "$DEST_DIR" ]; then
@@ -17,19 +17,19 @@ ARCH="$(uname -m)"
 case "${OS}:${ARCH}" in
   Linux:x86_64)
     syft_archive="syft_${SYFT_VERSION}_linux_amd64.tar.gz"
-    syft_sha256='c069905b391cc4c20a5ba65ad5c10be2a7ba074f8ea6ad203e24d14e303dad47'
+    syft_sha256='bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d'
     cosign_asset='cosign-linux-amd64'
     cosign_sha256='4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71'
     ;;
   Darwin:x86_64)
     syft_archive="syft_${SYFT_VERSION}_darwin_amd64.tar.gz"
-    syft_sha256='2956322838b2f64e470eea474495f0cd96be4f222b1ac037258cdc47d965064e'
+    syft_sha256='e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003'
     cosign_asset='cosign-darwin-amd64'
     cosign_sha256='2347488e5d5b25336644024dfeca5601b190e91197a71a917bda44744aff106c'
     ;;
   Darwin:arm64)
     syft_archive="syft_${SYFT_VERSION}_darwin_arm64.tar.gz"
-    syft_sha256='b4319c3abaa87a0170ab76ee83ea2260ca34b53aecfa3ab0dd5428d2319d744f'
+    syft_sha256='1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625'
     cosign_asset='cosign-darwin-arm64'
     cosign_sha256='5cf948c2f4dfe59687bdd0b8523709067383e03982cc543475c8a7dc70e92a76'
     ;;
