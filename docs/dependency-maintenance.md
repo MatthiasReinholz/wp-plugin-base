@@ -87,13 +87,17 @@ overrides. Three have no patched release that their pinned consumers accept and
 remain visible.
 
 Both admin starters and the existing-application fixture receive the same four
-overrides. `postcss-selector-parser@^6.0.0` moves cssnano 6 plugins to the patched
-7.1.6 already used by stylelint and CSS modules for GHSA-rj75-hqrm-r3gf; the only
-breaking change listed for 7.0.0 makes insertion during iteration safe. The
+overrides. `postcss-selector-parser` 7.1.6 replaces the cssnano 6 plugins' copies
+with the patched release already used by stylelint and CSS modules for
+GHSA-rj75-hqrm-r3gf; the only breaking change listed for 7.0.0 makes insertion
+during iteration safe. The key is deliberately unscoped: npm 10 no longer applies
+a range-scoped override such as `@^6.0.0` once it moves an edge outside that
+range, so `npm ci` rejects the lock. Every copy resolves to 7.1.6 either way. The
 in-major 6.1.5 backport published on October 19 is not yet recognized by the
-advisory's patched range; replace this override with it, or remove the override,
-once the advisory accepts 6.1.5. `js-yaml@^5.0.0` advances markdownlint-cli's copy to 5.4.1, the release
-markdownlint-cli2 itself pins, for GHSA-r3ph-w7gj-g6xm. `smol-toml` 1.9.0 matches
+advisory's patched range; once it is, replace this override with
+`postcss-selector-parser@^6.0.0` 6.1.5 or remove it. `js-yaml@^5.0.0` advances
+markdownlint-cli's copy to 5.4.1, the release markdownlint-cli2 itself pins, for
+GHSA-r3ph-w7gj-g6xm. `smol-toml` 1.9.0 matches
 the Markdown tool bundle for GHSA-r4xh-jqrq-34v2. The `js-yaml` and `smol-toml`
 overrides sit outside markdownlint-cli 0.49.1's declared `~5.2.1` and `~1.7.0`
 ranges; remove both when markdownlint-cli adopts patched releases. The fixture
