@@ -49,7 +49,7 @@ The shared API client intentionally separates registry-backed operations from di
 
 ## DataViews Behavior And Migration
 
-The current experimental starter uses DataViews 20.0 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme; validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack retain the WordPress 6.9 boundary test. Treat DataViews package upgrades as explicit compatibility changes: the old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages. DataViews 20 requires `@wordpress/scripts` 36.1 or newer: older dependency extraction declares a `wp-react-inert-value` script handle that WordPress 7.1 does not register, so WordPress refuses to enqueue the admin script. Its WordPress package majors still accept React 18; keep React and React DOM at 18.3.1.
+The current experimental starter uses DataViews 20.0 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme; validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack retain the WordPress 6.9 boundary test. Treat DataViews package upgrades as explicit compatibility changes: the old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages. DataViews 20 requires `@wordpress/dependency-extraction-webpack-plugin` 6.57 or newer, normally supplied by `@wordpress/scripts` 36.1. That release bundles `@wordpress/react-inert-value`. Older releases declare a `wp-react-inert-value` script handle that WordPress 7.1 does not register, so WordPress refuses to enqueue the admin script. Projects with a custom webpack configuration or a separately pinned extraction plugin must ensure version 6.57 or newer. Its WordPress package majors still accept React 18; keep React and React DOM at 18.3.1.
 
 The DataViews stylesheet is imported through `src/dataviews.scss`, so it is bundled as CSS rather than becoming an invalid WordPress script dependency. The managed loader enqueues both `style-index.css` and optional `index.css`, with their generated RTL variants. Keep the generated `index.asset.php` alongside the bundle; it identifies the WordPress-provided scripts required at runtime.
 
@@ -72,9 +72,11 @@ Sync preserves these owned files and will not overwrite local customizations. Co
 ## Starter Tooling And Save Behavior
 
 Both starters use `@wordpress/scripts` 36 with explicit React/react-dom 18.3.1
-peers for the WordPress runtime. The temporary `typescript-eslint` 8.70.0 override
-keeps its package group coherent while the registry's 8.70.1 group is incomplete;
-remove it after a complete compatible release passes installation and lint checks.
+peers for the WordPress runtime. The starters no longer override
+`typescript-eslint`; the complete package group resolves as one version within
+`@wordpress/eslint-plugin`'s declared range. Existing children that copied the
+earlier 8.70.0 override should remove it, regenerate the lockfile, and rerun
+installation and lint checks.
 
 Existing build, lint and format commands remain supported. Projects using
 `test-unit-js` must configure their own Vitest setup or the maintenance Jest

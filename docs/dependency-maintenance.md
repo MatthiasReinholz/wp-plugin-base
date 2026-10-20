@@ -215,13 +215,23 @@ supplies React at runtime. `@wordpress/babel-preset-default` 9, required by scri
 never loads. Built bundles still externalize React. Scripts 36.1 declares the same
 `^22.22.2 || ^24.15.0 || >=26.0.0` Node engines.
 
-DataViews 20 requires `@wordpress/scripts` 36.1 or newer. Its bundled code imports
-`@wordpress/react-inert-value`. Dependency extraction 6.57 bundles that package,
-but older releases map it to a `wp-react-inert-value` script handle that WordPress
-7.1 does not register. WordPress then refuses to enqueue the admin script. That is
-why the standalone DataViews proposals (#408 and #410) failed the real WordPress
-check. With the aligned set, every generated `index.asset.php` dependency list is
-unchanged.
+DataViews 20 requires `@wordpress/dependency-extraction-webpack-plugin` 6.57 or
+newer, which `@wordpress/scripts` 36.1 supplies. Its bundled code imports
+`@wordpress/react-inert-value`. Extraction plugin 6.57 bundles that package, but
+older releases map it to a `wp-react-inert-value` script handle that WordPress 7.1
+does not register. WordPress then refuses to enqueue the admin script. That is why
+the standalone DataViews proposals (#408 and #410) failed the real WordPress
+check. Children with a custom webpack configuration or a separately pinned
+extraction plugin must ensure version 6.57 or newer. With the aligned set, every
+generated `index.asset.php` dependency list is unchanged.
+
+The lock refresh is a full transitive refresh within the declared ranges, not only
+the direct packages. It also advances in-range dependencies such as Playwright
+1.64.1 and stylelint 17.16. The temporary `typescript-eslint` 8.70.0 override is
+removed. `@wordpress/eslint-plugin` 27.1 requires `typescript-eslint` ^8.70.1, so
+the override forced a version below that range. The complete 8.72.0 package group
+now resolves as one version in every lock and keeps the `typescript >=4.8.4 <6.1.0`
+peer.
 
 Qualification evidence:
 
@@ -237,7 +247,9 @@ Qualification evidence:
   DataViews browser tests passed with Playwright 1.64.1.
 - The real WordPress runtime contracts passed on PHP 8.3, including rendering,
   querying and saving the built admin page. The basic starter passed on WordPress
-  6.9 and 7.1.2, and the DataViews starter passed on 7.1.2.
+  6.9 and 7.1.2, and the DataViews starter passed on 7.1.2. These runs preceded
+  the override removal. Removing the override changes only lint tooling, and
+  the starter and fixture builds stayed byte-identical.
 - The fixture's type check, lint, unit and runtime tests passed, along with the
   existing-application adoption test.
 
@@ -441,8 +453,8 @@ continues patch/minor checks; standalone React 19 proposals are excluded from
 these three directories. Revisit all four packages together with that runtime
 migration, rather than updating only React or React DOM.
 
-The existing-application fixture retains TypeScript 6 because its pinned
-`typescript-eslint` 8.70.0 parser supports `>=4.8.4 <6.1.0`. A TypeScript 7
+The existing-application fixture retains TypeScript 6 because its resolved
+`typescript-eslint` 8.72.0 parser supports `>=4.8.4 <6.1.0`. A TypeScript 7
 upgrade must include a supported parser migration and full fixture qualification;
 Dependabot continues compatible compiler updates while excluding standalone major
 proposals for this fixture.
