@@ -2,13 +2,14 @@
 
 ## v1.10.9
 
-* fix: harden fixture asset extraction, installer cleanup and package alignment (#425)
-* chore: adopt compatible WordPress admin package releases (#422)
-* chore: adopt reviewed GitHub Actions releases (#423)
-* chore: adopt verified Syft 1.54.1 and Composer image digest (#421)
-* chore: qualify npm audit and WordPress environment tooling updates (#420)
-* chore: adopt Semgrep 1.181.0 and PHPStan 2.3.1 (#424)
-* fix: resolve compatible npm advisories in starters and tooling (#419)
+* Resolve nine compatible npm advisories in both admin starters and the existing-application fixture with narrow overrides: `postcss-selector-parser` 7.1.6, `js-yaml@^5.0.0` 5.4.1, `smol-toml` 1.9.0 and `katex` 0.18.10. The Markdown tool bundle adopts the same KaTeX release with renewed remediation digests; starter production builds are byte-identical.
+* Update both admin starters to the October 2026 WordPress package set: `@wordpress/components` 42, `@wordpress/element` 9, `@wordpress/dataviews` 20 and `@wordpress/scripts` 36.1, with matching api-fetch, data and i18n releases. React and React DOM remain 18.3.1, and generated `index.asset.php` dependency lists are unchanged.
+* DataViews 20 requires `@wordpress/dependency-extraction-webpack-plugin` 6.57 or newer, normally supplied by `@wordpress/scripts` 36.1. Older extraction emits a `wp-react-inert-value` handle that WordPress 7.1 does not register, so WordPress refuses to enqueue the admin script. Upgrade DataViews and scripts in one change, including in custom webpack setups.
+* Admin starter files are child-owned and sync does not update them. Existing children should copy the new package versions and overrides from the foundation seeds, remove any copied `typescript-eslint` 8.70.0 override, regenerate the lockfile, and rerun install, build and lint. Import DataViews styles through an entry-level stylesheet: a direct `@wordpress/dataviews/build-style/style.css` import becomes an unregistered script dependency.
+* Adopt reviewed GitHub Actions releases: setup-php 2.40.0, scorecard-action 2.5.0, download-artifact 8.0.2, setup-node 7.1.0, upload-artifact 7.0.2 and codeql-action/upload-sarif 4.39.0. Foundation sync migrates managed and child-owned workflows from the previous pins; the workflow audit rejects all other pins.
+* Update signature-verified Syft 1.54.1, the `composer:2` image digest, Semgrep 1.181.0, quality-pack PHPStan 2.3.1, and the locked npm audit producer `@npmcli/arborist` 9.9.3 with a renewed inventory digest. Audit thresholds, scanner rules and runtime requirements are unchanged.
+* Keep the WordPress environment tool's staging directory cleanup reliable under macOS bash 3.2, and require aligned overrides, `@wordpress/*` and React versions across the admin seeds and fixture, with grouped Dependabot updates for those packages.
+* Keep `@wordpress/env` at 11.16.0: 11.17.0 requires WordPress Playground releases that declare Node 24.18, above the supported Node 22 floor. Three advisories without an accepted fix remain documented with reachability and a 2026-11-19 review date: `mcp` (pinned by Semgrep, CLI-only use), `sprintf-js` (no patched release) and `braces` (remediated by the existing verified backport).
 
 ## v1.10.8
 
