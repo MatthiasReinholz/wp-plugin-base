@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.10.9
+
+* fix: harden fixture asset extraction, installer cleanup and package alignment (#425)
+* chore: adopt compatible WordPress admin package releases (#422)
+* chore: adopt reviewed GitHub Actions releases (#423)
+* chore: adopt verified Syft 1.54.1 and Composer image digest (#421)
+* chore: qualify npm audit and WordPress environment tooling updates (#420)
+* chore: adopt Semgrep 1.181.0 and PHPStan 2.3.1 (#424)
+* fix: resolve compatible npm advisories in starters and tooling (#419)
+
 ## v1.10.8
 
 * Add an explicit GitHub plugin attestation setting for private repositories without Enterprise Cloud. The default remains enabled.
