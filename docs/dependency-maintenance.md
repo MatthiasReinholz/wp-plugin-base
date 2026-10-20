@@ -301,6 +301,43 @@ preparation verifies the bundle against the same exact release workflow identity
 and OIDC issuer before accepting platform checksums. Missing bundles, invalid
 signatures, or mismatched archive checksums still fail before pin mutation.
 
+## October 20, 2026 Node Tooling Review
+
+The npm audit producer advances `@npmcli/arborist` from 9.9.2 to 9.9.3 (from
+Dependabot #418). Upstream changes are two bug fixes: peer-conflict reporting for
+load failures and `allowScripts` keys under the linked install strategy. Neither
+touches the audit path, and dependencies are unchanged. Node 22 and 24 regenerate
+the same lock as Dependabot. The tarball matches its integrity value. Node
+22.12.0, 22.23.3 and 24.22.0 install the same 2,151-file tree: 116 packages with
+zero self-audit findings and verified registry signatures. No locked package
+excludes Node 22.12.0. Only the three changed Arborist files and the hidden
+lockfile differ from 9.9.2. An independent recomputation of the inventory digest
+reproduced the previous value before recording the new one. On the remediation
+fixture and Markdown tool graphs, 9.9.2 and 9.9.3 produce identical raw reports,
+and real audits pass under Node 22 and 24.
+
+WordPress environment tooling remains blocked at 11.16.0:
+
+| Field | Value |
+| --- | --- |
+| Current pin | `@wordpress/env` 11.16.0, `simple-git` override 4.0.2 |
+| Latest evaluated | 11.17.0 (Dependabot #391) |
+| Reason | 11.17.0 requires `@wp-playground/cli` ^3.1.56, which pins `@php-wasm/*` packages that declare Node >=24.18.0 and npm >=11.16.0 from 3.1.55, so `engine-strict` installation fails on the supported Node 22 floor. |
+| Owner | Foundation maintainers |
+| Next review | 2026-11-19 |
+| Cause | [WordPress/wordpress-playground#4322](https://github.com/WordPress/wordpress-playground/pull/4322) (merged) raised the engine floor; adopt with a deliberate Node 24 floor migration |
+
+The two adapted upstream files are byte-identical in 11.17.0, which still
+requires `simple-git` ^3.32.3 through the default import, so the adaptation and
+override remain needed. Its expected version was deliberately not refreshed. Adopt
+11.17.0 or later only with an explicit Node 24 floor migration, or once a release
+restores a Node 22-compatible Playground graph. The `sprintf-js` chain
+(GHSA-hp3w-g68c-fv3c, all versions) still has no patched release, so the four
+moderate findings remain visible below the high threshold. The `adm-zip`, `ajv`
+and `tmp` overrides now equal what their parents already resolve; `qs`, `ws`
+and `simple-git` still request older versions. Revisit all six
+with the next qualified upgrade instead of changing the retained graph.
+
 ## Runtime-aligned major updates
 
 The admin starters and existing-application fixture externalize React to

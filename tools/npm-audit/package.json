@@ -6,10 +6,10 @@
     "npm": ">=10.2.3"
   },
   "devDependencies": {
-    "@npmcli/arborist": "9.9.2",
+    "@npmcli/arborist": "9.9.3",
     "npm-audit-report": "7.0.0"
   },
   "auditProducer": {
-    "treeSha256": "3cdf3300520fbaa9c056391f0d203da7c5ce8077f11320556c17c20951204892"
+    "treeSha256": "55912b50ebf83eb80254d59c9d8cdc05571622a5afe98d47a7edfd5e5949c1a9"
   }
 }

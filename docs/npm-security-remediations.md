@@ -97,7 +97,7 @@ with its complete installed development graph as well, even though the ordinary
 root audit defaults to production dependencies. The caller's configured severity
 threshold is preserved.
 
-Audit evidence uses npm's official `@npmcli/arborist` 9.9.2 audit API and
+Audit evidence uses npm's official `@npmcli/arborist` 9.9.3 audit API and
 `npm-audit-report` 7.0.0 JSON reporter, installed as ordinary unbundled dependencies
 from `tools/npm-audit`. A small source-owned adapter calls `audit({ fix: false })`
 and the official reporter; it does not rewrite findings or implement dependency

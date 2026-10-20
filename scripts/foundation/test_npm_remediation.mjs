@@ -135,7 +135,7 @@ test('real audit uses the locked producer despite incompatible ambient npm and h
   assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.match(result.stdout, /GHSA-vfj7-8cjw-p6xm/);
   assert.match(result.stdout, /locallyRemediated/);
-  assert.match(result.stdout, /"version": "9\.9\.2"/);
+  assert.match(result.stdout, /"version": "9\.9\.3"/);
   assert.match(result.stdout, /"version": "7\.0\.0"/);
   assert.equal(digest(join(root, 'node_modules/braces/lib/parse.js')), beforeHash);
 });
