@@ -2,8 +2,10 @@
 
 ## v1.10.10
 
-* fix: group @wordpress/* updates in child Dependabot npm entries (#428)
-* fix: remediate markdown-it and Syft advisories in foundation tooling (#427)
+* Override `markdown-it` to 15.0.3 in the Markdown tool bundle for GHSA-r7fv-28h4-cvq7; markdownlint-cli2 0.23.3 pins the affected 15.0.1 exactly. The foundation configures no markdown-it custom rules, and 15.0.3 also carries the quadratic reference-definition and inline HTML parsing fixes. Remediation digests are renewed; the admin starters and fixture already resolve the patched 14.3.2.
+* Update signature-verified Syft 1.55.0, which remediates five `golang.org/x/net` advisories including one critical. CycloneDX SBOM output is unchanged.
+* Group `@wordpress/*` updates (`wordpress-packages`) in every generated child Dependabot npm entry, root and admin UI, so shared WordPress package releases arrive as one proposal per directory. Existing children receive the group on their next foundation sync, including children upgrading from v1.9.x without an ownership receipt: earlier vendored templates still render their original bytes during ownership recovery.
+* Fail closed when a child Dependabot template contains unsupported additions or renders output that does not match the selected update policies.
 
 ## v1.10.9
 
