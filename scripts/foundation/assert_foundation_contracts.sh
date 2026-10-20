@@ -120,6 +120,31 @@ assert_file_contains_literal "$ROOT_DIR/.github/dependabot.yml" 'directory: /too
 assert_file_contains_literal "$ROOT_DIR/.github/dependabot.yml" 'directory: /tools/python-semgrep' "Dependabot must manage Semgrep tooling updates."
 assert_file_contains_literal "$ROOT_DIR/.github/dependabot.yml" 'directory: /templates/child/quality-pack/.wp-plugin-base-quality-pack' "Dependabot must manage quality-pack Composer updates."
 assert_file_contains_literal "$ROOT_DIR/.github/dependabot.yml" 'directory: /templates/child/security-pack/.wp-plugin-base-security-pack' "Dependabot must manage security-pack Composer updates."
+admin_ui_manifests=(
+  "$ROOT_DIR/templates/child/admin-ui-pack-seed-basic/.wp-plugin-base-admin-ui/package.json"
+  "$ROOT_DIR/templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui/package.json"
+  "$ROOT_DIR/tests/fixtures/existing-application/package.json"
+)
+# Shared @wordpress/* packages are qualified together; one drifting manifest must fail.
+jq -es '
+  (map(.overrides // {}) | unique | length == 1) and
+  ([.[] | (.dependencies // {}), (.devDependencies // {}) | to_entries[]
+    | select(.key | startswith("@wordpress/"))]
+    | group_by(.key) | all(map(.value) | unique | length == 1))
+' "${admin_ui_manifests[@]}" >/dev/null || {
+  echo "Admin UI starter and existing-application manifests must share identical overrides and @wordpress/* versions." >&2
+  exit 1
+}
+ruby -rpsych -e '
+  root = ARGV.shift
+  updates = Psych.safe_load(File.read(File.join(root, ".github/dependabot.yml")), aliases: false).fetch("updates")
+  ARGV.each do |manifest|
+    directory = File.dirname(manifest.delete_prefix(root))
+    entry = updates.find { |update| update["package-ecosystem"] == "npm" && update["directory"] == directory }
+    patterns = entry && entry.dig("groups", "wordpress-packages", "patterns")
+    abort "Dependabot must group @wordpress/* updates for #{directory}." unless patterns == ["@wordpress/*"]
+  end
+' "$ROOT_DIR" "${admin_ui_manifests[@]}"
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.yml" 'concurrency:' "update-plugin-check workflow must serialize update automation."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'concurrency:' "update-foundation workflow must serialize update automation."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-release.yml" 'concurrency:' "finalize-release workflow must serialize release publication."

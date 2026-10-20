@@ -35,7 +35,7 @@ test ! -e "$project/lib/wp-plugin-base"
 )
 bash "$project/.wp-plugin-base/scripts/ci/validate_project.sh" "$project/.wp-plugin-base.env"
 
-php -r '$asset = require $argv[1]; foreach (["react", "react-dom", "react-jsx-runtime", "wp-components", "wp-element", "wp-i18n"] as $dependency) { if (!in_array($dependency, $asset["dependencies"], true)) { fwrite(STDERR, "Missing extracted dependency: $dependency\n"); exit(1); } } if (empty($asset["version"])) { exit(1); }' "$project/build/index.asset.php"
+php -r '$asset = require $argv[1]; foreach (["react", "react-dom", "react-jsx-runtime", "wp-components", "wp-element", "wp-i18n"] as $dependency) { if (!in_array($dependency, $asset["dependencies"], true)) { fwrite(STDERR, "Missing extracted dependency: $dependency\n"); exit(1); } } foreach ($asset["dependencies"] as $dependency) { if (str_contains($dependency, "/")) { fwrite(STDERR, "Unregistered subpath dependency: $dependency\n"); exit(1); } } if (empty($asset["version"])) { exit(1); }' "$project/build/index.asset.php"
 python3 - "$project" "$fixture/owned.json" <<'PY'
 import hashlib, json, pathlib, sys, zipfile
 root = pathlib.Path(sys.argv[1])

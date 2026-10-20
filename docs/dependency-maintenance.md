@@ -96,6 +96,13 @@ upgrade must include a supported parser migration and full fixture qualification
 Dependabot continues compatible compiler updates while excluding standalone major
 proposals for this fixture.
 
+Dependabot groups `@wordpress/*` updates per directory (`wordpress-packages`) for
+both admin starters and the fixture, because these packages are qualified as a
+set; DataViews 20, for example, requires scripts 36.1. Dependabot still opens
+one grouped proposal per directory. The foundation contracts require identical
+`overrides` and shared `@wordpress/*` versions across all three manifests, so
+combine the three grouped proposals into one reviewed change.
+
 The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
 is also represented in Dependabot configuration because the calendar-version
 2026 releases require Python 3.11. Revisit the bound and automation policy together

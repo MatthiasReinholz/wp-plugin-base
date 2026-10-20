@@ -15,7 +15,7 @@ wp_plugin_base_wordpress_tools_dir() {
 # Callers provide a private, empty directory; no partially qualified tool is activated.
 wp_plugin_base_install_wordpress_env() (
   local destination_dir="$1"
-  local source_dir staging_dir
+  local source_dir
 
   source_dir="$(wp_plugin_base_wordpress_tools_dir)" || return 1
   if [ -L "$destination_dir" ] || [ ! -d "$destination_dir" ] || \
@@ -24,6 +24,7 @@ wp_plugin_base_install_wordpress_env() (
     return 1
   fi
   destination_dir="$(cd "$destination_dir" && pwd -P)" || return 1
+  # Not local: bash 3.2 can unwind function locals before a `bash -c` EXIT trap runs.
   staging_dir="$(mktemp -d "${destination_dir}.staging.XXXXXX")" || return 1
   trap 'rm -rf "$staging_dir"' EXIT
   trap 'exit 129' HUP
