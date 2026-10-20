@@ -183,6 +183,25 @@ and fixture audit finding is the braces 3.0.3 advisory, for which the reviewed
 backport is available to child projects as described in
 [npm security remediations](npm-security-remediations.md).
 
+GHSA-r7fv-28h4-cvq7, published after this review, affects the `markdown-it`
+15.0.1 that markdownlint-cli2 0.23.3 pins exactly in the Markdown tool bundle.
+The starters and fixture already resolve the patched 14.3.2 through
+markdownlint-cli. markdownlint constructs markdown-it only for custom rules, with
+`html` enabled and `typographer` left off. The foundation configures no custom
+rules or markdown-it plugins, so it neither loads the parser nor enables the
+affected smartquotes rule. The in-major `markdown-it` 15.0.3 override is adopted
+anyway. It carries the 15.0.2 fix plus the 15.0.3 fixes for quadratic parsing of
+multiline reference definitions, which affect every configuration, and of
+unclosed inline HTML constructs, which apply because `html` is enabled. The
+override sits outside the CLI's exact pin but keeps the major and public API;
+15.0.3 also limits reference labels to 999 code points, which can change the
+tokens custom rules receive. Its only other graph change is markdown-it's own
+`argparse` advancing to 3.0.3. Remove the override when markdownlint-cli2 pins
+`markdown-it` 15.0.3 or newer. The Markdown tool manifest digests were renewed
+after review. `npm ci` succeeds on npm 10 and 11, the full repository Markdown
+lint passes, the remediation and tool installer tests pass, and the bundle audit
+reports only the braces advisory.
+
 Foundation maintainers own the following exceptions. Each expires on 2026-11-19
 unless renewed with new evidence, and is removed when upstream publishes a
 compatible fix.
@@ -214,8 +233,18 @@ and GitHub's OIDC issuer. The certificate's source commit matches the `v1.54.1`
 tag, and the Linux amd64, macOS amd64 and macOS arm64 archive hashes match the
 signed manifest. The release notes contain cataloger fixes and dependency
 updates. They do not change the `dir:` source or `cyclonedx-json` output options
-used by SBOM generation. Syft 1.55.0 was published after this candidate and
-awaits its own reviewed update.
+used by SBOM generation.
+
+Syft 1.55.0, published after that candidate, was then reviewed and adopted. Its
+checksum manifest's Sigstore bundle verified with the reviewed, hash-pinned
+Cosign 3.1.3 against the same release workflow identity and OIDC issuer. The
+certificate's source commit `f15c3343e29dfb20cf6d82c820e7090b49808c96` is the
+`v1.55.0` tag target, and all three archive hashes match the signed manifest.
+The release adds IPK cataloging, records Debian copyright holders in license
+data, fixes a panic when the CLI command is constructed repeatedly and pins the
+GGUF parser. It remediates five `golang.org/x/net` advisories, four high and one
+critical (GO-2026-6612). A `cyclonedx-json` scan of the child template produced
+the same specification version and component count as 1.54.1.
 
 The Composer pin moves to the current official `composer:2` index digest
 `sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac`.
