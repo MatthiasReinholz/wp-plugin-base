@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.10
+
+* fix: group @wordpress/* updates in child Dependabot npm entries (#428)
+* fix: remediate markdown-it and Syft advisories in foundation tooling (#427)
+
 ## v1.10.9
 
 * Resolve nine compatible npm advisories in both admin starters and the existing-application fixture with narrow overrides: `postcss-selector-parser` 7.1.6, `js-yaml@^5.0.0` 5.4.1, `smol-toml` 1.9.0 and `katex` 0.18.10. The Markdown tool bundle adopts the same KaTeX release with renewed remediation digests; starter production builds are byte-identical.
