@@ -61,12 +61,12 @@ jobs:
           echo "php_runtime_matrix_json=$json" >> "$GITHUB_OUTPUT"
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: ${{ steps.config.outputs.php_version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ steps.config.outputs.node_version }}
 
@@ -77,7 +77,7 @@ jobs:
         run: WP_PLUGIN_BASE_PACKAGE_RESULT_FILE="$GITHUB_OUTPUT" bash .wp-plugin-base/scripts/ci/validate_project.sh ".wp-plugin-base.env" "$BRANCH_NAME"
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ steps.config.outputs.plugin_slug }}-package
           path: ${{ steps.package.outputs.zip_path }}
@@ -123,12 +123,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: ${{ needs.validate.outputs.php_version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ needs.validate.outputs.node_version }}
 
@@ -158,7 +158,7 @@ jobs:
 
       - name: Upload Semgrep report artifact
         if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: semgrep-security-report
           path: dist/semgrep-security.sarif
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: ${{ always() && needs.validate.outputs.wordpress_security_pack_enabled == 'true' && needs.validate.outputs.github_code_scanning_upload_enabled == 'true' }}
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee
         with:
           sarif_file: dist/semgrep-security.sarif
 
@@ -195,12 +195,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: ${{ matrix.php-version }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ needs.validate.outputs.node_version }}
 

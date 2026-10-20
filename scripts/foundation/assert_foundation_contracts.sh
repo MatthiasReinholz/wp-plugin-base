@@ -124,7 +124,7 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-plugin-check.ym
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/update-foundation.yml" 'concurrency:' "update-foundation workflow must serialize update automation."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-release.yml" 'concurrency:' "finalize-release workflow must serialize release publication."
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/finalize-foundation-release.yml" 'concurrency:' "finalize-foundation-release workflow must serialize foundation release publication."
-assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "Security documentation must advertise the reviewed upload-artifact SHA."
+assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' "Security documentation must advertise the reviewed upload-artifact SHA."
 reviewed_sarif_pin="$(jq -er '.actions["github/codeql-action/upload-sarif"].current | select(test("^[a-f0-9]{40}$"))' "$ROOT_DIR/scripts/lib/action-pins.json")"
 assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Root CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Child CI workflow must pin upload-sarif to the reviewed SHA."

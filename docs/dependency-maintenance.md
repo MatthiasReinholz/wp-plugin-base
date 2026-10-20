@@ -170,6 +170,29 @@ rebuilt; the amd64 and arm64 manifests are unchanged from the previous pin.
 The `composer:2` tag still points to that index, built from the upstream commit
 listed in Docker's official image definition.
 
+## October 20, 2026 GitHub Actions Review
+
+The managed action catalog adopts these upstream releases. Each previous pin
+becomes a predecessor so child-owned workflows migrate during sync; audit accepts
+only the new pins. Every new pin is the commit of its upstream release tag,
+resolved through the GitHub API, and matches the Dependabot proposal. This change
+supersedes Dependabot PRs #387, #388, #395, #396, #397 and #417, which each updated
+only part of the managed workflows and catalog.
+
+| Action | Accepted release | Notes from upstream release notes |
+| --- | --- | --- |
+| `shivammathur/setup-php` | 2.37.2 to 2.40.0 | Same Node 24 runtime and `action.yml`; adds tool checksum pinning, Ubuntu 26.04 and PHP 8.7 nightly; deprecates Intel macOS and macOS 14 arm64 runners |
+| `ossf/scorecard-action` | v2.4.4 to v2.5.0 | Scorecard v5.6.0 after its hosted-service move; upstream says older action versions will fail; workflow checks now follow YAML aliases; no longer prints the token variable |
+| `actions/download-artifact` | v8.0.1 to v8.0.2 | `@actions/artifact` 6.3.1 with HTTP 429 `Retry-After` retries; digest-mismatch failure behavior unchanged |
+| `actions/upload-artifact` | v7.0.1 to v7.0.2 | `@actions/artifact` 6.3.1 with HTTP 429 retries; inputs and outputs unchanged |
+| `actions/setup-node` | v7.0.0 to v7.1.0 | Adds `mise.toml` and absolute `node-version-file` support, Node version validation and manifest fetch retries |
+| `github/codeql-action/upload-sarif` | v4.38.2 to v4.39.0 | Minimum CodeQL bundle raised to 2.20.7; default bundle 2.27.2; `upload-sarif` inputs unchanged |
+
+All runtimes remain Node 24, except Scorecard, which runs as a container. No
+inputs, outputs or permissions used by the managed workflows changed. Verification
+covered the workflow audit, root and child workflow parity, pin migration tests
+and release/update fixtures.
+
 ## October 9, 2026 Markdown Tooling Review
 
 The latest compatible Markdown CLI still depends on `braces` 3.0.3. Its staged
