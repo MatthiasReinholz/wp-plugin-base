@@ -153,7 +153,7 @@
       },
       "pin": {
         "file": "scripts/lib/wordpress_tooling.sh",
-        "pattern": "WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7'"
+        "pattern": "WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac'"
       }
     },
     {
@@ -213,7 +213,7 @@
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "SYFT_VERSION='1.52.0'"
+        "pattern": "SYFT_VERSION='1.54.1'"
       }
     },
     {

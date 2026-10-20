@@ -151,6 +151,25 @@ compatible fix.
   ([micromatch/braces#85](https://github.com/micromatch/braces/issues/85)). The
   verified backport remediates every installed copy before tool activation.
 
+## October 20, 2026 External Tool Review
+
+Syft advances from 1.52.0 to 1.54.1; tag 1.53.0 has no published release. The
+checksum manifest's Sigstore bundle verified with the reviewed Cosign 3.1.3
+against the exact `anchore/syft` release workflow identity on `refs/heads/main`
+and GitHub's OIDC issuer. The certificate's source commit matches the `v1.54.1`
+tag, and the Linux amd64, macOS amd64 and macOS arm64 archive hashes match the
+signed manifest. The release notes contain cataloger fixes and dependency
+updates. They do not change the `dir:` source or `cyclonedx-json` output options
+used by SBOM generation. Syft 1.55.0 was published after this candidate and
+awaits its own reviewed update.
+
+The Composer pin moves to the current official `composer:2` index digest
+`sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac`.
+It still provides Composer 2.10.3 with PHP 8.5.11. Only the riscv64 manifest was
+rebuilt; the amd64 and arm64 manifests are unchanged from the previous pin.
+The `composer:2` tag still points to that index, built from the upstream commit
+listed in Docker's official image definition.
+
 ## October 9, 2026 Markdown Tooling Review
 
 The latest compatible Markdown CLI still depends on `braces` 3.0.3. Its staged
