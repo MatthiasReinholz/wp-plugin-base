@@ -193,6 +193,57 @@ inputs, outputs or permissions used by the managed workflows changed. Verificati
 covered the workflow audit, root and child workflow parity, pin migration tests
 and release/update fixtures.
 
+## October 20, 2026 WordPress Package Review
+
+The twenty Dependabot proposals for the October 7 WordPress package release were
+reviewed as one set. Both admin starters and the existing-application fixture now
+pin `@wordpress/api-fetch` 7.57.0, `@wordpress/components` 42.0.0,
+`@wordpress/data` 10.57.0, `@wordpress/element` 9.0.0, `@wordpress/i18n` 6.30.0
+and `@wordpress/scripts` 36.1.0. The DataViews starter and the fixture also move
+to `@wordpress/dataviews` 20.0.0. No major update is held, so no Dependabot ignore
+rule was added. Data 10.57 already depends on element 9, so the packages move
+together.
+
+The element, components and DataViews majors are listed upstream as "Upgrade React
+to v19" ([WordPress/gutenberg#83941](https://github.com/WordPress/gutenberg/pull/83941)).
+That change migrates source types. The published packages keep `^18 || ^19` React
+peers, and their runtime code supports React 18: `serialize` handles both context
+layouts, and the new `@wordpress/react-inert-value` helper checks the React
+version. The manifests keep React and React DOM 18.3.1, and WordPress still
+supplies React at runtime. `@wordpress/babel-preset-default` 9, required by scripts
+36.1, declares `react` ^19.3.0 and installs a nested React 19.3.1 that the preset
+never loads. Built bundles still externalize React. Scripts 36.1 declares the same
+`^22.22.2 || ^24.15.0 || >=26.0.0` Node engines.
+
+DataViews 20 requires `@wordpress/scripts` 36.1 or newer. Its bundled code imports
+`@wordpress/react-inert-value`. Dependency extraction 6.57 bundles that package,
+but older releases map it to a `wp-react-inert-value` script handle that WordPress
+7.1 does not register. WordPress then refuses to enqueue the admin script. That is
+why the standalone DataViews proposals (#408 and #410) failed the real WordPress
+check. With the aligned set, every generated `index.asset.php` dependency list is
+unchanged.
+
+Qualification evidence:
+
+- `npm ci` and `npm ls --all` passed for all three projects on Node.js 22 with
+  npm 10.9 and on Node.js 24 with npm 11.19.
+- The advisory review overrides still resolve (`postcss-selector-parser` 7.1.6,
+  `js-yaml` 5.4.1, `katex` 0.18.10 and `smol-toml` 1.9.0). `npm audit` reports only
+  the existing braces advisory.
+- The basic starter build is byte-identical. The DataViews bundle grows from 853 KB
+  to 872 KB (196 KB to 200 KB gzip), which remains within its budgets. Node.js 22
+  and 24 builds are identical.
+- JavaScript lint, the typed-parser contract and the standalone admin form and
+  DataViews browser tests passed with Playwright 1.64.1.
+- The real WordPress runtime contracts passed on PHP 8.3, including rendering,
+  querying and saving the built admin page. The basic starter passed on WordPress
+  6.9 and 7.1.2, and the DataViews starter passed on 7.1.2.
+- The fixture's type check, lint, unit and runtime tests passed, along with the
+  existing-application adoption test.
+
+Existing DataViews children must upgrade DataViews and scripts in one change. See
+the DataViews migration section of the admin UI pack documentation.
+
 ## October 9, 2026 Markdown Tooling Review
 
 The latest compatible Markdown CLI still depends on `braces` 3.0.3. Its staged

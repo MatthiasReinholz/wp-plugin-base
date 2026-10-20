@@ -49,7 +49,7 @@ The shared API client intentionally separates registry-backed operations from di
 
 ## DataViews Behavior And Migration
 
-The current experimental starter uses DataViews 19.1 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme; validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack retain the WordPress 6.9 boundary test. Treat DataViews package upgrades as explicit compatibility changes: the old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages.
+The current experimental starter uses DataViews 20.0 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme; validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack retain the WordPress 6.9 boundary test. Treat DataViews package upgrades as explicit compatibility changes: the old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages. DataViews 20 requires `@wordpress/scripts` 36.1 or newer: older dependency extraction declares a `wp-react-inert-value` script handle that WordPress 7.1 does not register, so WordPress refuses to enqueue the admin script. Its WordPress package majors still accept React 18; keep React and React DOM at 18.3.1.
 
 The DataViews stylesheet is imported through `src/dataviews.scss`, so it is bundled as CSS rather than becoming an invalid WordPress script dependency. The managed loader enqueues both `style-index.css` and optional `index.css`, with their generated RTL variants. Keep the generated `index.asset.php` alongside the bundle; it identifies the WordPress-provided scripts required at runtime.
 
@@ -61,7 +61,7 @@ Both starters translate status labels in their detail panel. Example operation r
 
 For existing DataViews consumers, these fixes require a reviewed merge into child-owned `.wp-plugin-base-admin-ui/src/app.js`, `src/dataviews.scss`, `package.json`, `package-lock.json`, and `includes/rest-operations/example-items-operations.php`:
 
-1. Reconcile the aligned DataViews 19.1 dependency set with product-specific dependencies and regenerate the lockfile. Include `src/dataviews.scss` and import it from `app.js`; remove the direct JavaScript import of the package CSS.
+1. Reconcile the aligned DataViews 20.0 dependency set, including `@wordpress/scripts` 36.1, with product-specific dependencies and regenerate the lockfile. Confirm that the rebuilt `index.asset.php` lists only handles registered by your minimum WordPress version. Include `src/dataviews.scss` and import it from `app.js`; remove the direct JavaScript import of the package CSS.
 2. Import `filterSortAndPaginate` from `@wordpress/dataviews`, derive its `data` and `paginationInfo` from the collection, view, and field definitions, and pass both results to `DataViews`.
 3. Reset or clamp the page when the query or collection changes.
 4. Return stable status identifiers from PHP and translate their display labels in the UI.
