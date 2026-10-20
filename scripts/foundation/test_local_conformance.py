@@ -143,7 +143,8 @@ class LocalConformance(unittest.TestCase):
         templates = self.root / ".wp-plugin-base/templates"
         legacy = json.loads((FOUNDATION / "tests/fixtures/legacy-automation-templates.json").read_text())
         # The fixture stays byte-exact to its source commit. This setup renders it with
-        # current scripts, whose audit accepts only current pins, so advance predecessors.
+        # current scripts, whose sync migrates predecessor pins in rendered output and
+        # would break the old generation's digest match, so advance predecessors first.
         pins = json.loads((FOUNDATION / "scripts/lib/action-pins.json").read_text())["actions"]
         for name, content in legacy["templates"].items():
             for action, policy in pins.items():
