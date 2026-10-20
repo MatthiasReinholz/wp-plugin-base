@@ -35,7 +35,7 @@ test ! -e "$project/lib/wp-plugin-base"
 )
 bash "$project/.wp-plugin-base/scripts/ci/validate_project.sh" "$project/.wp-plugin-base.env"
 
-php -r '$asset = require $argv[1]; foreach (["react", "react-dom", "react-jsx-runtime", "wp-components", "wp-element", "wp-i18n"] as $dependency) { if (!in_array($dependency, $asset["dependencies"], true)) { fwrite(STDERR, "Missing extracted dependency: $dependency\n"); exit(1); } } if (empty($asset["version"])) { exit(1); }' "$project/build/index.asset.php"
+php -r '$asset = require $argv[1]; foreach (["react", "react-dom", "react-jsx-runtime", "wp-components", "wp-element", "wp-i18n"] as $dependency) { if (!in_array($dependency, $asset["dependencies"], true)) { fwrite(STDERR, "Missing extracted dependency: $dependency\n"); exit(1); } } foreach ($asset["dependencies"] as $dependency) { if (str_contains($dependency, "/")) { fwrite(STDERR, "Unregistered subpath dependency: $dependency\n"); exit(1); } } if (empty($asset["version"])) { exit(1); }' "$project/build/index.asset.php"
 python3 - "$project" "$fixture/owned.json" <<'PY'
 import hashlib, json, pathlib, sys, zipfile
 root = pathlib.Path(sys.argv[1])
@@ -44,6 +44,7 @@ for name, expected in json.loads(pathlib.Path(sys.argv[2]).read_text()).items():
 assert 'Requires at least: 7.1' in (root / 'existing-application.php').read_text()
 assert 'padding-left:12px' in (root / 'build/index.css').read_text()
 assert 'padding-right:12px' in (root / 'build/index-rtl.css').read_text()
+assert all('.dataviews-' in (root / name).read_text() for name in ('build/index.css', 'build/index-rtl.css'))
 licenses = (root / 'build/licenses.txt').read_text()
 assert '@wordpress/dataviews@20.0.0' in licenses and 'GNU GENERAL PUBLIC LICENSE' in licenses
 manifest = json.loads((root / 'build/manifest.json').read_text())

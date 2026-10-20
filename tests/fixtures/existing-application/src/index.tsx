@@ -1,4 +1,6 @@
 import './application.scss';
+// Bundle DataViews styles with the entry so the enqueued RTL variant also applies.
+import './dataviews.scss';
 import { createRoot, useState } from '@wordpress/element';
 import type { ComponentType } from 'react';
 import { Button } from '@wordpress/components';

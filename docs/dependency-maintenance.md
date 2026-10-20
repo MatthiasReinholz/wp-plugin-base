@@ -23,7 +23,7 @@ a green schedule start alone is not evidence of successful maintenance.
   for all external tools. Validate any changed upstream signing identity separately.
 - Check supported releases at least weekly through Dependabot and the external
   updater. Security fixes should not wait for the normal weekly schedule.
-- Audit all four npm lockfiles and both Python lockfiles under
+- Audit every npm lockfile listed in the inventory and both Python lockfiles under
   `tools/python-lint-tools/` and `tools/python-semgrep/`. Also audit fresh lint-only,
   Semgrep-only, and combined Python environments after hash-locked installation.
   The installer combines both Python locks in one environment; run `pip check`
@@ -79,9 +79,63 @@ The reviewed lock uses Doctrine Instantiator 1.5.0, PHPStan 2.3.1,
 phpstan-wordpress 2.0.4 and PHPUnit 9.6.38. Actual locked installation, platform
 checks and quality-tool execution passed on PHP 8.0, including actual Doctrine object instantiation. The full foundation gate
 also uses Composer's real solver to reject incompatible locked PHP requirements.
-The PHPStan 2.3 minor changed only the PHPStan package in the lock; the
-managed fixture still analyses cleanly at level 5 and a deliberate level-5
-error is still reported.
+
+## Runtime-Aligned Major Updates
+
+The admin starters and existing-application fixture externalize React to
+WordPress. WordPress 6.9 and 7.1.3 both publish React 18.3.1, so their development
+React, React DOM and corresponding type packages must remain on the matching
+major until the supported WordPress runtime is deliberately requalified. Dependabot
+continues patch/minor checks; standalone React 19 proposals are excluded from
+these three directories. Revisit all four packages together with that runtime
+migration, rather than updating only React or React DOM.
+
+The existing-application fixture retains TypeScript 6 because its resolved
+`typescript-eslint` 8.72.0 parser supports `>=4.8.4 <6.1.0`. A TypeScript 7
+upgrade must include a supported parser migration and full fixture qualification;
+Dependabot continues compatible compiler updates while excluding standalone major
+proposals for this fixture.
+
+Dependabot groups `@wordpress/*` updates per directory (`wordpress-packages`) for
+both admin starters and the fixture, because these packages are qualified as a
+set; DataViews 20, for example, requires scripts 36.1. Dependabot still opens
+one grouped proposal per directory. The foundation contracts require identical
+`overrides` and shared `@wordpress/*` and React versions across all three
+manifests, so combine the three grouped proposals into one reviewed change.
+
+The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
+is also represented in Dependabot configuration because the calendar-version
+2026 releases require Python 3.11. Revisit the bound and automation policy together
+when intentionally raising the Python support floor. These compatibility rules do
+not suppress advisory scanning or permit vulnerable dependencies.
+
+The required full foundation CI job also installs the pinned scanner and runs
+Semgrep's native rule tests against the actual production rule directory and
+`tests/fixtures/semgrep/wordpress-security.php`. Every existing rule has an unsafe
+case and a checked-permission control. This verifies detection behavior instead
+of merely accepting a successful package install. Scanner execution is
+qualified on the supported CI runner; a local host whose CPU ISA is below the
+scanner binary's requirement cannot substitute for that run.
+
+## Existing Child Projects
+
+Admin source files, `package.json`, and `package-lock.json` are seeded once and
+remain child-owned. A foundation update intentionally preserves them. Existing
+children must review and merge corresponding manifest changes, regenerate their
+own lockfile, run `npm ci`, `npm run build`, and `npm run lint:js`, and test the
+rendered admin page. Preserve application-specific dependencies and source changes.
+Do not replace a customized child lockfile with the foundation's starter lockfile.
+
+New compatible security overrides can be copied from the matching starter
+manifest and merged into the child's existing `overrides` object. Run
+`npm install --package-lock-only --ignore-scripts`, review the diff, and audit the
+result before installation. The effective admin tooling runtime floor is Node.js 22.22.2 or 24.15.0 in those
+LTS series; Node.js 26 and newer also satisfy the declared engines. Align the
+child manifest engines and CI runtime with the complete dependency graph.
+
+Keep npm updates enabled for the child-owned package
+through the managed Dependabot configuration. GitLab users should configure their
+chosen dependency updater for the same child-owned paths.
 
 ## October 20, 2026 Advisory Review
 
@@ -134,7 +188,7 @@ unless renewed with new evidence, and is removed when upstream publishes a
 compatible fix.
 
 - [GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv)
-  (`mcp` 1.29.0 via Semgrep 1.179.0): Semgrep 1.181.0, the latest release, still
+  (`mcp` 1.29.0, pinned by Semgrep): Semgrep 1.181.0, the latest release, still
   pins `mcp==1.29.0`; upstream tracks the update in
   [semgrep/semgrep#11992](https://github.com/semgrep/semgrep/issues/11992). The
   advisory affects stateful Streamable HTTP MCP servers. Foundation and child CI
@@ -254,7 +308,61 @@ Qualification evidence:
   existing-application adoption test.
 
 Existing DataViews children must upgrade DataViews and scripts in one change. See
-the DataViews migration section of the admin UI pack documentation.
+the [DataViews migration section](../templates/child/admin-ui-pack/docs/admin-ui-pack.md#dataviews-behavior-and-migration)
+of the admin UI pack documentation.
+
+## October 20, 2026 Node Tooling Review
+
+The npm audit producer advances `@npmcli/arborist` from 9.9.2 to 9.9.3 (from
+Dependabot #418). Upstream changes are two bug fixes: peer-conflict reporting for
+load failures and `allowScripts` keys under the linked install strategy. Neither
+touches the audit path, and dependencies are unchanged. Node 22 and 24 regenerate
+the same lock as Dependabot. The tarball matches its integrity value. Node
+22.12.0, 22.23.3 and 24.22.0 install the same 2,151-file tree: 116 packages with
+zero self-audit findings and verified registry signatures. No locked package
+excludes Node 22.12.0. Only the three changed Arborist files and the hidden
+lockfile differ from 9.9.2. An independent recomputation of the inventory digest
+reproduced the previous value before recording the new one. On the remediation
+fixture and Markdown tool graphs, 9.9.2 and 9.9.3 produce identical raw reports,
+and real audits pass under Node 22 and 24.
+
+WordPress environment tooling remains blocked at 11.16.0:
+
+| Field | Value |
+| --- | --- |
+| Current pin | `@wordpress/env` 11.16.0, `simple-git` override 4.0.2 |
+| Latest evaluated | 11.17.0 (Dependabot #391) |
+| Reason | 11.17.0 requires `@wp-playground/cli` ^3.1.56, which pins `@php-wasm/*` packages that declare Node >=24.18.0 and npm >=11.16.0 from 3.1.55, so `engine-strict` installation fails on the supported Node 22 floor. |
+| Owner | Foundation maintainers |
+| Next review | 2026-11-19 |
+| Cause | [WordPress/wordpress-playground#4322](https://github.com/WordPress/wordpress-playground/pull/4322) (merged) raised the engine floor; adopt with a deliberate Node 24 floor migration |
+
+The two adapted upstream files are byte-identical in 11.17.0, which still
+requires `simple-git` ^3.32.3 through the default import, so the adaptation and
+override remain needed. Its expected version was deliberately not refreshed. Adopt
+11.17.0 or later only with an explicit Node 24 floor migration, or once a release
+restores a Node 22-compatible Playground graph. The `sprintf-js` chain
+(GHSA-hp3w-g68c-fv3c, all versions) still has no patched release, so the four
+moderate findings remain visible below the high threshold. The `adm-zip`, `ajv`
+and `tmp` overrides now equal what their parents already resolve; `qs`, `ws`
+and `simple-git` still request older versions. Revisit all six
+with the next qualified upgrade instead of changing the retained graph.
+
+## October 20, 2026 Python And PHP Tool Review
+
+Semgrep advances from 1.179.0 to 1.181.0 (from Dependabot #416) and PHPStan from
+2.2.17 to 2.3.1 (from Dependabot #389). Both locks were reproduced independently:
+Semgrep's dependency metadata is unchanged, so only its own hashes change, and the
+PHPStan update changes only that package under the PHP 8.0.0 platform. The PyJWT
+2.15.1 dependency and the `rpds-py<2026` support bound are unchanged. Semgrep
+1.181.0 still requires exactly MCP 1.29.0, so
+[GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv) remains a
+visible, blocked lock-audit finding until Semgrep accepts a patched MCP release.
+Hash-locked Semgrep-only and combined installations pass `pip check` on Python
+3.10, and the real scanner detects every rule in the unsafe fixtures. PHPStan 2.3
+adds new rules only to bleeding-edge configuration, which the quality pack does not
+enable; the managed fixture still analyses cleanly at level 5 on PHP 8.0 and 8.5,
+and a deliberate level-5 error is still reported.
 
 ## October 9, 2026 Markdown Tooling Review
 
@@ -272,6 +380,57 @@ existing package API and full repository Markdown commands are qualified with
 the new lock. Unrelated low-severity KaTeX findings remain visible; this is not a
 claim that the complete tool graph has zero raw findings. The October 20, 2026
 review resolves the KaTeX finding.
+
+## October 2026 Tooling Maintenance
+
+WordPress environment tooling retains 11.16.0 and its Node 22-compatible
+Playground graph, with `simple-git` 4.0.2
+explicitly overridden until upstream adopts its security fixes. Version 4 removes
+its default CommonJS export. The isolated installer applies the maintained
+`scripts/lib/patch_wordpress_env_git.cjs` adaptation to the two upstream imports,
+using the supported named export. It verifies exact package versions and both
+upstream source SHA-256 digests before writing either file; drift aborts install.
+Exact already-adapted bytes are accepted idempotently; unknown versions, changed
+bytes and linked inputs are rejected. The installer prepares an isolated sibling
+staging directory and activates it only after npm and adaptation both succeed.
+It accepts only the private empty directory supplied by its callers; an existing
+installation is never overwritten. Failed preparation, including a partial source
+write, is discarded without publishing a usable partial tool installation.
+No unsafe Git options or global module interception are introduced. Remove the
+patch and override together when an upstream release supports patched simple-git.
+The real wp-env download implementation is tested with clone, repeated fetch,
+branch advancement and tag checkout, plus rejection of modified source files. The refreshed
+lock also resolves patched `http-cache-semantics` and `proxy-addr` versions.
+This removes the critical and high findings that previously stopped foundation
+checks and unrelated dependency candidates. Keep the override scoped to this
+isolated development tool; it does not change plugin runtime dependencies.
+Qualify actual WordPress environment lifecycle behavior whenever updating it.
+An upstream update intentionally blocks until reviewed: a successful dependency
+resolution is not compatibility evidence. When upstream fixes its imports, remove
+the adaptation and override in one owned change, run the real Git-source tests,
+the WordPress runtime and Plugin Check gates, and the unchanged dependency audit.
+Do not merely refresh expected hashes to make an unknown release pass. Keep
+published foundation releases immutable and adopt the newly qualified release
+through normal signed update validation.
+
+The advisory audit still reports moderate findings through upstream `js-yaml` 3
+and its `argparse`/`sprintf-js` chain. There is no patched compatible `sprintf-js`
+release at this review; the October 20, 2026 review records its reachability.
+Retain the existing high-severity failure threshold and track upstream remediation; do not accept npm's suggested downgrade of the
+WordPress environment tool to an obsolete major as a security fix. Tooling checks
+now retain npm audit, install, and signature-verification diagnostics in CI logs,
+so a future finding can be diagnosed without reproducing a silent failure.
+
+Syft changed its publisher signature format to Sigstore bundles. Candidate
+preparation verifies the bundle against the same exact release workflow identity
+and OIDC issuer before accepting platform checksums. Missing bundles, invalid
+signatures, or mismatched archive checksums still fail before pin mutation.
+
+The same maintenance batch also advances the two hash-locked Python installer pins
+to pip 26.2.1 and setuptools 84.0.0, and the Semgrep scanner to 1.179.0 with its
+compatible PyJWT 2.15.1 dependency. The existing `rpds-py<2026` support bound
+remains intact. Qualify the combined locks on the minimum Python 3.10 interpreter
+and run the real scanner against unsafe fixtures before release.
 
 ## September 25, 2026 Review
 
@@ -333,152 +492,10 @@ bundle did not prove it could render. The updated graph passes standalone browse
 checks for search, sorting, pagination, page resets, and translated status filters,
 plus a clean install, production build, JavaScript lint, and advisory audit. Verify
 its generated asset dependencies and supported WordPress browser behavior whenever
-updating this optional starter. See the admin pack migration instructions before
+updating this optional starter. See the [admin pack migration instructions](../templates/child/admin-ui-pack/docs/admin-ui-pack.md#dataviews-behavior-and-migration) before
 upgrading child-owned source.
 
 The new artifact download action is pinned to the reviewed commit for 8.0.1,
 which uses Node 24 and fails on archive digest mismatches. The updater additionally
 checks its own candidate digest from trusted job outputs; neither check substitutes
 for the other.
-
-## Existing Child Projects
-
-Admin source files, `package.json`, and `package-lock.json` are seeded once and
-remain child-owned. A foundation update intentionally preserves them. Existing
-children must review and merge corresponding manifest changes, regenerate their
-own lockfile, run `npm ci`, `npm run build`, and `npm run lint:js`, and test the
-rendered admin page. Preserve application-specific dependencies and source changes.
-Do not replace a customized child lockfile with the foundation's starter lockfile.
-
-New compatible security overrides can be copied from the matching starter
-manifest and merged into the child's existing `overrides` object. Run
-`npm install --package-lock-only --ignore-scripts`, review the diff, and audit the
-result before installation. The effective admin tooling runtime floor is Node.js 22.22.2 or 24.15.0 in those
-LTS series; Node.js 26 and newer also satisfy the declared engines. Align the
-child manifest engines and CI runtime with the complete dependency graph.
-
-Keep npm updates enabled for the child-owned package
-through the managed Dependabot configuration. GitLab users should configure their
-chosen dependency updater for the same child-owned paths.
-
-## October 2026 tooling maintenance
-
-WordPress environment tooling retains 11.16.0 and its Node 22-compatible
-Playground graph, with `simple-git` 4.0.2
-explicitly overridden until upstream adopts its security fixes. Version 4 removes
-its default CommonJS export. The isolated installer applies the maintained
-`scripts/lib/patch_wordpress_env_git.cjs` adaptation to the two upstream imports,
-using the supported named export. It verifies exact package versions and both
-upstream source SHA-256 digests before writing either file; drift aborts install.
-Exact already-adapted bytes are accepted idempotently; unknown versions, changed
-bytes and linked inputs are rejected. The installer prepares an isolated sibling
-staging directory and activates it only after npm and adaptation both succeed.
-It accepts only the private empty directory supplied by its callers; an existing
-installation is never overwritten. Failed preparation, including a partial source
-write, is discarded without publishing a usable partial tool installation.
-No unsafe Git options or global module interception are introduced. Remove the
-patch and override together when an upstream release supports patched simple-git.
-The real wp-env download implementation is tested with clone, repeated fetch,
-branch advancement and tag checkout, plus rejection of modified source files. The refreshed
-lock also resolves patched `http-cache-semantics` and `proxy-addr` versions.
-This removes the critical and high findings that previously stopped foundation
-checks and unrelated dependency candidates. Keep the override scoped to this
-isolated development tool; it does not change plugin runtime dependencies.
-Qualify actual WordPress environment lifecycle behavior whenever updating it.
-An upstream update intentionally blocks until reviewed: a successful dependency
-resolution is not compatibility evidence. When upstream fixes its imports, remove
-the adaptation and override in one owned change, run the real Git-source tests,
-the WordPress runtime and Plugin Check gates, and the unchanged dependency audit.
-Do not merely refresh expected hashes to make an unknown release pass. Keep
-published foundation releases immutable and adopt the newly qualified release
-through normal signed update validation.
-
-The advisory audit still reports moderate findings through upstream `js-yaml` 3
-and its `argparse`/`sprintf-js` chain. There is no patched compatible `sprintf-js`
-release at this review; the October 20, 2026 review records its reachability.
-Retain the existing high-severity failure threshold and track upstream remediation; do not accept npm's suggested downgrade of the
-WordPress environment tool to an obsolete major as a security fix. Tooling checks
-now retain npm audit, install, and signature-verification diagnostics in CI logs,
-so a future finding can be diagnosed without reproducing a silent failure.
-
-Syft changed its publisher signature format to Sigstore bundles. Candidate
-preparation verifies the bundle against the same exact release workflow identity
-and OIDC issuer before accepting platform checksums. Missing bundles, invalid
-signatures, or mismatched archive checksums still fail before pin mutation.
-
-## October 20, 2026 Node Tooling Review
-
-The npm audit producer advances `@npmcli/arborist` from 9.9.2 to 9.9.3 (from
-Dependabot #418). Upstream changes are two bug fixes: peer-conflict reporting for
-load failures and `allowScripts` keys under the linked install strategy. Neither
-touches the audit path, and dependencies are unchanged. Node 22 and 24 regenerate
-the same lock as Dependabot. The tarball matches its integrity value. Node
-22.12.0, 22.23.3 and 24.22.0 install the same 2,151-file tree: 116 packages with
-zero self-audit findings and verified registry signatures. No locked package
-excludes Node 22.12.0. Only the three changed Arborist files and the hidden
-lockfile differ from 9.9.2. An independent recomputation of the inventory digest
-reproduced the previous value before recording the new one. On the remediation
-fixture and Markdown tool graphs, 9.9.2 and 9.9.3 produce identical raw reports,
-and real audits pass under Node 22 and 24.
-
-WordPress environment tooling remains blocked at 11.16.0:
-
-| Field | Value |
-| --- | --- |
-| Current pin | `@wordpress/env` 11.16.0, `simple-git` override 4.0.2 |
-| Latest evaluated | 11.17.0 (Dependabot #391) |
-| Reason | 11.17.0 requires `@wp-playground/cli` ^3.1.56, which pins `@php-wasm/*` packages that declare Node >=24.18.0 and npm >=11.16.0 from 3.1.55, so `engine-strict` installation fails on the supported Node 22 floor. |
-| Owner | Foundation maintainers |
-| Next review | 2026-11-19 |
-| Cause | [WordPress/wordpress-playground#4322](https://github.com/WordPress/wordpress-playground/pull/4322) (merged) raised the engine floor; adopt with a deliberate Node 24 floor migration |
-
-The two adapted upstream files are byte-identical in 11.17.0, which still
-requires `simple-git` ^3.32.3 through the default import, so the adaptation and
-override remain needed. Its expected version was deliberately not refreshed. Adopt
-11.17.0 or later only with an explicit Node 24 floor migration, or once a release
-restores a Node 22-compatible Playground graph. The `sprintf-js` chain
-(GHSA-hp3w-g68c-fv3c, all versions) still has no patched release, so the four
-moderate findings remain visible below the high threshold. The `adm-zip`, `ajv`
-and `tmp` overrides now equal what their parents already resolve; `qs`, `ws`
-and `simple-git` still request older versions. Revisit all six
-with the next qualified upgrade instead of changing the retained graph.
-
-## Runtime-aligned major updates
-
-The admin starters and existing-application fixture externalize React to
-WordPress. WordPress 6.9 and 7.1.3 both publish React 18.3.1, so their development
-React, React DOM and corresponding type packages must remain on the matching
-major until the supported WordPress runtime is deliberately requalified. Dependabot
-continues patch/minor checks; standalone React 19 proposals are excluded from
-these three directories. Revisit all four packages together with that runtime
-migration, rather than updating only React or React DOM.
-
-The existing-application fixture retains TypeScript 6 because its resolved
-`typescript-eslint` 8.72.0 parser supports `>=4.8.4 <6.1.0`. A TypeScript 7
-upgrade must include a supported parser migration and full fixture qualification;
-Dependabot continues compatible compiler updates while excluding standalone major
-proposals for this fixture.
-
-The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
-is also represented in Dependabot configuration because the calendar-version
-2026 releases require Python 3.11. Revisit the bound and automation policy together
-when intentionally raising the Python support floor. These compatibility rules do
-not suppress advisory scanning or permit vulnerable dependencies.
-
-The October maintenance batch also advances the two hash-locked Python installer
-pins to pip 26.2.1 and setuptools 84.0.0, and the Semgrep scanner to 1.181.0 with
-its compatible PyJWT 2.15.1 dependency. The existing `rpds-py<2026` support bound
-remains intact. Semgrep 1.181.0 still requires exactly MCP 1.29.0, so
-[GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv) remains a
-visible, blocked lock-audit finding until Semgrep accepts a patched MCP release.
-Qualify the combined locks on the minimum Python 3.10 interpreter and run the
-real scanner against unsafe fixtures before release.
-
-The required full foundation CI job also installs the pinned scanner and runs
-Semgrep's native rule tests against the actual production rule directory and
-`tests/fixtures/semgrep/wordpress-security.php`. Every existing rule has an unsafe
-case and a checked-permission control. This verifies detection behavior instead
-of merely accepting a successful package install. The October local QEMU host
-could install both supported Python graphs but could not execute either the
-previous or updated scanner binary because its CPU ISA is below the binary's
-requirement; scanner execution must pass on the supported CI runner before merge.

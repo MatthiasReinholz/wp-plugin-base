@@ -1,4 +1,3 @@
-import '@wordpress/dataviews/build-style/style.css';
 import { useState } from '@wordpress/element';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import type { Field, View } from '@wordpress/dataviews';
