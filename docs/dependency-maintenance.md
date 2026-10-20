@@ -80,6 +80,74 @@ phpstan-wordpress 2.0.4 and PHPUnit 9.6.37. Actual locked installation, platform
 checks and quality-tool execution passed on PHP 8.0, including actual Doctrine object instantiation. The full foundation gate
 also uses Composer's real solver to reject incompatible locked PHP requirements.
 
+## October 20, 2026 Advisory Review
+
+All twelve open Dependabot advisories were reviewed. Nine are fixed by narrow
+overrides. Three have no patched release that their pinned consumers accept and
+remain visible.
+
+Both admin starters and the existing-application fixture receive the same four
+overrides. `postcss-selector-parser` 7.1.6 replaces the cssnano 6 plugins' copies
+with the patched release already used by stylelint and CSS modules for
+GHSA-rj75-hqrm-r3gf; the only breaking change listed for 7.0.0 makes insertion
+during iteration safe. The key is deliberately unscoped: npm 10 no longer applies
+a range-scoped override such as `@^6.0.0` once it moves an edge outside that
+range, so `npm ci` rejects the lock. Every copy resolves to 7.1.6 either way. The
+in-major 6.1.5 backport published on October 19 is not yet recognized by the
+advisory's patched range; once it is, replace this override with
+`postcss-selector-parser@^6.0.0` 6.1.5 or remove it. `js-yaml@^5.0.0` advances
+markdownlint-cli's copy to 5.4.1, the release markdownlint-cli2 itself pins, for
+GHSA-r3ph-w7gj-g6xm. `smol-toml` 1.9.0 matches
+the Markdown tool bundle for GHSA-r4xh-jqrq-34v2. The `js-yaml` and `smol-toml`
+overrides sit outside markdownlint-cli 0.49.1's declared `~5.2.1` and `~1.7.0`
+ranges; remove both when markdownlint-cli adopts patched releases. The fixture
+also refreshes `shell-quote` 1.12.0 (GHSA-pqg4-j6r4-53mv) and `source-map-js`
+1.2.2 (GHSA-68fv-2mgg-jv7q) to the starters' patched versions; these fixture
+findings were not among the twelve alerts. Existing child projects can adopt the
+overrides as described in [Existing Child Projects](#existing-child-projects).
+
+`katex` 0.18.10 addresses GHSA-238p-pmpm-9mq7 in the starters, the fixture and the
+Markdown tool bundle. markdownlint uses only the math syntax extension, but that
+package's entry point also imports its KaTeX-based HTML renderer. KaTeX is
+therefore loaded during linting, while `renderToString` is never called, so the
+override only has to load outside the declared `^0.16.0` range. Version 0.18.11
+is deprecated upstream for unintended breaking changes and 0.19.0 is a breaking
+release; neither was adopted. KaTeX 0.18 depends on commander 15, which requires
+Node.js 22.12 or newer; the KaTeX CLI that uses it is not invoked. Remove the
+override when micromark-extension-math accepts a patched KaTeX range. The Markdown
+tool manifest digests were renewed after review; the braces backport still
+applies, verifies, and leaves no residual advisory.
+
+Production builds of both starters and the fixture are byte-identical before and
+after these changes on Node.js 24. JavaScript lint, the typed-parser contract,
+fixture type checks and tests passed. The full repository Markdown lint and a
+math-syntax document passed with the updated tool bundle. The remaining starter
+and fixture audit finding is the braces 3.0.3 advisory, for which the reviewed
+backport is available to child projects as described in
+[npm security remediations](npm-security-remediations.md).
+
+Foundation maintainers own the following exceptions. Each expires on 2026-11-19
+unless renewed with new evidence, and is removed when upstream publishes a
+compatible fix.
+
+- [GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv)
+  (`mcp` 1.29.0 via Semgrep 1.179.0): Semgrep 1.181.0, the latest release, still
+  pins `mcp==1.29.0`; upstream tracks the update in
+  [semgrep/semgrep#11992](https://github.com/semgrep/semgrep/issues/11992). The
+  advisory affects stateful Streamable HTTP MCP servers. Foundation and child CI
+  run Semgrep only as a CLI scanner and rule tester and never start `semgrep mcp`.
+- [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c)
+  (`sprintf-js` 1.0.3 via `@wordpress/env` 11.16.0): 1.1.3, the latest release, is
+  affected; see [alexei/sprintf.js#237](https://github.com/alexei/sprintf.js/issues/237).
+  `@wordpress/env` 11.17.0 still requires `js-yaml` 3, which loads `argparse` and
+  `sprintf-js` only from its CLI entry point; the WordPress environment tool uses
+  the library API.
+- [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+  (`braces` 3.0.3 in the Markdown tool bundle): 3.0.3 is the latest release and
+  the maintainer disputes the advisory
+  ([micromatch/braces#85](https://github.com/micromatch/braces/issues/85)). The
+  verified backport remediates every installed copy before tool activation.
+
 ## October 9, 2026 Markdown Tooling Review
 
 The latest compatible Markdown CLI still depends on `braces` 3.0.3. Its staged
@@ -94,7 +162,8 @@ The `smol-toml` override advances from 1.7.1 to the published compatible 1.9.0 f
 retaining its Node 18+ requirement and the bundle's existing Node floor. The
 existing package API and full repository Markdown commands are qualified with
 the new lock. Unrelated low-severity KaTeX findings remain visible; this is not a
-claim that the complete tool graph has zero raw findings.
+claim that the complete tool graph has zero raw findings. The October 20, 2026
+review resolves the KaTeX finding.
 
 ## September 25, 2026 Review
 
@@ -218,8 +287,8 @@ through normal signed update validation.
 
 The advisory audit still reports moderate findings through upstream `js-yaml` 3
 and its `argparse`/`sprintf-js` chain. There is no patched compatible `sprintf-js`
-release at this review. Retain the existing high-severity failure threshold and
-track upstream remediation; do not accept npm's suggested downgrade of the
+release at this review; the October 20, 2026 review records its reachability.
+Retain the existing high-severity failure threshold and track upstream remediation; do not accept npm's suggested downgrade of the
 WordPress environment tool to an obsolete major as a security fix. Tooling checks
 now retain npm audit, install, and signature-verification diagnostics in CI logs,
 so a future finding can be diagnosed without reproducing a silent failure.
