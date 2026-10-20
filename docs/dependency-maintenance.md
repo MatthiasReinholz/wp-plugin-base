@@ -75,10 +75,13 @@ runtime platform checks enabled. Installing with a newer Composer container must
 not select dependencies that cannot execute under the supported host interpreter.
 This tooling floor does not change a plugin's project-owned runtime metadata.
 
-The reviewed lock uses Doctrine Instantiator 1.5.0, PHPStan 2.2.16,
-phpstan-wordpress 2.0.4 and PHPUnit 9.6.37. Actual locked installation, platform
+The reviewed lock uses Doctrine Instantiator 1.5.0, PHPStan 2.3.1,
+phpstan-wordpress 2.0.4 and PHPUnit 9.6.38. Actual locked installation, platform
 checks and quality-tool execution passed on PHP 8.0, including actual Doctrine object instantiation. The full foundation gate
 also uses Composer's real solver to reject incompatible locked PHP requirements.
+The PHPStan 2.3 minor changed only the PHPStan package in the lock; the
+managed fixture still analyses cleanly at level 5 and a deliberate level-5
+error is still reported.
 
 ## October 20, 2026 Advisory Review
 
@@ -321,10 +324,13 @@ when intentionally raising the Python support floor. These compatibility rules d
 not suppress advisory scanning or permit vulnerable dependencies.
 
 The October maintenance batch also advances the two hash-locked Python installer
-pins to pip 26.2.1 and setuptools 84.0.0, and the Semgrep scanner to 1.179.0 with
+pins to pip 26.2.1 and setuptools 84.0.0, and the Semgrep scanner to 1.181.0 with
 its compatible PyJWT 2.15.1 dependency. The existing `rpds-py<2026` support bound
-remains intact. Qualify the combined locks on the minimum Python 3.10 interpreter
-and run the real scanner against unsafe fixtures before release.
+remains intact. Semgrep 1.181.0 still requires exactly MCP 1.29.0, so
+[GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv) remains a
+visible, blocked lock-audit finding until Semgrep accepts a patched MCP release.
+Qualify the combined locks on the minimum Python 3.10 interpreter and run the
+real scanner against unsafe fixtures before release.
 
 The required full foundation CI job also installs the pinned scanner and runs
 Semgrep's native rule tests against the actual production rule directory and
