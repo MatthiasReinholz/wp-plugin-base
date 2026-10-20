@@ -13,8 +13,8 @@ FOUNDATION = Path(__file__).resolve().parents[2]
 
 
 def yaml_updates(path):
-    result = subprocess.run(["ruby", "-rpsych", "-rjson", "-e",
-                             "puts JSON.generate(Psych.safe_load(File.read(ARGV[0]), aliases: false).fetch('updates'))", str(path)],
+    script = "puts JSON.generate(Psych.safe_load(File.read(ARGV[0]), aliases: false).fetch('updates'))"
+    result = subprocess.run(["ruby", "-rpsych", "-rjson", "-e", script, str(path)],
                             check=True, text=True, stdout=subprocess.PIPE)
     return json.loads(result.stdout)
 
