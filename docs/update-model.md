@@ -101,7 +101,10 @@ Child Dependabot configuration ignores action repositories controlled by this ca
 Action updates belong in the foundation first. With `DEPENDABOT_ECOSYSTEMS=auto`, the generated child configuration also tracks
 root Composer dependencies when `composer.json` exists, npm dependencies at `/`
 when a root `package.json` exists, and at `/.wp-plugin-base-admin-ui` when that
-package exists or the admin UI pack is enabled. Explicit ecosystem lists select
+package exists or the admin UI pack is enabled. Each generated npm entry groups
+`@wordpress/*` updates as `wordpress-packages`; the group comes from the template's
+npm additions entry, so earlier vendored templates still render their original
+bytes during ownership recovery. Explicit ecosystem lists select
 coverage without changing foundation action ownership.
 These package manifests and locks are child-owned seeds; sync never overwrites their
 project-specific dependency choices. Current starter tooling supports Node.js 22.22.2+, 24.15.0+, or 26+, matching its locked dependency engines.

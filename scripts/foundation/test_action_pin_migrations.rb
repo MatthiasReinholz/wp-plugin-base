@@ -162,6 +162,41 @@ class ActionPinMigrationTest < Minitest::Test
     assert_equal ['/', '/.wp-plugin-base-admin-ui'], updates.select { |update| update['package-ecosystem'] == 'npm' }.map { |update| update['directory'] }
     assert_equal 1, updates.count { |update| update['package-ecosystem'] == 'composer' }
     updates.reject { |update| update['package-ecosystem'] == 'github-actions' }.each { |update| refute update.key?('ignore') }
+    updates.each do |update|
+      if update['package-ecosystem'] == 'npm'
+        assert_equal({ 'wordpress-packages' => { 'patterns' => ['@wordpress/*'] } }, update['groups'])
+      else
+        refute update.key?('groups')
+      end
+    end
+  end
+
+  def test_dependabot_template_without_npm_additions_renders_previous_generation
+    write('package.json', '{}')
+    template = File.read(File.join(ROOT, 'templates/child/.github/dependabot.yml'))
+    previous = write('previous.yml', template.sub(/^  - package-ecosystem: npm\n.*/m, ''))
+    output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/render_child_dependabot.rb'), previous, @directory, 'false')
+    assert status.success?, error
+    refute_includes output, 'groups:'
+    assert_equal 2, Psych.safe_load(output).fetch('updates').length
+  end
+
+  def test_dependabot_rejects_npm_additions_beyond_groups
+    template = File.read(File.join(ROOT, 'templates/child/.github/dependabot.yml'))
+    [
+      template.sub("  - package-ecosystem: npm\n", "  - package-ecosystem: npm\n    directory: /\n"),
+      template.sub("  - package-ecosystem: npm\n", "  - package-ecosystem: composer\n"),
+      template.sub('          - "@wordpress/*"', '          - 1'),
+      template.sub('          - "@wordpress/*"', '          - ""'),
+      template.chomp,
+      template + "registries: {}\n",
+      template.sub("    commit-message:\n", "    groups:\n      all:\n        patterns:\n          - \"*\"\n    commit-message:\n")
+    ].each do |source|
+      refute_equal template, source
+      output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/render_child_dependabot.rb'), write('invalid.yml', source), @directory, 'true', 'github-actions,npm,admin-ui-npm')
+      refute status.success?, error
+      assert_empty output
+    end
   end
 
   def test_dependabot_explicit_selection_does_not_add_other_ecosystems
