@@ -100,8 +100,8 @@ Dependabot groups `@wordpress/*` updates per directory (`wordpress-packages`) fo
 both admin starters and the fixture, because these packages are qualified as a
 set; DataViews 20, for example, requires scripts 36.1. Dependabot still opens
 one grouped proposal per directory. The foundation contracts require identical
-`overrides` and shared `@wordpress/*` versions across all three manifests, so
-combine the three grouped proposals into one reviewed change.
+`overrides` and shared `@wordpress/*` and React versions across all three
+manifests, so combine the three grouped proposals into one reviewed change.
 
 The Semgrep toolchain supports Python 3.10. Its existing `rpds-py<2026` constraint
 is also represented in Dependabot configuration because the calendar-version
@@ -381,7 +381,7 @@ the new lock. Unrelated low-severity KaTeX findings remain visible; this is not 
 claim that the complete tool graph has zero raw findings. The October 20, 2026
 review resolves the KaTeX finding.
 
-## October 8, 2026 Tooling Maintenance
+## October 2026 Tooling Maintenance
 
 WordPress environment tooling retains 11.16.0 and its Node 22-compatible
 Playground graph, with `simple-git` 4.0.2

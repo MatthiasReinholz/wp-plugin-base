@@ -44,6 +44,7 @@ for name, expected in json.loads(pathlib.Path(sys.argv[2]).read_text()).items():
 assert 'Requires at least: 7.1' in (root / 'existing-application.php').read_text()
 assert 'padding-left:12px' in (root / 'build/index.css').read_text()
 assert 'padding-right:12px' in (root / 'build/index-rtl.css').read_text()
+assert all('.dataviews-' in (root / name).read_text() for name in ('build/index.css', 'build/index-rtl.css'))
 licenses = (root / 'build/licenses.txt').read_text()
 assert '@wordpress/dataviews@20.0.0' in licenses and 'GNU GENERAL PUBLIC LICENSE' in licenses
 manifest = json.loads((root / 'build/manifest.json').read_text())

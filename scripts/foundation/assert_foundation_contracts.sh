@@ -125,14 +125,14 @@ admin_ui_manifests=(
   "$ROOT_DIR/templates/child/admin-ui-pack-seed-dataviews/.wp-plugin-base-admin-ui/package.json"
   "$ROOT_DIR/tests/fixtures/existing-application/package.json"
 )
-# Shared @wordpress/* packages are qualified together; one drifting manifest must fail.
+# Shared @wordpress/* and React packages are qualified together; one drifting manifest must fail.
 jq -es '
   (map(.overrides // {}) | unique | length == 1) and
   ([.[] | (.dependencies // {}), (.devDependencies // {}) | to_entries[]
-    | select(.key | startswith("@wordpress/"))]
+    | select((.key | startswith("@wordpress/")) or (.key | test("^(react|react-dom|@types/react(-dom)?)$")))]
     | group_by(.key) | all(map(.value) | unique | length == 1))
 ' "${admin_ui_manifests[@]}" >/dev/null || {
-  echo "Admin UI starter and existing-application manifests must share identical overrides and @wordpress/* versions." >&2
+  echo "Admin UI starter and existing-application manifests must share identical overrides and @wordpress/* and React versions." >&2
   exit 1
 }
 ruby -rpsych -e '
