@@ -4,7 +4,7 @@ set -euo pipefail
 
 DEST_DIR="${1:-}"
 SYFT_VERSION='1.55.0'
-COSIGN_VERSION='3.1.3'
+COSIGN_VERSION='3.1.4'
 
 if [ -z "$DEST_DIR" ]; then
   echo "Usage: $0 <destination-dir>" >&2
@@ -19,19 +19,19 @@ case "${OS}:${ARCH}" in
     syft_archive="syft_${SYFT_VERSION}_linux_amd64.tar.gz"
     syft_sha256='bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d'
     cosign_asset='cosign-linux-amd64'
-    cosign_sha256='4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71'
+    cosign_sha256='424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa'
     ;;
   Darwin:x86_64)
     syft_archive="syft_${SYFT_VERSION}_darwin_amd64.tar.gz"
     syft_sha256='e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003'
     cosign_asset='cosign-darwin-amd64'
-    cosign_sha256='2347488e5d5b25336644024dfeca5601b190e91197a71a917bda44744aff106c'
+    cosign_sha256='9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f'
     ;;
   Darwin:arm64)
     syft_archive="syft_${SYFT_VERSION}_darwin_arm64.tar.gz"
     syft_sha256='1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625'
     cosign_asset='cosign-darwin-arm64'
-    cosign_sha256='5cf948c2f4dfe59687bdd0b8523709067383e03982cc543475c8a7dc70e92a76'
+    cosign_sha256='9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4'
     ;;
   *)
     echo "Release security tool installation is unsupported on ${OS}/${ARCH}." >&2

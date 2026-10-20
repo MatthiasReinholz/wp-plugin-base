@@ -248,6 +248,16 @@ GGUF parser. It remediates five `golang.org/x/net` advisories, four high and one
 critical (GO-2026-6612). A `cyclonedx-json` scan of the child template produced
 the same specification version and component count as 1.54.1.
 
+Cosign 3.1.4 was then reviewed and adopted. Its `cosign_checksums.txt` Sigstore
+bundle verified with the hash-pinned Cosign 3.1.3 against the
+`keyless@projectsigstore.iam.gserviceaccount.com` identity and the Google
+Accounts issuer, and the Linux amd64, macOS amd64 and macOS arm64 binary hashes
+match the signed manifest. The release builds with Go 1.27.3, adds
+`cosign bundle create-from-container`, stops `verify` panicking on a bundle
+entry without a hash and makes `verify-blob` honour non-SHA256 key hash
+algorithms. It does not change the `verify-blob --bundle` identity and issuer
+options the release and update verifiers use.
+
 The Composer pin moves to the current official `composer:2` index digest
 `sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac`.
 It still provides Composer 2.10.3 with PHP 8.5.11. Only the riscv64 manifest was
@@ -505,8 +515,8 @@ The external review evaluated and accepted these upstream releases:
 | Plugin Check | 2.1.0 | Explicit major review of upstream release notes; existing reviewed author and stabilization period; WordPress readiness fixtures required |
 | Plugin Update Checker | 5.7 | Same major; upstream source vendored unchanged; automatic-update metadata remains opt-in |
 | EditorConfig Checker | 3.11.3 | Same major; platform archive hashes recorded and installer validation required |
-| Syft | 1.52.0 | Exact publisher signature and signed checksum verification for every supported platform |
-| Cosign | 3.1.3 | Exact publisher identity and valid Sigstore bundle for every supported platform |
+| Syft | 1.55.0 | Exact publisher signature and signed checksum verification for every supported platform |
+| Cosign | 3.1.4 | Exact publisher identity and valid Sigstore bundle for every supported platform |
 | Composer | Official version 2 image digest | Docker registry digest recorded; compatible composer checks required |
 | WordPress environment | 11.16.0 | Actual WordPress start, CLI execution, stop and owned environment cleanup |
 | CodeQL Action | 4.38.2 | Official release commit, managed action catalog migration, workflow audit and parity |

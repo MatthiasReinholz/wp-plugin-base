@@ -225,7 +225,7 @@
       },
       "pin": {
         "file": "scripts/release/install_release_security_tools.sh",
-        "pattern": "COSIGN_VERSION='3.1.3'"
+        "pattern": "COSIGN_VERSION='3.1.4'"
       }
     }
   ]
