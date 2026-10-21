@@ -166,6 +166,15 @@ class LocalConformance(unittest.TestCase):
         self.run_script("update/sync_child_repo.sh")
         self.assertEqual(updated, ci.read_bytes())
 
+    def test_gitlab_template_changes_sync_without_action_references(self):
+        # .gitlab-ci.yml uses YAML anchors and has no action pins to keep.
+        self.configure(AUTOMATION_PROFILE="managed", AUTOMATION_PROVIDER="gitlab")
+        self.run_script("update/sync_child_repo.sh")
+        template = self.root / ".wp-plugin-base/templates/child/.gitlab-ci.yml"
+        template.write_text(template.read_text() + "# next foundation generation\n")
+        self.run_script("update/sync_child_repo.sh")
+        self.assertTrue((self.root / ".gitlab-ci.yml").read_text().endswith("# next foundation generation\n"))
+
     def test_pin_updates_are_recognized_under_receipts_without_pin_digests(self):
         self.configure(AUTOMATION_PROFILE="managed")
         self.run_script("update/sync_child_repo.sh")

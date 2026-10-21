@@ -97,7 +97,11 @@ module AutomationOwnership
   # rendered pin applies; any other full SHA is the project's and is kept, so
   # sync never downgrades a project pin.
   def project_pins(path)
+    # Files without parseable action references (such as .gitlab-ci.yml, which
+    # uses YAML anchors) carry no project pins.
     _source, pins = pinned_references(path)
+    return {} if pins.nil?
+
     catalog = WPPluginBaseActionPins.catalog
     kept = pins.group_by { |node| action_name(node) }.to_h do |name, nodes|
       reviewed = catalog.key?(name) ? [catalog[name]['current'], *catalog[name]['predecessors']] : []

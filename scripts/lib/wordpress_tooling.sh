@@ -142,8 +142,8 @@ wp_plugin_base_audit_foundation_tool_lock() {
   if [ "${WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT:-report}" = strict ]; then
     return 1
   fi
-  echo "Warning: ${context} reported advisories in wp-plugin-base development tooling. Update wp-plugin-base to receive the reviewed fix; project validation continues." >&2
+  echo "Warning: ${context} did not pass for wp-plugin-base development tooling (advisories, or the audit could not run). Update wp-plugin-base to receive reviewed fixes; project validation continues." >&2
   if [ "${GITHUB_ACTIONS:-}" = true ]; then
-    echo "::warning title=wp-plugin-base tooling audit::${context} reported advisories in foundation-owned tooling; update wp-plugin-base."
+    echo "::warning title=wp-plugin-base tooling audit::${context} did not pass for foundation-owned tooling; update wp-plugin-base."
   fi
 }

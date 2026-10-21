@@ -23,7 +23,7 @@ if ! (unset WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT; GITHUB_ACTIONS=true wp_plugin_
   echo "Foundation tool lock advisories must not block project validation." >&2
   exit 1
 fi
-grep -Fq 'Warning: Fixture audit reported advisories in wp-plugin-base development tooling' "$log"
+grep -Fq 'Warning: Fixture audit did not pass for wp-plugin-base development tooling' "$log"
 grep -Fq '::warning title=wp-plugin-base tooling audit::' "$log"
 
 if (WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT=strict wp_plugin_base_audit_foundation_tool_lock "Fixture audit" failing_audit) >/dev/null 2>&1; then
