@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.11
+
+* fix: let projects own their dependency updates without breaking CI (#437)
+* chore: update cosign-binary to v3.1.4 (#435)
+* fix: remediate certifi and admin UI seed dependency advisories (#436)
+
 ## v1.10.10
 
 * Override `markdown-it` to 15.0.3 in the Markdown tool bundle for GHSA-r7fv-28h4-cvq7; markdownlint-cli2 0.23.3 pins the affected 15.0.1 exactly. The foundation configures no markdown-it custom rules, and 15.0.3 also carries the quadratic reference-definition and inline HTML parsing fixes. Remediation digests are renewed; the admin starters and fixture already resolve the patched 14.3.2.
