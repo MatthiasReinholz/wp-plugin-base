@@ -43,7 +43,9 @@ module WPPluginBaseActionPins
   end
 
   def self.references(file)
-    source = File.read(file)
+    # Psych reports character columns for UTF-8 input; read UTF-8 explicitly so
+    # offsets still match under a C/POSIX locale (minimal runner images).
+    source = File.read(file, mode: 'r:UTF-8')
     Psych.safe_load(source, permitted_classes: [], permitted_symbols: [], aliases: false, filename: file)
     stream = Psych.parse_stream(source, filename: file)
     raise "#{file}: exactly one YAML document is required" unless stream.children.length == 1
