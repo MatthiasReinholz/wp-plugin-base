@@ -127,7 +127,7 @@ sys.exit(1 if os.environ.get('FAIL_SIGNATURE') == 'true' else 0)
             shutil.copytree(ROOT / directory, foundation / directory)
         config_path = child / ".wp-plugin-base.env"
         with config_path.open("a") as config:
-            config.write("\nPHP_VERSION=8.3\nNODE_VERSION=24.15.0\n")
+            config.write("\nPHP_VERSION=8.3\nNODE_VERSION=24.22.1\n")
         env = dict(self.env, WP_PLUGIN_BASE_ROOT=str(child), GITHUB_OUTPUT=str(self.output))
         subprocess.run(["bash", str(foundation / "scripts/update/sync_child_repo.sh")], cwd=child, env=env, check=True, capture_output=True, text=True)
         subprocess.run(["git", "init", "-q"], cwd=child, check=True)
@@ -145,7 +145,7 @@ sys.exit(1 if os.environ.get('FAIL_SIGNATURE') == 'true' else 0)
                     command = step["run"].replace("${{ inputs.config_path }}", ".wp-plugin-base.env")
                     subprocess.run(["bash", "-euo", "pipefail", "-c", command], cwd=child, env=env, check=True, capture_output=True, text=True)
                 values = candidate.read_outputs(self.output)
-                self.assertEqual(values["node_version"], "24.15.0")
+                self.assertEqual(values["node_version"], "24.22.1")
                 self.assertEqual(values["php_version"], "8.3")
                 self.output.unlink()
                 for action, version in (("actions/setup-node@", "node"), ("shivammathur/setup-php@", "php")):
@@ -159,7 +159,7 @@ sys.exit(1 if os.environ.get('FAIL_SIGNATURE') == 'true' else 0)
 
         steps = workflow(".github/workflows/update-external-dependency.yml")["jobs"]["validate"]["steps"]
         execute = next(index for index, step in enumerate(steps) if step["name"] == "Install and validate candidate in an unprivileged job")
-        for action, key, version in (("actions/setup-node@", "node-version", "22"), ("shivammathur/setup-php@", "php-version", "8.3")):
+        for action, key, version in (("actions/setup-node@", "node-version", "24"), ("shivammathur/setup-php@", "php-version", "8.3")):
             setup = next(step for step in steps if step.get("uses", "").startswith(action))
             self.assertEqual(setup["with"][key], version)
             self.assertLess(steps.index(setup), execute)

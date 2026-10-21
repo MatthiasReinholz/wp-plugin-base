@@ -45,7 +45,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install native Subversion test tools
         run: sudo apt-get update && sudo apt-get install -y subversion
@@ -102,7 +102,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install native Subversion test tools
         run: sudo apt-get update && sudo apt-get install -y subversion
@@ -146,7 +146,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install foundation assurance tools
         run: |
@@ -177,12 +177,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Node.js 22 stays supported for projects; the oldest WordPress entry
+        # keeps the real wp-env Docker runtime qualified on it.
         include:
-          - {core: '7.1.2', php: '8.2'}
-          - {core: '7.1.2', php: '8.3'}
-          - {core: '7.1.2', php: '8.4'}
-          - {core: '7.1.2', php: '8.5'}
-          - {core: '6.9', php: '8.3'}
+          - {core: '7.1.2', php: '8.2', node: '24'}
+          - {core: '7.1.2', php: '8.3', node: '24'}
+          - {core: '7.1.2', php: '8.4', node: '24'}
+          - {core: '7.1.2', php: '8.5', node: '24'}
+          - {core: '6.9', php: '8.3', node: '22'}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -195,7 +197,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
       - name: Run language and real WordPress contracts
         env:
           WP_PLUGIN_BASE_TEST_WP_CORE: WordPress/WordPress#${{ matrix.core }}
@@ -228,7 +230,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install release security tools
         run: |

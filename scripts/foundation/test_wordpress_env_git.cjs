@@ -11,7 +11,7 @@ const first = path.join(root, 'node_modules/@wordpress/env/lib/download-sources.
 const second = path.join(root, 'node_modules/@wordpress/env/lib/runtime/docker/download-wp-phpunit.js');
 const originalFirst = fs.readFileSync(first);
 const originalSecond = fs.readFileSync(second);
-for (const [name, version] of [['@wordpress/env', '11.17.0'], ['simple-git', '4.0.3']]) {
+for (const [name, version] of [['@wordpress/env', '11.17.1'], ['simple-git', '4.0.3']]) {
   const manifest = path.join(root, 'node_modules', name, 'package.json');
   const original = fs.readFileSync(manifest);
   try {
