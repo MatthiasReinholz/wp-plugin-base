@@ -2,7 +2,7 @@
 
 ## v1.10.12
 
-* fix: read workflow sources as UTF-8 for action pin rewrites (#440)
+* Read workflow sources as UTF-8 when rewriting action pins, so sync migration and the managed-workflow pin check keep working under a C/POSIX locale (minimal runner images, GitLab runners without `LANG`) when non-ASCII text precedes a `uses:` reference.
 
 ## v1.10.11
 
