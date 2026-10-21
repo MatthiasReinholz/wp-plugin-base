@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.12
+
+* fix: read workflow sources as UTF-8 for action pin rewrites (#440)
+
 ## v1.10.11
 
 * Let projects apply their own dependency updates without breaking validation, Plugin Check, packaging or release. Project validation accepts any full-SHA action pin, including a Dependabot update in a managed workflow; every other managed-workflow edit still fails. Sync keeps project pins on every later sync, upgrades reviewed predecessors and never downgrades. The foundation's own workflow audit still requires reviewed pins.
