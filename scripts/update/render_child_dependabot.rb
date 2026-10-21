@@ -36,7 +36,12 @@ unless npm_policy.nil? || (npm_policy.keys == %w[package-ecosystem groups] && np
     npm_policy['groups'].all? { |name, group| name.is_a?(String) && group.is_a?(Hash) && group.keys == ['patterns'] && group['patterns'].is_a?(Array) && !group['patterns'].empty? && group['patterns'].all? { |pattern| pattern.is_a?(String) && !pattern.empty? } })
   abort 'Child Dependabot npm additions may only define dependency groups'
 end
-ignores = WPPluginBaseActionPins.catalog.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort
+# Earlier generations ignored catalog actions. Projects now own their action
+# pins (managed files keep project pin updates), so templates with npm additions
+# (v1.10.10 and later) leave every action, including security updates, to
+# Dependabot. Receiptless children only replay earlier templates, which keep
+# their bytes.
+ignores = npm_policy.nil? ? WPPluginBaseActionPins.catalog.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort : []
 # Retain the authored common schedule and indentation. Only these two fixed
 # scalars vary; action ignores never enter Composer or npm update blocks, and
 # npm additions only enter npm update blocks.
@@ -56,7 +61,7 @@ blocks = ecosystems.map do |ecosystem|
   directory = ecosystem == 'admin-ui-npm' ? '/.wp-plugin-base-admin-ui' : '/'
   update = body.sub('package-ecosystem: github-actions', "package-ecosystem: #{package}")
     .sub('directory: /', "directory: #{directory}")
-  if ecosystem == 'github-actions'
+  if ecosystem == 'github-actions' && !ignores.empty?
     update += "    ignore:\n" + ignores.map { |name| "      - dependency-name: #{name}\n" }.join
   end
   update += npm_additions if package == 'npm'
@@ -72,7 +77,8 @@ end
 expected = ecosystems.map { |ecosystem| ecosystem == 'admin-ui-npm' ? ['npm', '/.wp-plugin-base-admin-ui'] : [ecosystem, '/'] }
 unless rendered.is_a?(Hash) && rendered.keys == %w[version updates] && rendered['updates'].is_a?(Array) &&
     rendered['updates'].map { |update| [update['package-ecosystem'], update['directory']] } == expected &&
-    rendered['updates'].all? { |update| update['groups'] == (update['package-ecosystem'] == 'npm' && npm_policy ? npm_policy['groups'] : nil) }
+    rendered['updates'].all? { |update| update['groups'] == (update['package-ecosystem'] == 'npm' && npm_policy ? npm_policy['groups'] : nil) } &&
+    rendered['updates'].all? { |update| update['ignore'] == (update['package-ecosystem'] == 'github-actions' && !ignores.empty? ? ignores.map { |name| { 'dependency-name' => name } } : nil) }
   abort 'Rendered child Dependabot configuration does not match the selected policies'
 end
 puts output

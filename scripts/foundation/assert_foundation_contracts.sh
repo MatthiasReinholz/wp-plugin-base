@@ -155,6 +155,8 @@ assert_file_contains_literal "$ROOT_DIR/.github/workflows/ci.yml" "github/codeql
 assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/ci.yml" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Child CI workflow must pin upload-sarif to the reviewed SHA."
 assert_file_contains_literal "$ROOT_DIR/docs/security-model.md" "github/codeql-action/upload-sarif@$reviewed_sarif_pin" "Security documentation must advertise the reviewed upload-sarif SHA."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/audit_workflows.sh" 'ruby "$SCRIPT_DIR/../lib/action_pins.rb" "${audit_yaml_files[@]}"' "Workflow audit must use the shared action catalog."
+assert_file_contains_literal "$ROOT_DIR/scripts/foundation/validate.sh" 'export WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT=strict' "Foundation validation must block on its own pack tool lock advisories."
+assert_file_contains_literal "$ROOT_DIR/scripts/foundation/validate-full.sh" 'export WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT=strict' "The full foundation suite must block on its own pack tool lock advisories."
 ruby - "$ROOT_DIR" <<'RUBY'
 require File.join(ARGV.fetch(0), 'scripts/lib/action_pins')
 policy = WPPluginBaseActionPins.catalog

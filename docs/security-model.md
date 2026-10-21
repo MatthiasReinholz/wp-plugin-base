@@ -10,7 +10,7 @@ The intended default for the foundation repository and every project that consum
 - local workflow files committed in the project repository
 - vendored foundation source committed under `.wp-plugin-base/`
 - external actions pinned to full commit SHAs
-- a short allowlist of approved actions maintained in `scripts/lib/action-pins.json`
+- a short allowlist of approved actions maintained in `scripts/lib/action-pins.json`; foundation CI requires exactly these pins, while projects may choose their own full-SHA pins (and are responsible for reviewing them, for example that a pinned commit is a release of that action's repository)
 - read-only workflow permissions by default, with narrowly scoped write permissions only where required
 
 ## Approved Actions
@@ -60,7 +60,7 @@ Foundation CI and generated project CI run `scripts/ci/audit_workflows.sh`.
 That audit fails if it finds:
 
 - an external action not pinned to a 40-character commit SHA
-- an external action outside the approved allowlist
+- an external action outside the approved allowlist (foundation CI only; project validation accepts project-owned full-SHA pins and lists them)
 - a local action whose `runs.using` is not `composite`
 - a composite local action that dispatches to a repo-local helper script through `node`, `python`, `bash`, or another interpreter instead of inlining the audited commands
 - a workflow without explicit top-level `permissions`
@@ -247,13 +247,16 @@ See also:
 
 ## Reviewed action migrations
 
-The workflow auditor reads the same action catalog as sync-time migration. Current
-pins are the only audit-approved values; predecessor pins are explicit migration
-inputs, never audit exceptions. Migration parses YAML action references, rejects
-unknown pins, tags, aliases, merged or duplicate keys, and unsafe paths, and changes only the
-reviewed scalar values. Custom scripts and comments are preserved. See the
-[update model](update-model.md#action-pin-ownership-and-migrations) for staging and
-first-upgrade requirements.
+The workflow auditor reads the same action catalog as sync-time migration. In
+foundation CI, current pins are the only audit-approved values; predecessor pins are
+explicit migration inputs, never audit exceptions. Projects own their action pins:
+project validation accepts any full-SHA pin, including a project's own Dependabot
+update in a managed workflow, and lists pins that differ from the catalog. Migration
+parses YAML action references, rejects tags, aliases, merged or duplicate keys, and
+unsafe paths, upgrades reviewed predecessors to the current pin, and keeps every
+other project pin. It changes only those scalar values. Custom scripts and comments
+are preserved. See the [update model](update-model.md#action-pin-ownership-and-migrations)
+for staging and first-upgrade requirements.
 
 The real WordPress browser fixture may contact its disposable localhost server from `scripts/foundation/test_runtime_packs_wordpress.sh`. The workflow host audit scopes that exception to this exact test entrypoint; it does not allow local/private production endpoints or private hosts in project configuration.
 

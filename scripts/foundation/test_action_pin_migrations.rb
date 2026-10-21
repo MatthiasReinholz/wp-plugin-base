@@ -71,9 +71,20 @@ class ActionPinMigrationTest < Minitest::Test
     assert_equal ['.github/actions/custom/action.yaml', '.github/workflows/reusable.yml'], File.readlines(@manifest, chomp: true)
   end
 
-  def test_unknown_pins_fail_without_partial_file_changes
+  def test_project_pins_are_kept_while_reviewed_predecessors_migrate
     path = write('.github/workflows/a.yml', workflow(@previous))
-    write('.github/workflows/z.yml', workflow('actions/checkout@' + 'a' * 40))
+    project = write('.github/workflows/z.yml', workflow('actions/checkout@' + 'a' * 40))
+    added = write('.github/workflows/y.yml', workflow('example/action@' + 'b' * 40))
+    migrate
+    assert_equal workflow(@current), File.read(path)
+    assert_equal workflow('actions/checkout@' + 'a' * 40), File.read(project)
+    assert_equal workflow('example/action@' + 'b' * 40), File.read(added)
+    assert_equal ".github/workflows/a.yml\n", File.read(@manifest)
+  end
+
+  def test_unpinned_references_fail_without_partial_file_changes
+    path = write('.github/workflows/a.yml', workflow(@previous))
+    write('.github/workflows/z.yml', workflow('actions/checkout@main'))
     migrate(success: false)
     assert_equal workflow(@previous), File.read(path)
     refute File.exist?(@manifest)
@@ -82,12 +93,14 @@ class ActionPinMigrationTest < Minitest::Test
   def test_duplicate_yaml_keys_cannot_hide_an_unapproved_reference
     path = write('.github/workflows/a.yml', workflow(@current).sub("      - uses: #{@current}", "      - uses: #{@current}\n        uses: unknown/action@" + 'a' * 40))
     assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path]) }
+    assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path], project: true) }
     migrate(success: false)
   end
 
   def test_literal_merge_keys_cannot_hide_an_unapproved_reference
     path = write('.github/workflows/a.yml', workflow(@current).sub("uses: #{@current}", "<<: {uses: unknown/action@" + 'a' * 40 + '}'))
     assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path]) }
+    assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path], project: true) }
     migrate(success: false)
   end
 
@@ -101,6 +114,25 @@ class ActionPinMigrationTest < Minitest::Test
     assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path]) }
     migrate
     WPPluginBaseActionPins.audit([path])
+  end
+
+  # Foundation audits stay strict; projects own any full-SHA pin they choose.
+  def test_project_audit_accepts_project_pins_but_requires_full_shas
+    newer = write('.github/workflows/newer.yml', workflow('actions/checkout@' + 'a' * 40))
+    older = write('.github/workflows/older.yml', workflow(@previous))
+    added = write('.github/workflows/added.yml', workflow('example/action@' + 'b' * 40))
+    [newer, older, added].each { |path| assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path]) } }
+    output, = capture_io { WPPluginBaseActionPins.audit([newer, older, added], project: true) }
+    assert_includes output, 'actions/checkout@' + 'a' * 40
+    assert_includes output, 'example/action@' + 'b' * 40
+    ['actions/checkout@v4', 'actions/checkout@' + 'a' * 39].each do |reference|
+      path = write('.github/workflows/unpinned.yml', workflow(reference))
+      assert_raises(RuntimeError) { WPPluginBaseActionPins.audit([path], project: true) }
+    end
+    _output, error, status = Open3.capture3({ 'WP_PLUGIN_BASE_ACTION_PIN_POLICY' => 'project' }, 'ruby', File.join(ROOT, 'scripts/lib/action_pins.rb'), newer)
+    assert status.success?, error
+    _output, _error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/lib/action_pins.rb'), newer)
+    refute status.success?
   end
 
   def test_staging_manifest_contains_only_reviewed_workflow_and_action_paths
@@ -150,18 +182,18 @@ class ActionPinMigrationTest < Minitest::Test
     assert_equal workflow(@previous), File.read(target)
   end
 
-  def test_generated_dependabot_has_exact_catalog_ignores_and_child_npm_ownership
+  def test_generated_dependabot_leaves_actions_to_projects_and_groups_child_npm
     write('package.json', '{}')
     write('composer.json', '{}')
     output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/render_child_dependabot.rb'), File.join(ROOT, 'templates/child/.github/dependabot.yml'), @directory, 'true')
     assert status.success?, error
     updates = Psych.safe_load(output).fetch('updates')
     actions = updates.find { |update| update['package-ecosystem'] == 'github-actions' }
-    expected = @policy.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort
-    assert_equal expected, actions.fetch('ignore').map { |ignore| ignore.fetch('dependency-name') }
+    # Projects own action pins, so the current generation ignores no actions and
+    # Dependabot security updates reach every workflow.
+    refute actions.key?('ignore')
     assert_equal ['/', '/.wp-plugin-base-admin-ui'], updates.select { |update| update['package-ecosystem'] == 'npm' }.map { |update| update['directory'] }
     assert_equal 1, updates.count { |update| update['package-ecosystem'] == 'composer' }
-    updates.reject { |update| update['package-ecosystem'] == 'github-actions' }.each { |update| refute update.key?('ignore') }
     updates.each do |update|
       if update['package-ecosystem'] == 'npm'
         assert_equal({ 'wordpress-packages' => { 'patterns' => ['@wordpress/*'] } }, update['groups'])
@@ -178,7 +210,10 @@ class ActionPinMigrationTest < Minitest::Test
     output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/render_child_dependabot.rb'), previous, @directory, 'false')
     assert status.success?, error
     refute_includes output, 'groups:'
-    assert_equal 2, Psych.safe_load(output).fetch('updates').length
+    updates = Psych.safe_load(output).fetch('updates')
+    assert_equal 2, updates.length
+    ignores = updates.first.fetch('ignore').map { |ignore| ignore.fetch('dependency-name') }
+    assert_equal @policy.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort, ignores
   end
 
   def test_dependabot_rejects_npm_additions_beyond_groups

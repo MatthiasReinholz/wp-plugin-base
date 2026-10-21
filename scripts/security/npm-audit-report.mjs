@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { isDeepStrictEqual } from 'node:util';
 
 const severities = ['info', 'low', 'moderate', 'high', 'critical'];
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 export function classifyAudit(raw, status, verifiedRemediations, level = 'high') {
   assert(severities.includes(level), 'Invalid audit severity threshold');
-  assert(Array.isArray(verifiedRemediations) && verifiedRemediations.length > 0, 'No verified remediations');
+  assert(Array.isArray(verifiedRemediations), 'Invalid verified remediations');
   assert(status === 0 || status === 1, 'npm audit execution failed');
   const report = JSON.parse(raw);
   assert(report.auditReportVersion === 2 && !report.error && record(report.vulnerabilities), 'Unsupported npm audit report');
@@ -50,8 +51,9 @@ export function classifyAudit(raw, status, verifiedRemediations, level = 'high')
       if (remediation) {
         assert(name === remediation.package && via.name === name && via.dependency === name && via.range === remediation.range && via.severity === remediation.severity, 'Reviewed advisory contract changed');
         assert(Array.isArray(remediation.nodes) && remediation.nodes.length > 0, 'No verified package instances');
-        assert.deepEqual([...item.nodes].sort(), [...remediation.nodes].sort(), 'Incomplete or unverified package instances');
-        continue;
+        // Waive the advisory only when every affected copy was verified; a copy the
+        // backport does not cover (another version) stays a residual finding.
+        if (isDeepStrictEqual([...item.nodes].sort(), [...remediation.nodes].sort())) continue;
       }
       const source = { url: via.url, package: name, severity: via.severity, range: via.range ?? null };
       sources.set(JSON.stringify(source), source);

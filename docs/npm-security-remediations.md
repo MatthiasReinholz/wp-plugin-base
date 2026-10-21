@@ -19,27 +19,33 @@ regression, exact advisory contract and tests. There is no project-supplied
 advisory ignore list or arbitrary patch execution facility.
 
 The application owns `npm-remediations.json` beside its `package.json` and
-`package-lock.json`. Its exact schema is:
+`package-lock.json`. Both admin UI starters seed it. Its exact schema is:
 
 ```json
 {
   "schemaVersion": 1,
-  "packageSha256": "<SHA256 of the complete package.json>",
-  "lockfileSha256": "<SHA256 of the complete package-lock.json>",
   "remediations": ["braces-3.0.3"]
 }
 ```
 
-Use `sha256sum package.json package-lock.json` after reviewing the final files.
-Lock or manifest changes invalidate qualification until their changes and the
-installed graph have been reviewed again. Unknown fields/IDs, duplicate IDs,
-unsupported versions or changed catalog artifacts fail closed. Do not regenerate
-these digests automatically in install or audit jobs.
+The remediation is bound to each installed copy of the package, not to the whole
+manifest or lock, so the project's own dependency updates keep it valid. Every
+copy at the reviewed upstream version must match its reviewed lock entry (version,
+tarball and integrity), its pristine or patched file inventory and the regression.
+Copies at another version, or a package an update removed, are not patched; npm
+audit still reports them, and the advisory is waived only when every affected copy
+was verified. Earlier manifests also carried `packageSha256` and `lockfileSha256`;
+these are still accepted but no longer compared. Unknown fields/IDs, duplicate IDs,
+a package identity that does not match its directory, a changed reviewed lock entry
+or changed catalog artifacts fail closed.
 
 ## Installation and verification
 
-For a child-owned admin UI manifest, add this explicit lifecycle step (compose it
-with any existing lifecycle command instead of overwriting application behavior):
+The managed admin UI build (`.wp-plugin-base-admin-ui/build.sh`) applies the
+manifest after `npm ci`, so a child-owned admin UI manifest needs no lifecycle
+step. Other layouts, or local installs outside the build, can add this explicit
+step (compose it with any existing lifecycle command instead of overwriting
+application behavior):
 
 ```json
 {
@@ -51,7 +57,7 @@ with any existing lifecycle command instead of overwriting application behavior)
 
 Then qualify a clean `npm ci --include=dev --include=optional --include=peer`,
 rebuild tracked assets and run the application's tests. The standard admin build
-already runs `npm ci`, so its lifecycle applies the backport before compilation.
+applies the backport after `npm ci` and before compilation.
 Other project layouts must use the correct relative path to their signed vendor.
 `--ignore-scripts` leaves a pristine installation, which read-only verification
 rejects. The CLI requires Node.js, npm and Git; it performs no Git network writes.
@@ -86,7 +92,8 @@ installation, and calls the canonical installer before activating any wrapper.
 Git is required for this step. A failed patch, byte check or regression aborts
 activation and preserves previously installed tools. The full strict-local gate
 executes the resulting Markdown tool against the real repository. Tool lock
-updates must include renewed manifest-hash review and audit qualification.
+updates must keep every reviewed `braces` copy verifiable and pass audit
+qualification.
 
 ## Audit integration
 

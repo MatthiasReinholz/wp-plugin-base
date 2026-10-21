@@ -113,7 +113,7 @@ run_quality_pack_with_docker() {
       audit --locked --no-interaction
   }
 
-  wp_plugin_base_run_with_retry 3 5 "Quality pack Composer audit" composer_docker_audit_command
+  wp_plugin_base_audit_foundation_tool_lock "Quality pack Composer audit" composer_docker_audit_command
 
   write_phpstan_config "$COMPOSER_WORK_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
@@ -126,7 +126,7 @@ run_quality_pack_with_local_bundle() {
   wp_plugin_base_require_commands "WordPress quality pack local fallback" composer
   write_phpstan_config "$TOOLS_DIR/vendor/szepeviktor/phpstan-wordpress/extension.neon"
 
-  wp_plugin_base_run_with_retry 3 5 "Quality pack Composer audit" composer_audit_command "$TOOLS_DIR"
+  wp_plugin_base_audit_foundation_tool_lock "Quality pack Composer audit" composer_audit_command "$TOOLS_DIR"
 
   php "$TOOLS_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs.xml.dist"
   run_phpstan "$TOOLS_DIR/vendor/bin/phpstan"

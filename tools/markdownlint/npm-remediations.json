@@ -1,7 +1,5 @@
 {
   "schemaVersion": 1,
-  "packageSha256": "729dd7680fa33408285fb1870163619bc62bf689fc700f29eaa4beb329262cb4",
-  "lockfileSha256": "94090e189092124af3df9ddf2cd547cb2817c2329e7734a1e6d6231d73a927fc",
   "remediations": [
     "braces-3.0.3"
   ]

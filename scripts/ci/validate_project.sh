@@ -185,7 +185,8 @@ bash "$SCRIPT_DIR/check_versions.sh" "" "$CONFIG_OVERRIDE"
 if [ "${AUTOMATION_PROFILE:-managed}" = managed ]; then
 case "${AUTOMATION_PROVIDER:-github}" in
   github)
-    bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR" "${DEFAULT_BRANCH:-main}"
+    # Projects own their action pins; the audit still requires full-SHA pins.
+    WP_PLUGIN_BASE_ACTION_PIN_POLICY=project bash "$SCRIPT_DIR/audit_workflows.sh" "$ROOT_DIR" "${DEFAULT_BRANCH:-main}"
     ;;
   gitlab)
     bash "$SCRIPT_DIR/check_gitlab_ci.sh" "$CONFIG_OVERRIDE"

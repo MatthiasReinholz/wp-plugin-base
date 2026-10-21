@@ -151,7 +151,7 @@ bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-tools" -
 
 - workflows are local to your project and run against the checked-out repository
 - every external action must be pinned to a full commit SHA
-- only a small approved action allowlist is permitted
+- foundation workflows use a small reviewed action allowlist; projects may choose their own full-SHA pins, including in managed workflows, and sync never downgrades them
 - custom project workflows stay read-only by default; privileged write flows remain managed
 - release and update workflows use repo-local shell scripts where practical instead of additional third-party actions
 - foundation self-updates only trust published foundation releases that pass provenance checks
