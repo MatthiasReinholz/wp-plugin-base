@@ -2,7 +2,8 @@
 
 ## v1.10.13
 
-* feat: adopt @wordpress/env 11.17 and default new projects to Node.js 24 (#439)
+* Update the managed WordPress environment tooling to `@wordpress/env` 11.17.0 without raising the Node.js floor. Its Playground runtime packages declare Node.js 24.18 but are loaded only for `wp-env --runtime=playground`, which the foundation never uses. npm's whole-tree `engine-strict` is replaced by an explicit check of the tool manifest's engines and every package the Docker runtime loads. The redundant `adm-zip`, `ajv` and `tmp` overrides are removed.
+* New projects default to `NODE_VERSION=24`, and foundation CI runs on Node.js 24. Node.js 22 remains supported and qualified with a real WordPress environment; existing projects keep their configured runtime and need no change.
 
 ## v1.10.12
 
