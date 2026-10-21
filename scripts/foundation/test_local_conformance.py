@@ -164,9 +164,11 @@ class LocalConformance(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content)
         self.run_script("update/sync_child_repo.sh")
-        # Earlier renderers emitted no npm groups; the previous template generation
-        # must still render those exact bytes.
-        self.assertTrue(all("groups" not in update for update in yaml_updates(self.root / ".github/dependabot.yml")))
+        # Earlier renderers emitted no npm groups or subdirectory action ignores; the
+        # previous template generation must still render those exact bytes.
+        previous_updates = yaml_updates(self.root / ".github/dependabot.yml")
+        self.assertTrue(all("groups" not in update for update in previous_updates))
+        self.assertFalse(any(entry["dependency-name"].endswith("/*") for update in previous_updates for entry in update.get("ignore", [])))
         (self.root / ".wp-plugin-base-automation.json").unlink()
         old_workflow_bytes = (self.root / ".github/workflows/release.yml").read_bytes()
         self.run_script("update/capture_automation_ownership.sh")
@@ -192,6 +194,7 @@ class LocalConformance(unittest.TestCase):
         updates = {update["package-ecosystem"]: update for update in yaml_updates(self.root / ".github/dependabot.yml")}
         self.assertEqual(updates["npm"]["groups"], {"wordpress-packages": {"patterns": ["@wordpress/*"]}})
         self.assertNotIn("groups", updates["github-actions"])
+        self.assertIn({"dependency-name": "github/codeql-action/*"}, updates["github-actions"]["ignore"])
 
     def v183_fixture(self, *, commit=False, qit=False):
         fixture = json.loads((FOUNDATION / "tests/fixtures/legacy-v183-automation.json").read_text())

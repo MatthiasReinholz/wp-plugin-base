@@ -98,7 +98,10 @@ use the new manifest-aware staging flow. Never publish an incomplete update that
 custom workflows on rejected predecessor pins.
 
 Child Dependabot configuration ignores action repositories controlled by this catalog.
-Action updates belong in the foundation first. With `DEPENDABOT_ECOSYSTEMS=auto`, the generated child configuration also tracks
+Templates from v1.10.10 onward also ignore `owner/repo/*` for each catalog
+repository, since Dependabot reports subdirectory actions by full path; earlier
+templates keep their original bytes. Action updates belong in the foundation first. See
+[who updates which dependency](dependency-maintenance.md#who-updates-which-dependency). With `DEPENDABOT_ECOSYSTEMS=auto`, the generated child configuration also tracks
 root Composer dependencies when `composer.json` exists, npm dependencies at `/`
 when a root `package.json` exists, and at `/.wp-plugin-base-admin-ui` when that
 package exists or the admin UI pack is enabled. Each generated npm entry groups

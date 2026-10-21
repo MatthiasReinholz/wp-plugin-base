@@ -157,8 +157,16 @@ class ActionPinMigrationTest < Minitest::Test
     assert status.success?, error
     updates = Psych.safe_load(output).fetch('updates')
     actions = updates.find { |update| update['package-ecosystem'] == 'github-actions' }
-    expected = @policy.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort
+    repositories = @policy.keys.map { |name| name.split('/').first(2).join('/') }
+    expected = (repositories.uniq + repositories.uniq.map { |name| "#{name}/*" }).sort
     assert_equal expected, actions.fetch('ignore').map { |ignore| ignore.fetch('dependency-name') }
+    # Dependabot names subdirectory actions by full path; every action a managed
+    # workflow uses must match an ignore, or Dependabot rewrites receipted bytes.
+    used = Dir.glob(File.join(ROOT, 'templates/child/**/.github/workflows/*.yml'), File::FNM_DOTMATCH).flat_map do |path|
+      File.read(path).scan(/^\s*(?:-\s+)?uses:\s*['"]?([^@'"\s]+)@/).flatten
+    end.uniq
+    refute_empty used
+    used.each { |name| assert expected.any? { |pattern| File.fnmatch(pattern, name) }, name }
     assert_equal ['/', '/.wp-plugin-base-admin-ui'], updates.select { |update| update['package-ecosystem'] == 'npm' }.map { |update| update['directory'] }
     assert_equal 1, updates.count { |update| update['package-ecosystem'] == 'composer' }
     updates.reject { |update| update['package-ecosystem'] == 'github-actions' }.each { |update| refute update.key?('ignore') }
@@ -178,7 +186,10 @@ class ActionPinMigrationTest < Minitest::Test
     output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/render_child_dependabot.rb'), previous, @directory, 'false')
     assert status.success?, error
     refute_includes output, 'groups:'
-    assert_equal 2, Psych.safe_load(output).fetch('updates').length
+    updates = Psych.safe_load(output).fetch('updates')
+    assert_equal 2, updates.length
+    ignores = updates.first.fetch('ignore').map { |ignore| ignore.fetch('dependency-name') }
+    assert_equal @policy.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort, ignores
   end
 
   def test_dependabot_rejects_npm_additions_beyond_groups

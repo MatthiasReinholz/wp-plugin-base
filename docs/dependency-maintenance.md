@@ -139,6 +139,37 @@ Dependabot configuration. Each managed npm entry, root and admin UI, groups
 existing children receive the group on their next foundation sync. GitLab users
 should configure their chosen dependency updater for the same child-owned paths.
 
+### Who Updates Which Dependency
+
+GitHub raises Dependabot alerts for every manifest in a child repository,
+including files the child does not own. Where the file lives decides who fixes it:
+
+| Path | Owner | How to fix an alert |
+| --- | --- | --- |
+| Root `composer.*` / `package*.json`, `.wp-plugin-base-admin-ui/package*.json` | Child | Merge the update and run the child's checks |
+| Managed workflows under `.github/` | Foundation | Do not merge; take the foundation release that updates the pin |
+| `.wp-plugin-base/**` (vendored foundation) | Foundation | Close the PR; the next foundation update replaces these files |
+| `.wp-plugin-base-quality-pack/`, `.wp-plugin-base-security-pack/` | Foundation | Close the PR; managed sync rewrites these locks |
+
+Managed workflows are hash-checked against `.wp-plugin-base-automation.json`.
+Any edit, including a Dependabot action bump, makes project validation fail
+before linting, Plugin Check, or packaging run. The generated child Dependabot
+configuration ignores each catalog action repository. Dependabot names
+subdirectory actions by full path, so templates from v1.10.10 onward also ignore
+`owner/repo/*` (such as `github/codeql-action/*`). Children receive these
+ignores on their next foundation sync. If such a change was merged, restore the
+synchronized bytes in a clone with full history:
+
+```bash
+git checkout "$(git log -1 --format=%H -- .wp-plugin-base-automation.json)" -- '.github/workflows/ci.yml'
+```
+
+Vendored foundation files are replaced on every foundation update, so local
+bumps are lost, and some are hash-pinned. For example, after a bump of
+`.wp-plugin-base/tools/markdownlint/package-lock.json`, installing the Markdown
+lint tools fails with `Reviewed hash changed`. Foundation releases ship reviewed
+fixes for these paths.
+
 ## October 20, 2026 Advisory Review
 
 All twelve open Dependabot advisories were reviewed. Nine are fixed by narrow

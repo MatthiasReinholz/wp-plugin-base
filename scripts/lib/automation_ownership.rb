@@ -53,7 +53,10 @@ module AutomationOwnership
     data['files'].each do |name, digest|
       path = regular_path(root, name)
       unless digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/) && File.file?(path) && Digest::SHA256.file(path).hexdigest == digest
-        raise "Managed automation differs from its synchronized receipt: #{name}"
+        raise "Managed automation differs from its synchronized receipt: #{name}. wp-plugin-base generates this file, " \
+              'so edits there (including Dependabot action bumps) block validation. Revert the commit that changed it, or ' \
+              "restore the synchronized bytes with `git checkout \"$(git log -1 --format=%H -- .wp-plugin-base-automation.json)\" -- '#{name}'` in a full-history clone. Keep custom steps in an " \
+              'application-owned workflow; managed action pins update through foundation releases.'
       end
     end
   end
@@ -90,7 +93,7 @@ module AutomationOwnership
       path = regular_path(root, name)
       actual = File.file?(path) ? Digest::SHA256.file(path).hexdigest : nil
       if previous.key?(name) && actual && actual != previous[name] && actual != desired[name]
-        raise "Managed automation was edited: #{name}. Preserve the edit in an application-owned file, then restore the last synchronized bytes or remove this path before retrying. No sync changes were made."
+        raise "Managed automation was edited: #{name}. Preserve the edit in an application-owned file, then restore the last synchronized bytes or remove this path before retrying. Dependabot action bumps need no preservation; revert them, because managed action pins update through foundation releases. No sync changes were made."
       end
       if desired.key?(name) && actual && !previous.key?(name) && actual != desired[name]
         raise "Application-owned automation conflicts with managed output: #{name}. Move or explicitly remove that file before enabling managed automation. No sync changes were made."

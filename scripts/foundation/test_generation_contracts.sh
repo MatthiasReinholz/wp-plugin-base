@@ -75,9 +75,13 @@ document = Psych.safe_load(File.read(ARGV[0]), aliases: false)
 updates = document.fetch('updates')
 actions = updates.select { |update| update.fetch('package-ecosystem') == 'github-actions' }
 abort 'Expected exactly one Actions update policy' unless actions.length == 1
-expected = JSON.parse(File.read(ARGV[1])).fetch('actions').keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort
+catalog = JSON.parse(File.read(ARGV[1])).fetch('actions').keys
+repositories = catalog.map { |name| name.split('/').first(2).join('/') }.uniq
+expected = (repositories + repositories.map { |name| "#{name}/*" }).sort
 actual = actions.first.fetch('ignore').map { |entry| entry.fetch('dependency-name') }.sort
 abort 'Foundation action ownership was lost' unless actual == expected
+# Dependabot reports subdirectory actions by full path; every catalog action must be ignored.
+abort 'Foundation subdirectory action is not ignored' unless catalog.all? { |name| actual.any? { |pattern| File.fnmatch(pattern, name) } }
 updates.reject { |update| update.fetch('package-ecosystem') == 'github-actions' }.each do |update|
   abort 'Foundation action ignores leaked into package updates' if update.key?('ignore')
 end

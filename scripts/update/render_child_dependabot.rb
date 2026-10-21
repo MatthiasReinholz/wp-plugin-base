@@ -36,7 +36,14 @@ unless npm_policy.nil? || (npm_policy.keys == %w[package-ecosystem groups] && np
     npm_policy['groups'].all? { |name, group| name.is_a?(String) && group.is_a?(Hash) && group.keys == ['patterns'] && group['patterns'].is_a?(Array) && !group['patterns'].empty? && group['patterns'].all? { |pattern| pattern.is_a?(String) && !pattern.empty? } })
   abort 'Child Dependabot npm additions may only define dependency groups'
 end
-ignores = WPPluginBaseActionPins.catalog.keys.map { |name| name.split('/').first(2).join('/') }.uniq.sort
+repositories = WPPluginBaseActionPins.catalog.keys.map { |name| name.split('/').first(2).join('/') }
+ignores = repositories.uniq.sort
+# Dependabot names an action in a repository subdirectory by its full path, so
+# an owner/repo ignore does not stop it rewriting managed workflows. Templates
+# from v1.10.10 (which carry npm additions) also ignore every subdirectory of
+# each catalog repository; receiptless children only replay earlier templates,
+# which keep their bytes.
+ignores = (ignores + ignores.map { |name| "#{name}/*" }).sort unless npm_policy.nil?
 # Retain the authored common schedule and indentation. Only these two fixed
 # scalars vary; action ignores never enter Composer or npm update blocks, and
 # npm additions only enter npm update blocks.
@@ -72,7 +79,8 @@ end
 expected = ecosystems.map { |ecosystem| ecosystem == 'admin-ui-npm' ? ['npm', '/.wp-plugin-base-admin-ui'] : [ecosystem, '/'] }
 unless rendered.is_a?(Hash) && rendered.keys == %w[version updates] && rendered['updates'].is_a?(Array) &&
     rendered['updates'].map { |update| [update['package-ecosystem'], update['directory']] } == expected &&
-    rendered['updates'].all? { |update| update['groups'] == (update['package-ecosystem'] == 'npm' && npm_policy ? npm_policy['groups'] : nil) }
+    rendered['updates'].all? { |update| update['groups'] == (update['package-ecosystem'] == 'npm' && npm_policy ? npm_policy['groups'] : nil) } &&
+    rendered['updates'].all? { |update| update['ignore'] == (update['package-ecosystem'] == 'github-actions' ? ignores.map { |name| { 'dependency-name' => name } } : nil) }
   abort 'Rendered child Dependabot configuration does not match the selected policies'
 end
 puts output
