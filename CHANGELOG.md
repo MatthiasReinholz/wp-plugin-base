@@ -2,9 +2,12 @@
 
 ## v1.10.11
 
-* fix: let projects own their dependency updates without breaking CI (#437)
-* chore: update cosign-binary to v3.1.4 (#435)
-* fix: remediate certifi and admin UI seed dependency advisories (#436)
+* Let projects apply their own dependency updates without breaking validation, Plugin Check, packaging or release. Project validation accepts any full-SHA action pin, including a Dependabot update in a managed workflow; every other managed-workflow edit still fails. Sync keeps project pins on every later sync, upgrades reviewed predecessors and never downgrades. The foundation's own workflow audit still requires reviewed pins.
+* Generated child Dependabot configuration no longer ignores actions, so action version and security updates reach every workflow. Earlier vendored templates still render their original bytes during ownership recovery.
+* Bind npm remediations to each installed package copy instead of whole `package.json`/`package-lock.json` digests, so project dependency updates keep the reviewed `braces` backport valid. Existing manifests with digests keep working. Other versions or removed packages are left to npm audit, and an advisory is waived only when every affected copy is verified. The managed admin build applies the backport, and both starters seed it, so new admin UI projects pass the security pack audit.
+* Report advisories in the foundation-owned quality and security pack tool locks as warnings in projects instead of failing their CI; foundation validation still blocks on them.
+* Resolve the critical `certifi` advisory (GHSA-6q48-6c7w-9gw2) in the Semgrep tooling, and the `follow-redirects`, `launch-editor` and `markdown-it` advisories in both admin starters, within their existing ranges. Starters are child-owned: existing projects receive these through their own Dependabot.
+* Update signature-verified Cosign 3.1.4.
 
 ## v1.10.10
 
