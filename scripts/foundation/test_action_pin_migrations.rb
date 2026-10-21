@@ -27,8 +27,8 @@ class ActionPinMigrationTest < Minitest::Test
     absolute
   end
 
-  def migrate(success: true)
-    output, error, status = Open3.capture3('ruby', File.join(ROOT, 'scripts/update/migrate_action_pins.rb'), @directory, @manifest)
+  def migrate(success: true, env: {})
+    output, error, status = Open3.capture3(env, 'ruby', File.join(ROOT, 'scripts/update/migrate_action_pins.rb'), @directory, @manifest)
     assert_equal success, status.success?, output + error
   end
 
@@ -53,13 +53,21 @@ class ActionPinMigrationTest < Minitest::Test
     YAML
     path = write('.github/workflows/custom.yml', source)
     migrate
-    assert_equal source.sub("uses: '#{@previous}'", "uses: '#{@current}'"), File.read(path)
+    assert_equal source.sub("uses: '#{@previous}'", "uses: '#{@current}'"), File.read(path, mode: 'r:UTF-8')
     assert_equal ".github/workflows/custom.yml\n", File.read(@manifest)
     WPPluginBaseActionPins.audit([path])
-    migrated = File.read(path)
+    migrated = File.read(path, mode: 'r:UTF-8')
     migrate
-    assert_equal migrated, File.read(path)
+    assert_equal migrated, File.read(path, mode: 'r:UTF-8')
     assert_empty File.read(@manifest)
+  end
+
+  def test_non_ascii_sources_migrate_under_a_c_locale
+    source = "name: Custom\npermissions: {contents: read}\non: push\njobs:\n  custom:\n    runs-on: ubuntu-latest\n" \
+      "    steps:\n      - {name: 'Unicode 🔥 ü', uses: '#{@previous}'}\n"
+    path = write('.github/workflows/custom.yml', source)
+    migrate(env: { 'LANG' => 'C', 'LC_ALL' => 'C' })
+    assert_equal source.sub(@previous, @current), File.read(path, mode: 'r:UTF-8')
   end
 
   def test_composite_actions_and_reusable_job_references_are_inspected
