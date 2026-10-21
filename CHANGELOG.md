@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.12
+
+* Read workflow sources as UTF-8 when rewriting action pins, so sync migration and the managed-workflow pin check keep working under a C/POSIX locale (minimal runner images, GitLab runners without `LANG`) when non-ASCII text precedes a `uses:` reference.
+
 ## v1.10.11
 
 * Let projects apply their own dependency updates without breaking validation, Plugin Check, packaging or release. Project validation accepts any full-SHA action pin, including a Dependabot update in a managed workflow; every other managed-workflow edit still fails. Sync keeps project pins on every later sync, upgrades reviewed predecessors and never downgrades. The foundation's own workflow audit still requires reviewed pins.
