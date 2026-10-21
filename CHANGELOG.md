@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.13
+
+* feat: adopt @wordpress/env 11.17 and default new projects to Node.js 24 (#439)
+
 ## v1.10.12
 
 * Read workflow sources as UTF-8 when rewriting action pins, so sync migration and the managed-workflow pin check keep working under a C/POSIX locale (minimal runner images, GitLab runners without `LANG`) when non-ASCII text precedes a `uses:` reference.
