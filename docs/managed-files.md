@@ -47,7 +47,7 @@ These files are created or maintained so the project can customize them safely:
 - `.wp-plugin-base-security-suppressions.json`, or the path configured by `WP_PLUGIN_BASE_SECURITY_SUPPRESSIONS_FILE`: seeded when absent, then project-owned.
 - `phpstan.neon`: seeded when the full quality pack is enabled, then project-owned. Use it for PHPStan paths, excludes, bootstrap files, and scan files.
 - `tests/wp-plugin-base/bootstrap-child.php`: seeded when the PHPUnit bridge is enabled, then project-owned. Use it for project-specific PHPUnit preloads and support-class bootstrapping.
-- REST operations and admin UI pack seed files, which remain project-owned after first creation.
+- REST operations and admin UI pack seed files, which remain project-owned after first creation. The admin UI seeds include `npm-remediations.json`; the managed `.wp-plugin-base-admin-ui/build.sh` applies its reviewed `braces` backport after `npm ci`. See [npm security remediations](npm-security-remediations.md).
 
 The managed `phpunit.xml.dist` discovers `*Test.php` files under `tests/`. Keep foundation-managed baseline tests in `tests/wp-plugin-base/`, and place project-owned PHPUnit tests in a child-owned subtree such as `tests/php/`.
 

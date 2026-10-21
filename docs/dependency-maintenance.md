@@ -141,34 +141,43 @@ should configure their chosen dependency updater for the same child-owned paths.
 
 ### Who Updates Which Dependency
 
-GitHub raises Dependabot alerts for every manifest in a child repository,
-including files the child does not own. Where the file lives decides who fixes it:
+Projects may apply their own dependency updates, and an older foundation never
+blocks a project's validation, Plugin Check, packaging or release. GitHub raises
+Dependabot alerts for every manifest in a child repository, including files the
+child does not own. Where the file lives decides what an update does:
 
-| Path | Owner | How to fix an alert |
+| Path | Project update | Next foundation sync |
 | --- | --- | --- |
-| Root `composer.*` / `package*.json`, `.wp-plugin-base-admin-ui/package*.json` | Child | Merge the update and run the child's checks |
-| Managed workflows under `.github/` | Foundation | Do not merge; take the foundation release that updates the pin |
-| `.wp-plugin-base/**` (vendored foundation) | Foundation | Close the PR; the next foundation update replaces these files |
-| `.wp-plugin-base-quality-pack/`, `.wp-plugin-base-security-pack/` | Foundation | Close the PR; managed sync rewrites these locks |
+| Root `composer.*` / `package*.json`, `.wp-plugin-base-admin-ui/package*.json` | Merge it; the project owns these files | Preserved |
+| Action pins in managed workflows under `.github/` | Merge it; full-SHA pin updates pass validation | Kept, unless the catalog lists the pin as an older reviewed predecessor |
+| Action pins in project-owned workflows | Merge it | Kept; reviewed predecessors are upgraded |
+| `.wp-plugin-base/**` (vendored foundation) | Not needed; close the PR | Replaced by the verified foundation release |
+| `.wp-plugin-base-quality-pack/`, `.wp-plugin-base-security-pack/` | Not needed; close the PR | Rewritten by managed sync |
 
-Managed workflows are hash-checked against `.wp-plugin-base-automation.json`.
-Any edit, including a Dependabot action bump, makes project validation fail
-before linting, Plugin Check, or packaging run. The generated child Dependabot
-configuration ignores each catalog action repository. Dependabot names
-subdirectory actions by full path, so templates from v1.10.10 onward also ignore
-`owner/repo/*` (such as `github/codeql-action/*`). Children receive these
-ignores on their next foundation sync. If such a change was merged, restore the
-synchronized bytes in a clone with full history:
+Managed workflows stay foundation-owned apart from their action pins. Project
+validation compares them with `.wp-plugin-base-automation.json` and accepts a
+file whose only change is a full-SHA action pin; any other edit fails. Sync never
+downgrades a pin the catalog has not reviewed; reviewed predecessors are
+upgraded to the rendered pin. From v1.10.11, generated child Dependabot
+configuration ignores no actions, so action version and security updates reach
+every workflow. A project that pins an action by hand keeps that pin until it
+changes it again. Projects still on v1.10.10 or earlier that edited a managed pin
+by hand should restore it before their first update, because the older updater
+runs its own ownership check first.
 
-```bash
-git checkout "$(git log -1 --format=%H -- .wp-plugin-base-automation.json)" -- '.github/workflows/ci.yml'
-```
+Admin UI dependency updates keep the `braces` backport valid: the remediation is
+bound to each installed `braces` copy, not to the whole manifest or lock (see
+[npm security remediations](npm-security-remediations.md)). The managed admin
+build applies it after `npm ci`, and the starters seed `npm-remediations.json`.
+Projects created from earlier starters may keep their
+`packageSha256`/`lockfileSha256` fields; they are no longer compared.
 
+Advisories in the quality and security pack tool locks are reported as warnings
+in projects, because only a foundation release changes those locks. Foundation
+validation blocks on the same advisories. Advisories in project-owned
+dependencies still fail the security pack audit at the configured threshold.
 Vendored foundation files are replaced on every foundation update, so local
-bumps are lost, and some are hash-pinned. For example, after a bump of
-`.wp-plugin-base/tools/markdownlint/package-lock.json`, installing the Markdown
-lint tools fails with `Reviewed hash changed`. Foundation releases ship reviewed
-fixes for these paths.
+edits there are lost.
 
 ## October 20, 2026 Advisory Review
 

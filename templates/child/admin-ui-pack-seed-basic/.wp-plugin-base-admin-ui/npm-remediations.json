@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "remediations": [
+    "braces-3.0.3"
+  ]
+}

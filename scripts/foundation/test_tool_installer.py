@@ -62,8 +62,7 @@ elif command == 'node':
         assert Path(args[0]).is_file() and args[1:3] == ['apply', '--project-root'] and len(args) == 4
         root = Path(args[3])
         manifest = json.loads((root / 'npm-remediations.json').read_text())
-        assert manifest['packageSha256'] == hashlib.sha256((root / 'package.json').read_bytes()).hexdigest()
-        assert manifest['lockfileSha256'] == hashlib.sha256((root / 'package-lock.json').read_bytes()).hexdigest()
+        assert manifest == {'schemaVersion': 1, 'remediations': ['braces-3.0.3']}
         if os.environ.get('FIXTURE_REMEDIATION_FAILURE') == '1':
             raise SystemExit(73)
         (root / '.fixture-remediated').write_text('verified')

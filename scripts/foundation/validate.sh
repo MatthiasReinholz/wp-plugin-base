@@ -40,6 +40,11 @@ if [ -z "$ASSURANCE_MODE" ]; then
   fi
 fi
 
+# The foundation owns the pack tool locks, so its own validation blocks on their
+# advisories; projects only receive a warning.
+export WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT=strict
+unset WP_PLUGIN_BASE_ACTION_PIN_POLICY
+
 case "$ASSURANCE_MODE" in
   fast-local)
     export WP_PLUGIN_BASE_STRICT_LINTERS='false'
@@ -302,6 +307,7 @@ bash "$ROOT_DIR/scripts/foundation/test_temporary_wordpress_cleanup.sh"
 bash "$ROOT_DIR/scripts/foundation/test_pre_push_git_isolation.sh"
 bash "$ROOT_DIR/scripts/foundation/test_lint_pack_pruning.sh"
 bash "$ROOT_DIR/scripts/foundation/test_run_quality_pack_local_fallback.sh"
+bash "$ROOT_DIR/scripts/foundation/test_foundation_tool_audit.sh"
 bash "$ROOT_DIR/scripts/foundation/test_run_php_runtime_smoke_local_fallback.sh"
 bash "$ROOT_DIR/scripts/foundation/test_woocommerce_qit_secret_scope.sh"
 

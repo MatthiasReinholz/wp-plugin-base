@@ -74,37 +74,71 @@ module WPPluginBaseActionPins
     [source, references]
   end
 
-  def self.replacement(reference, policy, migrate: false)
+  PINNED_REFERENCE = %r{\A([A-Za-z0-9._-]+/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)@([0-9a-f]{40})\z}
+
+  # Projects may move pins past the catalog, for example through their own
+  # Dependabot updates. Migration only replaces reviewed predecessors, so it
+  # never downgrades a project pin; project audits accept every full-SHA pin.
+  def self.replacement(reference, policy, migrate: false, project: false)
     return reference if reference.start_with?('./')
-    unless reference.match?(%r{\A[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*@[0-9a-f]{40}\z})
-      raise "action reference must be pinned to a full-length commit SHA: #{reference}"
-    end
-    name, pin = reference.split('@', 2)
+    match = PINNED_REFERENCE.match(reference)
+    raise "action reference must be pinned to a full-length commit SHA: #{reference}" unless match
+
+    name, pin = match.captures
     entry = policy[name]
     return reference if entry && pin == entry['current']
     return "#{name}@#{entry['current']}" if migrate && entry && entry['predecessors'].include?(pin)
+    return reference if migrate || project
 
     raise "action is not in the approved allowlist: #{reference}"
   end
 
-  def self.audit(files)
+  # Edit only the parsed reference scalars chosen by the block; every other
+  # source byte is preserved.
+  def self.rewrite_references(file, source, references)
+    offsets = [0]
+    source.lines.each { |line| offsets << offsets.last + line.length }
+    replacements = []
+    references.each do |node|
+      replacement = yield(node)
+      next if replacement == node.value
+      raise "#{file}:#{node.start_line + 1}: multiline action references require manual review" unless node.start_line == node.end_line
+
+      start = offsets[node.start_line] + node.start_column
+      finish = offsets[node.end_line] + node.end_column
+      token = source[start...finish]
+      unless [node.value, "'#{node.value}'", "\"#{node.value}\""].include?(token)
+        raise "#{file}:#{node.start_line + 1}: unsupported action scalar syntax requires manual review"
+      end
+      replacements << [start, finish, token.sub(node.value, replacement)]
+    end
+    result = source.dup
+    replacements.sort_by(&:first).reverse_each { |start, finish, replacement| result[start...finish] = replacement }
+    result
+  end
+
+  def self.audit(files, project: false)
     policy = catalog
+    unreviewed = []
     files.each do |file|
       _source, references = references(file)
       references.each do |node|
         begin
-          replacement(node.value, policy)
+          replacement(node.value, policy, project: project)
         rescue StandardError => error
           raise "#{file}:#{node.start_line + 1}: #{error.message}"
         end
+        name, pin = node.value.split('@', 2)
+        unreviewed << node.value if project && policy.dig(name, 'current') != pin && !node.value.start_with?('./')
       end
     end
+    unreviewed.uniq.each { |reference| puts "Project-owned action pin (not the current wp-plugin-base reviewed pin): #{reference}" }
   end
 end
 
 if $PROGRAM_NAME == __FILE__
   begin
-    WPPluginBaseActionPins.audit(ARGV)
+    WPPluginBaseActionPins.audit(ARGV, project: ENV['WP_PLUGIN_BASE_ACTION_PIN_POLICY'] == 'project')
   rescue StandardError => error
     warn(error.message)
     exit 1

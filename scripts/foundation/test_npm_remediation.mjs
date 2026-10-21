@@ -109,9 +109,10 @@ for (const [name, change, pattern] of [
   ['unknown remediation', root => manifest(root, { remediations: ['unreviewed-advisory'] }), /Unknown remediation/],
   ['duplicate remediation', root => manifest(root, { remediations: ['braces-3.0.3', 'braces-3.0.3'] }), /Duplicate/],
   ['unknown manifest field', root => manifest(root, { ignore: ['all'] }), /Unknown or missing/],
-  ['manifest drift', root => writeFileSync(join(root, 'package.json'), '{}'), /Reviewed hash changed/],
-  ['lock drift', root => writeFileSync(join(root, 'package-lock.json'), '{}'), /Reviewed hash changed/],
-  ['wrong version', root => { const p = join(root, 'node_modules/braces/package.json'); const v = readJson(p); v.version = '3.0.4'; writeJson(p, v); }, /Unreviewed package/],
+  ['unsupported lock', root => writeFileSync(join(root, 'package-lock.json'), '{}'), /Unsupported workspace or npm lock format/],
+  ['invalid legacy digest', root => manifest(root, { lockfileSha256: 'stale' }), /Invalid SHA256 digest/],
+  ['wrong identity', root => { const p = join(root, 'node_modules/braces/package.json'); const v = readJson(p); v.name = 'impostor'; writeJson(p, v); }, /Unreviewed package identity/],
+  ['changed reviewed lock entry', root => { const p = join(root, 'package-lock.json'); const v = readJson(p); v.packages['node_modules/braces'].integrity = 'sha512-unreviewed'; writeJson(p, v); }, /Unreviewed package lock entry/],
   ['untracked package file', root => writeFileSync(join(root, 'node_modules/braces/extra.js'), ''), /Pristine bytes differ/],
   ['linked package', root => symlinkSync(join(root, 'node_modules/braces'), join(root, 'node_modules/alias')), /Linked package/],
   ['hidden bin package', root => mkdirSync(join(root, 'node_modules/.bin/braces'), { recursive: true }), /Package directory hidden/],
@@ -121,6 +122,37 @@ for (const [name, change, pattern] of [
   ['workspace project', root => { const p = join(root, 'package.json'); const v = readJson(p); v.workspaces = ['child']; writeJson(p, v); manifest(root); }, /Unsupported workspace/],
 ]) test(`${name} fails closed`, () => assert.throws(() => applyRemediations(changeProject(change)), pattern));
 function changeProject(change) { const root = project(); change(root); return root; }
+
+test('project dependency updates keep a verified remediation without renewed digests', () => {
+  const root = project();
+  // Stale legacy digests and unrelated manifest/lock changes, as after a Dependabot update.
+  const pkg = readJson(join(root, 'package.json'));
+  writeJson(join(root, 'package.json'), { ...pkg, description: 'Updated by the project' });
+  const lock = readJson(join(root, 'package-lock.json'));
+  lock.packages[''] = { ...lock.packages[''], description: 'Updated by the project' };
+  writeJson(join(root, 'package-lock.json'), lock);
+  assert.equal(applyRemediations(root)[0].nodes.length, 1);
+  writeJson(join(root, 'npm-remediations.json'), { schemaVersion: 1, remediations: ['braces-3.0.3'] });
+  assert.equal(verifyRemediations(root)[0].nodes.length, 1);
+});
+
+test('a scoped package sharing the basename is not treated as the remediated package', () => {
+  const root = project();
+  mkdirSync(join(root, 'node_modules/@types/braces'), { recursive: true });
+  writeJson(join(root, 'node_modules/@types/braces/package.json'), { name: '@types/braces', version: '3.0.4' });
+  assert.equal(applyRemediations(root)[0].nodes.length, 1);
+});
+
+test('a removed or different package version is left to the audit', () => {
+  const root = project();
+  const path = join(root, 'node_modules/braces/package.json');
+  writeJson(path, { ...readJson(path), version: '3.0.4' });
+  const parse = digest(join(root, 'node_modules/braces/lib/parse.js'));
+  assert.deepEqual(applyRemediations(root), []);
+  assert.equal(digest(join(root, 'node_modules/braces/lib/parse.js')), parse);
+  rmSync(join(root, 'node_modules/braces'), { recursive: true });
+  assert.deepEqual(applyRemediations(root), []);
+});
 
 test('real audit uses the locked producer despite incompatible ambient npm and hostile defaults', () => {
   const root = project();
@@ -196,12 +228,18 @@ for (const [name, change] of [
   ['missing reverse edge', r => { r.data.vulnerabilities.braces.effects = []; }],
   ['unknown source', r => { r.data.vulnerabilities.consumer.via = ['absent']; }],
   ['changed advisory', r => { r.data.vulnerabilities.braces.via[0].range = '*'; }],
-  ['unverified node', r => { r.data.vulnerabilities.braces.nodes.push('node_modules/other/braces'); }],
   ['cycle', r => { r.data.vulnerabilities.braces.via = ['consumer']; r.data.vulnerabilities.consumer.effects = ['braces']; }],
   ['hidden severity', r => { r.data.vulnerabilities.consumer.severity = 'low'; }],
 ]) test(`audit rejects ${name}`, () => {
   const input = { data: report(), status: 1 }; change(input);
   assert.throws(() => classifyAudit(JSON.stringify(input.data), input.status, verified));
+});
+test('a copy the backport does not cover keeps the advisory blocking', () => {
+  const r = report();
+  r.vulnerabilities.braces.nodes.push('node_modules/other/node_modules/braces');
+  const decision = classifyAudit(JSON.stringify(r), 1, verified);
+  assert.deepEqual(decision.blocked, ['braces', 'consumer']);
+  assert.deepEqual(classifyAudit(JSON.stringify(report()), 1, []).blocked, ['braces', 'consumer']);
 });
 test('unrelated findings remain visible and enforce the caller threshold', () => {
   const r = report();

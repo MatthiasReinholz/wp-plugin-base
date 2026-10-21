@@ -111,7 +111,7 @@ security_pack_composer_audit_command() {
     audit --locked --no-interaction
 }
 
-wp_plugin_base_run_with_retry 3 5 "Security pack Composer audit" security_pack_composer_audit_command
+wp_plugin_base_audit_foundation_tool_lock "Security pack Composer audit" security_pack_composer_audit_command
 
 php "$COMPOSER_WORK_DIR/vendor/bin/phpcs" --standard="$ROOT_DIR/.phpcs-security.xml.dist"
 if wp_plugin_base_is_true "${WP_PLUGIN_BASE_SECURITY_PACK_SKIP_SEMGREP:-false}"; then

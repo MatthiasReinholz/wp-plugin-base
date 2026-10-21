@@ -8,6 +8,10 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 . "$SCRIPT_DIR/../lib/require_tools.sh"
 
 ASSURANCE_MODE="${WP_PLUGIN_BASE_ASSURANCE_MODE:-}"
+# The foundation owns the pack tool locks, so its full suite blocks on their
+# advisories; projects only receive a warning. Never relax its own action audit.
+export WP_PLUGIN_BASE_FOUNDATION_TOOL_AUDIT=strict
+unset WP_PLUGIN_BASE_ACTION_PIN_POLICY
 
 while [ "$#" -gt 0 ]; do
   case "$1" in

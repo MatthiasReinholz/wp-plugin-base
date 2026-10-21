@@ -85,8 +85,20 @@ commit and explicitly reviewed predecessor commits. Keep the documented pins in
 [the security model](security-model.md) synchronized; the foundation gate checks
 them against the catalog. Sync changes only parsed `uses`
 values in child workflows and composite actions; it preserves comments, formatting,
-step inputs, scripts, and unrelated text. Tags and unknown commits fail closed and
-require review. A predecessor is eligible for migration but is never accepted by audit.
+step inputs, scripts, and unrelated text. It upgrades reviewed predecessors to the
+current pin and keeps any other full-SHA pin, so a project's own newer pin is never
+downgraded. Tags fail closed. The foundation's own audit accepts only current pins;
+project validation accepts every full-SHA pin and lists those that differ from the
+catalog.
+
+Managed automation stays foundation-owned except for its action pins. The ownership
+receipt records each managed file's exact digest and a pin-neutral digest, so project
+validation accepts a managed file whose only change is a full-SHA pin, such as a
+Dependabot update. On sync, the new generation is rendered and the project's pins
+for actions the catalog has not reviewed are reapplied; reviewed predecessors take
+the newly rendered pin. Receipts written before pin-neutral digests are matched by
+substituting the catalog's reviewed pins. Any other edit to a managed file still
+fails validation and sync.
 
 Current updater scripts and both GitHub workflow variants capture migrated paths in a
 temporary manifest and stage those reviewed child-owned files alongside managed output.
@@ -97,10 +109,10 @@ all reported migrated workflow/action paths in the reviewed commit. Subsequent u
 use the new manifest-aware staging flow. Never publish an incomplete update that leaves
 custom workflows on rejected predecessor pins.
 
-Child Dependabot configuration ignores action repositories controlled by this catalog.
-Templates from v1.10.10 onward also ignore `owner/repo/*` for each catalog
-repository, since Dependabot reports subdirectory actions by full path; earlier
-templates keep their original bytes. Action updates belong in the foundation first. See
+From v1.10.11, child Dependabot configuration rendered from v1.10.10 and later
+templates ignores no actions, so version and security updates reach every
+workflow, managed ones included. Earlier templates ignored catalog action
+repositories and still render those bytes during ownership recovery. See
 [who updates which dependency](dependency-maintenance.md#who-updates-which-dependency). With `DEPENDABOT_ECOSYSTEMS=auto`, the generated child configuration also tracks
 root Composer dependencies when `composer.json` exists, npm dependencies at `/`
 when a root `package.json` exists, and at `/.wp-plugin-base-admin-ui` when that

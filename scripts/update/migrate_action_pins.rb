@@ -15,29 +15,12 @@ begin
     raise "Unsafe workflow path: #{relative}" if !WPPluginBaseActionPins.supported_path?(relative) || File.realpath(file) != file
 
     source, references = WPPluginBaseActionPins.references(file)
-    lines = source.lines
-    offsets = [0]
-    lines.each { |line| offsets << offsets.last + line.length }
-    replacements = []
-    references.each do |node|
-      begin
-        replacement = WPPluginBaseActionPins.replacement(node.value, policy, migrate: true)
-      rescue StandardError => error
-        raise "#{file}:#{node.start_line + 1}: #{error.message}"
-      end
-      next if replacement == node.value
-      raise "#{file}:#{node.start_line + 1}: multiline action references require manual review" unless node.start_line == node.end_line
-
-      start = offsets[node.start_line] + node.start_column
-      finish = offsets[node.end_line] + node.end_column
-      token = source[start...finish]
-      unless [node.value, "'#{node.value}'", "\"#{node.value}\""].include?(token)
-        raise "#{file}:#{node.start_line + 1}: unsupported action scalar syntax requires manual review"
-      end
-      replacements << [start, finish, token.sub(node.value, replacement)]
+    updated = WPPluginBaseActionPins.rewrite_references(file, source, references) do |node|
+      WPPluginBaseActionPins.replacement(node.value, policy, migrate: true)
+    rescue StandardError => error
+      raise "#{file}:#{node.start_line + 1}: #{error.message}"
     end
-    replacements.sort_by(&:first).reverse_each { |start, finish, replacement| source[start...finish] = replacement }
-    updates[relative] = source unless replacements.empty?
+    updates[relative] = updated unless updated == source
   end
   # Validate every input before changing any file or publishing the staged-path manifest.
   updates.each { |relative, source| File.write(File.join(root, relative), source) }

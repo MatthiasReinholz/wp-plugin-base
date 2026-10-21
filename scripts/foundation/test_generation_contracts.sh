@@ -68,23 +68,14 @@ printf '{}\n' > "$fixture/package.json"
 sync_fixture
 grep -Fq 'package-ecosystem: composer' "$fixture/.github/dependabot.yml"
 test "$(grep -c 'package-ecosystem: npm' "$fixture/.github/dependabot.yml")" -eq 2
-# Combining ecosystem discovery with foundation pin ownership must not leak
-# action ignore rules into package update entries.
-ruby -rpsych -rjson - "$fixture/.github/dependabot.yml" "$ROOT_DIR/scripts/lib/action-pins.json" <<'RUBY'
+# Projects own action pins: the generation must not ignore actions, and no
+# ignore rules may appear in any update entry.
+ruby -rpsych -rjson - "$fixture/.github/dependabot.yml" <<'RUBY'
 document = Psych.safe_load(File.read(ARGV[0]), aliases: false)
 updates = document.fetch('updates')
 actions = updates.select { |update| update.fetch('package-ecosystem') == 'github-actions' }
 abort 'Expected exactly one Actions update policy' unless actions.length == 1
-catalog = JSON.parse(File.read(ARGV[1])).fetch('actions').keys
-repositories = catalog.map { |name| name.split('/').first(2).join('/') }.uniq
-expected = (repositories + repositories.map { |name| "#{name}/*" }).sort
-actual = actions.first.fetch('ignore').map { |entry| entry.fetch('dependency-name') }.sort
-abort 'Foundation action ownership was lost' unless actual == expected
-# Dependabot reports subdirectory actions by full path; every catalog action must be ignored.
-abort 'Foundation subdirectory action is not ignored' unless catalog.all? { |name| actual.any? { |pattern| File.fnmatch(pattern, name) } }
-updates.reject { |update| update.fetch('package-ecosystem') == 'github-actions' }.each do |update|
-  abort 'Foundation action ignores leaked into package updates' if update.key?('ignore')
-end
+abort 'Generated Dependabot configuration must not ignore project action updates' if updates.any? { |update| update.key?('ignore') }
 abort 'Unrendered dependency marker survived' if File.read(ARGV[0]).include?('__')
 RUBY
 printf '\nDEPENDABOT_ECOSYSTEMS=github-actions\n' >> "$fixture/.wp-plugin-base.env"
