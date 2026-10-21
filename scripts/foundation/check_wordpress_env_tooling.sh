@@ -28,10 +28,16 @@ for path in "$PACKAGE_JSON" "$PACKAGE_LOCK" "$NPMRC"; do
   fi
 done
 
-grep -Fxq 'engine-strict=true' "$NPMRC" || {
-  echo "tools/wordpress-env/.npmrc must contain engine-strict=true" >&2
+# npm's engine-strict would also enforce the unused Playground runtime's floor;
+# the installer enforces the Docker runtime's engines explicitly instead.
+grep -Fxq 'engine-strict=false' "$NPMRC" || {
+  echo "tools/wordpress-env/.npmrc must contain engine-strict=false" >&2
   exit 1
 }
+if ! grep -Fq 'scripts/lib/check_wordpress_env_engines.cjs" "$staging_dir" "$(npm --version)"' "$ROOT_DIR/scripts/lib/wordpress_tooling.sh"; then
+  echo "scripts/lib/wordpress_tooling.sh must check the Docker runtime engines before activating the tool" >&2
+  exit 1
+fi
 
 node - <<'EOF' "$PACKAGE_JSON" "$PACKAGE_LOCK"
 const fs = require("node:fs");
@@ -66,6 +72,7 @@ cp "$NPMRC" "$PACKAGE_JSON" "$PACKAGE_LOCK" "$INSTALL_DIR/"
   cd "$INSTALL_DIR"
   NPM_CONFIG_CACHE="$CACHE_DIR" npm audit --package-lock-only --audit-level=high
   NPM_CONFIG_CACHE="$CACHE_DIR" npm ci --no-audit --no-fund
+  node "$ROOT_DIR/scripts/lib/check_wordpress_env_engines.cjs" "$INSTALL_DIR" "$(npm --version)"
   NPM_CONFIG_CACHE="$CACHE_DIR" npm audit signatures
   node "$ROOT_DIR/scripts/foundation/test_wordpress_env_git.cjs" "$INSTALL_DIR"
 )

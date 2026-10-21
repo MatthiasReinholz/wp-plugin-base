@@ -129,7 +129,7 @@ Use `scripts/foundation/bootstrap_strict_local.sh` to install the supported stri
 
 The Python lint and security tool environments require Python 3.10 or newer. See [dependency maintenance](docs/dependency-maintenance.md) for lock regeneration, compatibility constraints, and advisory checks.
 
-Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`.
+Foundation CI now installs the Node and Python lint toolchains from committed lock files and hash-pinned requirements. `tools/wordpress-env` remains a separate lockfile-backed npm tooling bundle, and shared scripts install it with `npm ci --no-audit --no-fund` from the committed `package-lock.json`, then check the Node.js engines of the packages its Docker runtime loads.
 
 To bootstrap strict-local foundation validation from a clean clone, use:
 
@@ -286,7 +286,7 @@ Required keys in `.wp-plugin-base.env`:
 - `PHP_VERSION`
 - `NODE_VERSION`
 
-New child projects default to Node.js 22. Current admin UI tooling supports Node.js 22.22.2 or newer within 22.x, Node.js 24.15.0 or newer within 24.x, and Node.js 26 or newer. Keep `NODE_VERSION=22` to select a current supported LTS patch; older 22.x patches and Node.js 25 do not satisfy the complete tooling dependency graph.
+New child projects default to Node.js 24. Node.js 22 remains supported: existing projects keep their configured `NODE_VERSION`, and no foundation update requires changing it. Current admin UI tooling supports Node.js 22.22.2 or newer within 22.x, Node.js 24.15.0 or newer within 24.x, and Node.js 26 or newer; Node.js 25 does not satisfy the complete tooling dependency graph. Prefer a major version (`NODE_VERSION=24` or `NODE_VERSION=22`) so CI selects the current security patch. See [Node.js runtime support](docs/update-model.md#nodejs-runtime-support).
 
 Legacy compatibility alias: `FOUNDATION_REPOSITORY` remains accepted for GitHub-hosted foundations.
 

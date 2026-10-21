@@ -179,6 +179,74 @@ dependencies still fail the security pack audit at the configured threshold.
 Vendored foundation files are replaced on every foundation update, so local
 edits there are lost.
 
+## October 21, 2026 Node.js 24 Default And WordPress Environment Review
+
+Following the October 2026 Node.js security releases (24.22.1 and 22.23.4),
+foundation CI, the external dependency candidate validator and the child default
+move to Node.js 24. Node.js 22 remains supported for projects. Workflows keep
+selecting a major version (`'24'`, or `'22'` for the Node.js 22 runtime job), so
+setup-node resolves the current security release.
+
+`@wordpress/env` advances from 11.16.0 to 11.17.0 (Dependabot #391), which
+resolves the block recorded in the
+[October 20 Node tooling review](#october-20-2026-node-tooling-review). That block
+was caused by npm's `engine-strict`, not by the code that runs:
+
+- `@wordpress/env` 11.17.0 itself declares Node.js >=18.12.0, like 11.16.0.
+- Its `@wp-playground/cli` ^3.1.56 dependency brings `@php-wasm/*` and
+  `@wp-playground/*` 3.1.60 packages that declare Node.js >=24.18.0 and
+  npm >=11.16.0. They implement the Playground runtime, which `wp-env` resolves
+  only when started with `--runtime=playground` and then runs as a separate
+  process. The foundation always uses the default Docker runtime.
+
+The tool's `.npmrc` now sets `engine-strict=false`, and the tool manifest keeps
+Node.js >=22.12.0 with npm >=10.2.3. `scripts/lib/check_wordpress_env_engines.cjs`
+replaces the whole-tree check: before activation, it enforces the tool manifest's
+node and npm engines and `engines.node` of every package reachable from
+`@wordpress/env` without entering `@wp-playground/cli`, following Node.js module
+resolution. A package shared with the Playground runtime is still checked. Ranges
+are evaluated as npm does (`semver.satisfies` with prereleases included), using
+`semver` 7.8.5, which the tool now declares as an exact-pinned dependency so the
+evaluator does not depend on the excluded graph. npm still runs the install script
+of the Playground-only `fs-ext-extra-prebuilt` during `npm ci`; it succeeds on
+Node.js 22.12. The lock was refreshed from the existing lock with
+`npm install --package-lock-only`. Playground
+and php-wasm move from 3.1.50 to 3.1.60, with in-range transitive refreshes such
+as `fs-ext-extra-prebuilt` 2.2.16 and `fast-xml-parser` 5.11.2.
+
+Both adapted upstream files keep their reviewed SHA-256 digests in 11.17.0, which
+still requires `simple-git` ^3.32.3 through the default import. The adaptation
+therefore accepts 11.17.0 instead of 11.16.0, and the `simple-git` 4.0.2 override
+remains. The `adm-zip`, `ajv` and `tmp` overrides are removed: without them the
+11.17.0 graph resolves the same 0.6.1, 8.18.0 and 0.2.7 releases. The `qs` 6.16.0,
+`ws` 8.21.3 and `simple-git` 4.0.2 overrides still raise versions their parents
+request. `npm audit` reports only the four moderate `sprintf-js` findings already
+recorded with a 2026-11-19 review. `@wordpress/env` 12.0.0 is a major release and
+is not part of this review.
+
+Engine declarations follow the graphs that run. The npm audit producer
+(`>=22.12.0`) and the Markdown tool bundle keep their floors. The admin starters
+and the existing-application fixture keep `^22.22.2 || ^24.15.0 || >=26.0.0`, the
+range `@wordpress/scripts` 36.1 declares. Those manifests are child-owned seeds
+(see [Existing Child Projects](#existing-child-projects)). Configuration
+validation keeps accepting any numeric `NODE_VERSION`.
+
+Qualification evidence:
+
+- On Node.js 22.12.0 with npm 10.9.0, `npm ci` of the tool succeeds. npm warns
+  only for the 21 `@php-wasm/*` and `@wp-playground/*` packages, `wp-env --version`
+  reports 11.17.0, and the engine check passes for the 151 packages the Docker
+  runtime can load, none of them from the Playground runtime.
+- `test_wordpress_env_engines.cjs` covers Docker-only, Playground-only and shared
+  packages, nested resolution, npm aliases, dependency cycles, missing required and
+  optional dependencies, the tool manifest's node and npm engines, relative roots
+  and the CLI. `check_wordpress_env_tooling.sh` passed on Node.js 22.12.0 and
+  24.22.0: high-threshold lock audit, `npm ci`, the engine check, registry
+  signatures and the real clone, fetch, branch update and tag checkout test.
+- Foundation CI runs Plugin Check and POT generation through the tool on Node.js
+  24, and the WordPress runtime matrix starts, uses, stops and cleans up actual
+  environments on WordPress 7.1.2 with Node.js 24 and WordPress 6.9 with Node.js 22.
+
 ## October 20, 2026 Advisory Review
 
 All twelve open Dependabot advisories were reviewed. Nine are fixed by narrow

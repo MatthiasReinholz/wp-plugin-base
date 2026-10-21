@@ -34,6 +34,9 @@ wp_plugin_base_install_wordpress_env() (
   (
     cd "$staging_dir" || return 1
     npm ci --no-audit --no-fund >/dev/null || return $?
+    # .npmrc disables npm's whole-tree engine-strict; enforce the engines of the
+    # packages the Docker runtime loads before the tool can be activated.
+    node "$source_dir/../../scripts/lib/check_wordpress_env_engines.cjs" "$staging_dir" "$(npm --version)" || return $?
     node "$source_dir/../../scripts/lib/patch_wordpress_env_git.cjs" "$staging_dir" || return $?
   ) || return $?
   node - "$staging_dir" "$destination_dir" <<'NODE'

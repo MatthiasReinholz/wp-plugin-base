@@ -308,6 +308,7 @@ bash "$ROOT_DIR/scripts/foundation/test_pre_push_git_isolation.sh"
 bash "$ROOT_DIR/scripts/foundation/test_lint_pack_pruning.sh"
 bash "$ROOT_DIR/scripts/foundation/test_run_quality_pack_local_fallback.sh"
 bash "$ROOT_DIR/scripts/foundation/test_foundation_tool_audit.sh"
+node --test "$ROOT_DIR/scripts/foundation/test_wordpress_env_engines.cjs"
 bash "$ROOT_DIR/scripts/foundation/test_run_php_runtime_smoke_local_fallback.sh"
 bash "$ROOT_DIR/scripts/foundation/test_woocommerce_qit_secret_scope.sh"
 

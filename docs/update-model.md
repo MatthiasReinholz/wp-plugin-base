@@ -32,6 +32,34 @@ It applies the same PR-based governance model used by `update-foundation`: detec
 
 For GitHub-hosted repos, managed update workflows prefer an optional repository secret named `WP_PLUGIN_BASE_PR_TOKEN` when they need to push or open a PR that includes `.github/workflows/*` changes. If that secret is absent, they fall back to `github.token`.
 
+## Node.js Runtime Support
+
+New projects default to `NODE_VERSION=24`. Node.js 22 remains supported. Projects
+own `.wp-plugin-base.env`, a foundation update changes only `FOUNDATION_VERSION`
+in it, and a project can move to Node.js 24 before or after any foundation update.
+
+The managed WordPress environment tooling (`@wordpress/env`, used by Plugin Check,
+POT generation and the runtime smoke tests) runs the Docker runtime, which
+supports Node.js 22.12.0 or newer. `@wordpress/env` 11.17 also installs its
+Playground runtime, whose `@php-wasm/*` packages declare Node.js 24.18.0 or newer.
+That runtime is loaded only for `wp-env --runtime=playground`, which the
+foundation never uses. The tool's `.npmrc` therefore sets `engine-strict=false`,
+and the installer runs `scripts/lib/check_wordpress_env_engines.cjs` before
+activating the tool. It enforces the tool manifest's Node.js and npm engines and
+the Node.js engines of every package the Docker runtime can load, so a dependency
+update that raises that floor fails installation and names the packages.
+Foundation CI starts, uses and cleans up real Docker environments on Node.js 22
+(the WordPress 6.9 runtime job) and Node.js 24, and runs Plugin Check and POT
+generation on Node.js 24.
+
+When moving a project to Node.js 24, prefer the major version so CI resolves the
+current security release. Also align project-owned runtime selections, such as
+custom workflows, `.nvmrc` files and package `engines`, and on GitLab provision
+runtime images with the same version (see
+[automation hosts](automation-hosts.md#gitlab-runtime-contract)). The child-owned
+admin UI manifests keep `^22.22.2 || ^24.15.0 || >=26.0.0`; no starter change is
+required.
+
 ## External Dependency Coverage
 
 Current dependency handlers in `scripts/update/prepare_external_dependency_update.sh`:
@@ -134,7 +162,7 @@ Each instance has three separate runners:
    candidate. It does not execute candidate code. Pin files, platform checksums,
    inventory patterns, and explicit commit paths are prepared together. A failure
    leaves the original files unchanged.
-2. **Validate** explicitly selects Node.js 22 and PHP 8.3, then installs and
+2. **Validate** explicitly selects Node.js 24 and PHP 8.3, then installs and
    exercises the candidate with read-only permissions and no repository secrets. Its filesystem and tool output are never used by the
    publication runner.
 3. **Publish** starts from the exact reviewed checkout, downloads the artifact ID
