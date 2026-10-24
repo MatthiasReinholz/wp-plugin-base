@@ -2,7 +2,8 @@
 
 ## v1.10.14
 
-* Keep provenance public and repair compatible development dependencies (#443)
+* Keep remediation provenance public by removing unused internal origin attribution. Public upstream references, patch/regression bytes, complete package inventories and every integrity digest remain unchanged.
+* Resolve compatible development dependency advisories in the WordPress environment tool, both admin starters and the application fixture. Pair Puppeteer/browser helpers with their supported Zod API and preserve Node support, direct WordPress/React pins and audit thresholds. Existing projects adopt these fixes in their own manifests and lockfiles; sync preserves those files.
 
 ## v1.10.13
 
