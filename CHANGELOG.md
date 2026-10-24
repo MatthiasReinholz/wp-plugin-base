@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.14
+
+* Keep remediation provenance public by removing unused internal origin attribution. Public upstream references, patch/regression bytes, complete package inventories and every integrity digest remain unchanged.
+* Resolve compatible development dependency advisories in the WordPress environment tool, both admin starters and the application fixture. Pair Puppeteer/browser helpers with their supported Zod API and preserve Node support, direct WordPress/React pins and audit thresholds. Existing projects adopt these fixes in their own manifests and lockfiles; sync preserves those files.
+
 ## v1.10.13
 
 * Update the managed WordPress environment tooling to `@wordpress/env` 11.17.0 without raising the Node.js floor. Its Playground runtime packages declare Node.js 24.18 but are loaded only for `wp-env --runtime=playground`, which the foundation never uses. npm's whole-tree `engine-strict` is replaced by an explicit check of the tool manifest's engines and every package the Docker runtime loads. The redundant `adm-zip`, `ajv` and `tmp` overrides are removed.
