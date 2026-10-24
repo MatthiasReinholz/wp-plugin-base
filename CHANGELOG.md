@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Refresh compatible development dependencies in the admin starters, application fixture and WordPress environment tooling without changing parent APIs or audit thresholds.
+
 * Keep security remediation provenance public: omit private origin attribution while preserving the reviewed patch, regression, upstream references and complete integrity inventories.
 
 ## v1.10.13

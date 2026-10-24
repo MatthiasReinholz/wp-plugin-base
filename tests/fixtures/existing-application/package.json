@@ -26,7 +26,7 @@
     "typescript": "6.0.3"
   },
   "overrides": {
-    "@puppeteer/browsers": "3.2.1",
+    "@puppeteer/browsers": "3.2.6",
     "adm-zip": "0.6.1",
     "basic-ftp": "6.0.1",
     "colord": "2.9.4",
@@ -39,14 +39,14 @@
     "minimatch@^10.0.0": "10.2.6",
     "minimatch@^3.0.0": "3.1.5",
     "postcss-selector-parser": "7.1.6",
-    "puppeteer-core": "25.8.0",
+    "puppeteer-core": "25.16.0",
     "qs": "6.16.0",
-    "serialize-javascript": "7.0.5",
+    "serialize-javascript": "7.1.4",
     "smol-toml": "1.9.0",
     "svgo@^3.0.0": "3.3.5",
     "uuid": "14.0.0",
     "webpack-dev-server": "5.2.6",
-    "ws": "8.21.3"
+    "ws": "8.22.0"
   },
   "type": "module"
 }
