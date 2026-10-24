@@ -41,3 +41,11 @@ Use `bash scripts/foundation/bootstrap_strict_local.sh "$PWD/.wp-plugin-base-too
 - Public WordPress endpoints require exact suppressions with `kind`, `identifier`, repo-relative `path`, and a non-empty justification copied from scanner output.
 - Prefer fixing upstream managed foundation code over patching downstream projects when the dependency is owned here.
 - Do not persist GitHub tokens in git remotes, `url.insteadOf`, process arguments, or local git config.
+
+## Public provenance
+
+Publish only public upstream references and synthetic fixture identities. Omit
+private repository names, internal commit references, customer/application
+identifiers and deployment information from catalogs, docs, tests, commit
+messages and PR/release descriptions. Preserve artifact integrity evidence when
+removing private attribution; never relabel an internal commit as upstream.

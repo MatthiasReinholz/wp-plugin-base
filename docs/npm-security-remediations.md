@@ -10,10 +10,12 @@ The initial catalog entry is `braces-3.0.3`, addressing
 ## Trust and ownership
 
 The signed foundation owns one implementation in `scripts/security/` and a finite
-catalog of explicitly reviewed remediations. The braces patch and regression test
-are byte-identical to the reviewed app-base backport. The catalog records source
-commit, upstream patch head, tarball URL/integrity, patch and regression SHA256s,
-and complete pristine/patched package file inventories. An additional catalog
+catalog of explicitly reviewed remediations. The catalog records the public
+upstream patch head, tarball URL/integrity, patch and regression SHA256s, and
+complete pristine/patched package file
+inventories. Private repository names and internal commit references are not
+publication provenance and must not be included. Removing such attribution does
+not change any reviewed patch, regression or package digest. An additional catalog
 entry requires its own source review, integrity evidence, attack/compatibility
 regression, exact advisory contract and tests. There is no project-supplied
 advisory ignore list or arbitrary patch execution facility.

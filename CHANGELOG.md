@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* Keep security remediation provenance public: omit private origin attribution while preserving the reviewed patch, regression, upstream references and complete integrity inventories.
+
 ## v1.10.13
 
 * Update the managed WordPress environment tooling to `@wordpress/env` 11.17.0 without raising the Node.js floor. Its Playground runtime packages declare Node.js 24.18 but are loaded only for `wp-env --runtime=playground`, which the foundation never uses. npm's whole-tree `engine-strict` is replaced by an explicit check of the tool manifest's engines and every package the Docker runtime loads. The redundant `adm-zip`, `ajv` and `tmp` overrides are removed.

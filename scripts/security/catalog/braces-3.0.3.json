@@ -21,8 +21,6 @@
     "package.json": "56f08b888a4f30dc7cf8a7dbb36ffe92b737912ba36abe9d069d32167c957ac7",
     "README.md": "947b0fc3cc12eaaa070207126213fbdf9ab2bf8cd13dcc6e4007b36b79309866"
   },
-  "sourceRepository": "aaaccelerate/app-base",
-  "sourceCommit": "4c9b3d2fc3142992c60676284bc3eaf9bd1796e4",
   "pristineFiles": {
     "LICENSE": "35bdd8a44339719441900fb50fbefc5e2dca1ca662cbaed7a687de842c8b70f2",
     "README.md": "947b0fc3cc12eaaa070207126213fbdf9ab2bf8cd13dcc6e4007b36b79309866",
