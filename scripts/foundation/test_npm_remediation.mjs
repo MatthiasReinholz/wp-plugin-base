@@ -229,7 +229,7 @@ for (const [name, change] of [
   ['unknown source', r => { r.data.vulnerabilities.consumer.via = ['absent']; }],
   ['changed advisory', r => { r.data.vulnerabilities.braces.via[0].range = '*'; }],
   ['cycle', r => { r.data.vulnerabilities.braces.via = ['consumer']; r.data.vulnerabilities.consumer.effects = ['braces']; }],
-  ['hidden severity', r => { r.data.vulnerabilities.consumer.severity = 'low'; }],
+  ['severity contradicting counts', r => { r.data.vulnerabilities.consumer.severity = 'low'; }],
 ]) test(`audit rejects ${name}`, () => {
   const input = { data: report(), status: 1 }; change(input);
   assert.throws(() => classifyAudit(JSON.stringify(input.data), input.status, verified));
@@ -274,9 +274,80 @@ test('a second advisory on the remediated package is never removed', () => {
 test('unexplained severity inflation and extra graph edges fail closed', () => {
   const inflated = report();
   inflated.vulnerabilities.consumer.severity = 'critical';
+  inflated.metadata.vulnerabilities.high--; inflated.metadata.vulnerabilities.critical++;
   assert.throws(() => classifyAudit(JSON.stringify(inflated), 1, verified), /Unexplained aggregate/);
   const extra = report(); extra.vulnerabilities.braces.effects.push('absent');
   assert.throws(() => classifyAudit(JSON.stringify(extra), 1, verified), /Incomplete reverse/);
+});
+
+function graphReport(vulnerabilities) {
+  const counts = { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: Object.keys(vulnerabilities).length };
+  for (const item of Object.values(vulnerabilities)) counts[item.severity]++;
+  return { auditReportVersion: 2, vulnerabilities, metadata: { vulnerabilities: counts } };
+}
+function graphNode(name, severity, via, effects) {
+  return { name, severity, via, effects, nodes: [`node_modules/${name}`] };
+}
+const graphAdvisory = (name, severity) => ({ name, severity, url: `https://example.invalid/advisories/${name}`, range: '*' });
+
+test('lower npm aggregates retain the severity of every reachable advisory', () => {
+  const r = graphReport({
+    jest: graphNode('jest', 'low', ['jest-runtime'], []),
+    'jest-runtime': graphNode('jest-runtime', 'moderate', ['leaf'], ['jest']),
+    leaf: graphNode('leaf', 'moderate', [graphAdvisory('leaf', 'moderate')], ['jest-runtime']),
+  });
+  const result = classifyAudit(JSON.stringify(r), 1, []);
+  assert.deepEqual(result.blocked, []);
+  assert.deepEqual(result.residual.map(item => item.severity), ['moderate', 'moderate', 'moderate']);
+  assert.equal(result.residual[0].reportedSeverity, 'low');
+  assert.deepEqual(classifyAudit(JSON.stringify(r), 1, [], 'moderate').blocked, Object.keys(r.vulnerabilities));
+});
+
+test('an advisory-backed cycle has complete sources regardless of report order', () => {
+  const vulnerabilities = {
+    eslint: graphNode('eslint', 'moderate', ['@eslint-community/eslint-utils', 'leaf'], ['@eslint-community/eslint-utils']),
+    '@eslint-community/eslint-utils': graphNode('@eslint-community/eslint-utils', 'low', ['eslint'], ['eslint']),
+    leaf: graphNode('leaf', 'moderate', [graphAdvisory('leaf', 'moderate')], ['eslint']),
+  };
+  for (const entries of [Object.entries(vulnerabilities), Object.entries(vulnerabilities).reverse()]) {
+    const result = classifyAudit(JSON.stringify(graphReport(Object.fromEntries(entries))), 1, []);
+    assert.deepEqual(result.blocked, []);
+    assert.equal(result.residual.length, 3);
+    for (const item of result.residual) {
+      assert.equal(item.severity, 'moderate');
+      assert.deepEqual(item.sources, [{ url: 'https://example.invalid/advisories/leaf', package: 'leaf', severity: 'moderate', range: '*' }]);
+    }
+  }
+});
+
+test('an unexplained cyclic component is rejected even beside an explained parent', () => {
+  const r = graphReport({
+    parent: graphNode('parent', 'moderate', [graphAdvisory('parent', 'moderate'), 'cycle-a'], []),
+    'cycle-a': graphNode('cycle-a', 'low', ['cycle-b'], ['parent', 'cycle-b']),
+    'cycle-b': graphNode('cycle-b', 'low', ['cycle-a'], ['cycle-a']),
+  });
+  assert.throws(() => classifyAudit(JSON.stringify(r), 1, []), /No reachable advisory evidence/);
+});
+
+test('cycles preserve exact backport coverage and cannot waive an uncovered copy', () => {
+  const r = report();
+  r.vulnerabilities.braces.via.push('consumer');
+  r.vulnerabilities.consumer.effects.push('braces');
+  assert.deepEqual(classifyAudit(JSON.stringify(r), 1, verified).locallyRemediated, ['braces', 'consumer']);
+  r.vulnerabilities.braces.nodes.push('node_modules/other/node_modules/braces');
+  assert.deepEqual(classifyAudit(JSON.stringify(r), 1, verified).blocked, ['braces', 'consumer']);
+});
+
+test('understated aggregates cannot hide high or critical residual advisories', () => {
+  const r = report();
+  for (const item of Object.values(r.vulnerabilities)) item.severity = 'low';
+  const high = classifyAudit(JSON.stringify(graphReport(r.vulnerabilities)), 1, []);
+  assert.deepEqual(high.blocked, ['braces', 'consumer']);
+  assert(high.residual.every(item => item.severity === 'high' && item.reportedSeverity === 'low'));
+  r.vulnerabilities.braces.via.push(graphAdvisory('braces', 'critical'));
+  const critical = classifyAudit(JSON.stringify(graphReport(r.vulnerabilities)), 1, verified);
+  assert.deepEqual(critical.blocked, ['braces', 'consumer']);
+  assert(critical.residual.every(item => item.severity === 'critical'));
 });
 
 test('containment follows POSIX and Windows separators, drive and UNC rules', () => {
