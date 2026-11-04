@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.15
+
+* Classify npm audit graphs from reachable advisories
+
 ## v1.10.14
 
 * Keep remediation provenance public by removing unused internal origin attribution. Public upstream references, patch/regression bytes, complete package inventories and every integrity digest remain unchanged.
