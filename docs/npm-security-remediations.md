@@ -161,9 +161,12 @@ The audit API explicitly includes development, optional and peer dependencies,
 sets the project path, disables workspace/global selection and pins the public
 npm registry. These settings are independent of inherited omit, production,
 workspace and registry defaults. The raw report remains visible. npm report version,
-exit status, counts, severity consistency, every dependency edge in both
-directions, cycles and exact affected-node coverage are checked. Each raw node's
-severity must equal the maximum of its complete source edges. Only the exact
+exit status, counts, every dependency edge in both directions and exact
+affected-node coverage are checked. Each node must reach a real advisory;
+cycles without advisory evidence fail closed. npm can report an aggregate below
+its transitive advisory severity, so classification traverses every reachable
+advisory even through cycles. A reported severity above all reachable evidence
+still fails closed. Only the exact
 byte-verified catalog advisory source is removed from that graph. Ancestors with
 no residual sources qualify fully; mixed ancestors retain the maximum severity
 of every remaining source. Output preserves their original aggregate severity,

@@ -25,8 +25,6 @@ export function classifyAudit(raw, status, verifiedRemediations, level = 'high')
       }
     }
     for (const effect of item.effects) assert(typeof effect === 'string' && Object.hasOwn(entries, effect) && entries[effect]?.via.includes(name), 'Incomplete reverse advisory edge');
-    const sourceSeverity = Math.max(...item.via.map(via => severities.indexOf(typeof via === 'string' ? entries[via].severity : via.severity)));
-    assert.equal(severities.indexOf(item.severity), sourceSeverity, 'Unexplained aggregate advisory severity');
     counts[item.severity]++;
   }
   const total = Object.keys(entries).length;
@@ -34,31 +32,39 @@ export function classifyAudit(raw, status, verifiedRemediations, level = 'high')
   assert.deepEqual(report.metadata.vulnerabilities, { ...counts, total }, 'Advisory count mismatch');
   assert.equal(status, total ? 1 : 0, 'Audit exit status contradicts findings');
 
-  const cache = new Map();
-  function residualSources(name, visiting = new Set()) {
-    if (cache.has(name)) return cache.get(name);
-    assert(!visiting.has(name), 'Cyclic advisory graph');
-    const item = entries[name];
-    const next = new Set([...visiting, name]);
+  function residualSources(name) {
     const sources = new Map();
-    // Traverse every edge, including mixed remediated/unremediated paths.
-    for (const via of item.via) {
-      if (typeof via === 'string') {
-        for (const [key, source] of residualSources(via, next)) sources.set(key, source);
-        continue;
+    const visited = new Set();
+    const pending = [name];
+    let sourceSeverity = -1;
+    // npm aggregates can lag transitive severities and its graph can contain
+    // cycles. Visit every reachable advisory once per root, never a partial
+    // cached result from a cycle, and classify from the actual advisory leaves.
+    while (pending.length) {
+      const current = pending.pop();
+      if (visited.has(current)) continue;
+      visited.add(current);
+      const item = entries[current];
+      for (const via of item.via) {
+        if (typeof via === 'string') {
+          pending.push(via);
+          continue;
+        }
+        sourceSeverity = Math.max(sourceSeverity, severities.indexOf(via.severity));
+        const remediation = verifiedRemediations.find(entry => via.url === `https://github.com/advisories/${entry.advisory}`);
+        if (remediation) {
+          assert(current === remediation.package && via.name === current && via.dependency === current && via.range === remediation.range && via.severity === remediation.severity, 'Reviewed advisory contract changed');
+          assert(Array.isArray(remediation.nodes) && remediation.nodes.length > 0, 'No verified package instances');
+          // Waive the advisory only when every affected copy was verified; a copy the
+          // backport does not cover (another version) stays a residual finding.
+          if (isDeepStrictEqual([...item.nodes].sort(), [...remediation.nodes].sort())) continue;
+        }
+        const source = { url: via.url, package: current, severity: via.severity, range: via.range ?? null };
+        sources.set(JSON.stringify(source), source);
       }
-      const remediation = verifiedRemediations.find(entry => via.url === `https://github.com/advisories/${entry.advisory}`);
-      if (remediation) {
-        assert(name === remediation.package && via.name === name && via.dependency === name && via.range === remediation.range && via.severity === remediation.severity, 'Reviewed advisory contract changed');
-        assert(Array.isArray(remediation.nodes) && remediation.nodes.length > 0, 'No verified package instances');
-        // Waive the advisory only when every affected copy was verified; a copy the
-        // backport does not cover (another version) stays a residual finding.
-        if (isDeepStrictEqual([...item.nodes].sort(), [...remediation.nodes].sort())) continue;
-      }
-      const source = { url: via.url, package: name, severity: via.severity, range: via.range ?? null };
-      sources.set(JSON.stringify(source), source);
     }
-    cache.set(name, sources);
+    assert(sourceSeverity >= 0, 'No reachable advisory evidence');
+    assert(severities.indexOf(entries[name].severity) <= sourceSeverity, 'Unexplained aggregate advisory severity');
     return sources;
   }
   const locallyRemediated = [];
