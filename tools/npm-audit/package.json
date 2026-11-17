@@ -10,9 +10,12 @@
     "npm-audit-report": "7.0.0"
   },
   "auditProducer": {
-    "treeSha256": "d35530f17d828b6a821a164d921bdef4a9f2b044bf1f543104baf5973865f6aa"
+    "treeSha256": "a324522e77687b7d1b1a5eb035d3972b6316e2de99c2100b3dbf4de5ac049815"
   },
   "overrides": {
-    "minimatch@>=7.0.0 <11.0.1": "11.0.1"
+    "minimatch@>=7.0.0 <11.0.1": "11.0.1",
+    "picomatch": "4.0.7",
+    "glob": "14.0.2",
+    "ip-address": "10.7.4"
   }
 }

@@ -10,7 +10,10 @@ import { isDeepStrictEqual } from 'node:util';
 import { classifyAudit } from './npm-audit-report.mjs';
 
 const catalogRoot = fileURLToPath(new URL('./catalog/', import.meta.url));
-const catalogPaths = Object.freeze({ 'braces-3.0.3': 'braces-3.0.3.json' });
+const catalogPaths = Object.freeze({
+  'braces-3.0.3': 'braces-3.0.3.json',
+  'picomatch-4.0.7': 'picomatch-4.0.7.json',
+});
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -231,7 +234,7 @@ export function qualifiedAuditProducer(directory) {
   const root = realpathSync(resolve(directory));
   assert(lstatSync(root).isDirectory(), 'Invalid audit tooling directory');
   const source = fileURLToPath(new URL('../../tools/npm-audit/', import.meta.url));
-  for (const file of ['package.json', 'package-lock.json', '.npmrc']) checkedHash(root, file, hash(join(source, file)));
+  for (const file of ['package.json', 'package-lock.json', '.npmrc', 'npm-remediations.json']) checkedHash(root, file, hash(join(source, file)));
   const tooling = json(join(source, 'package.json'));
   const lock = json(join(source, 'package-lock.json'));
   exactKeys(tooling.auditProducer, ['treeSha256'], 'audit producer');

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac'
+WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:8de2184c6de224f4689e8f80ed5f5edaf0030b6b8b7839a22a2bcb6722ac87d0'
 WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'
 
 wp_plugin_base_wordpress_tools_dir() {
@@ -59,10 +59,11 @@ wp_plugin_base_install_npm_audit() {
   # npm compares prefix paths with the physical project path on macOS.
   destination_dir="$(cd "$destination_dir" && pwd -P)" || return 1
   source_dir="$(wp_plugin_base_wordpress_tools_dir)/../npm-audit" || return 1
-  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/" || return 1
+  cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$source_dir/npm-remediations.json" "$destination_dir/" || return 1
   npm ci --prefix="$destination_dir" --ignore-scripts --bin-links=false --engine-strict \
     --include=dev --include=optional --include=peer --workspaces=false --global=false \
     --registry=https://registry.npmjs.org --no-audit --no-fund >/dev/null || return $?
+  node "$source_dir/../../scripts/security/npm-remediation.mjs" apply --project-root "$destination_dir" >/dev/null || return $?
 }
 
 wp_plugin_base_wordpress_env() {

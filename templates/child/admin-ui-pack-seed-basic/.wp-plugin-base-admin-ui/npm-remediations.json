@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "remediations": [
-    "braces-3.0.3"
+    "braces-3.0.3",
+    "picomatch-4.0.7"
   ]
 }

@@ -18,6 +18,7 @@ fi
 
 semgrep_args=(
   --error
+  --no-trace
   --no-git-ignore
   --config "$SCRIPT_DIR/semgrep-rules/wordpress-security.yml"
   --exclude "$ROOT_DIR/.git"

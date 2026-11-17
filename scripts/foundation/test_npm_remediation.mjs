@@ -53,6 +53,26 @@ test('real pristine parser is rejected; exact patch passes attack/semantics test
   assert.equal(readJson(join(root, 'node_modules/braces/package.json')).version, '3.0.3');
 });
 
+test('picomatch backport rejects pristine or changed bytes and preserves package identities', () => {
+  const root = mkdtempSync(join(temporary, 'picomatch-'));
+  cpSync(auditTools, root, { recursive: true });
+  const patch = fileURLToPath(new URL('../security/catalog/picomatch-4.0.7.patch', import.meta.url));
+  const reverse = run('git', [`--work-tree=${root}`, 'apply', '--reverse',
+    '--directory=node_modules/picomatch', patch], root);
+  assert.equal(reverse.status, 0, reverse.stderr);
+  assert.throws(() => verifyRemediations(root), /Installed bytes differ/);
+  const packageHash = digest(join(root, 'package.json'));
+  const lockHash = digest(join(root, 'package-lock.json'));
+  const applied = applyRemediations(root);
+  assert.equal(applied[0].id, 'picomatch-4.0.7');
+  assert.deepEqual(applyRemediations(root), applied);
+  assert.equal(digest(join(root, 'package.json')), packageHash);
+  assert.equal(digest(join(root, 'package-lock.json')), lockHash);
+  writeFileSync(join(root, 'node_modules/picomatch/lib/parse.js'), '// unexpected parser');
+  assert.throws(() => verifyRemediations(root), /Installed bytes differ/);
+  assert.throws(() => applyRemediations(root), /Pristine bytes differ/);
+});
+
 test('subprocess isolation removes Git environment keys irrespective of casing', () => {
   const result = run(process.execPath, ['-e', 'console.log(JSON.stringify(Object.keys(process.env).filter(key => /^git_/i.test(key))))'], temporary,
     { ...process.env, Git_Dir: 'untrusted-directory', git_work_tree: 'untrusted-work-tree', GIT_INDEX_FILE: 'untrusted-index' });
@@ -186,7 +206,7 @@ test('locked producer bootstrap preserves npm failure inside a shell conditional
 test('audit producer identity rejects missing, spoofed, changed, extra and linked files', () => {
   assert.throws(() => qualifiedAuditProducer(), /explicit locked tooling/);
   const linkedRoot = mkdtempSync(join(temporary, 'linked-producer-root-'));
-  for (const file of ['package.json', 'package-lock.json', '.npmrc']) cpSync(join(auditTools, file), join(linkedRoot, file));
+  for (const file of ['package.json', 'package-lock.json', '.npmrc', 'npm-remediations.json']) cpSync(join(auditTools, file), join(linkedRoot, file));
   symlinkSync(join(auditTools, 'node_modules'), join(linkedRoot, 'node_modules'), 'dir');
   assert.throws(() => qualifiedAuditProducer(linkedRoot), /Linked or escaped audit producer root/);
   for (const file of ['package.json', 'node_modules/@npmcli/arborist/lib/index.js', 'node_modules/extra.js', 'node_modules/linked.js']) {
