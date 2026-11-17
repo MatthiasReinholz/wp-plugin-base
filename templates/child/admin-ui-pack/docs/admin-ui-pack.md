@@ -23,7 +23,7 @@ Set:
 BUILD_SCRIPT=.wp-plugin-base-admin-ui/build.sh
 ```
 
-The managed wrapper runs `npm ci` and `npm run build` inside `.wp-plugin-base-admin-ui/` and emits built assets into `assets/admin-ui/`.
+The managed wrapper runs `npm ci` inside `.wp-plugin-base-admin-ui/`, applies the verified backports selected by `npm-remediations.json`, and runs `npm run build` to emit assets into `assets/admin-ui/`.
 
 ## Default Stack
 
@@ -49,7 +49,9 @@ The shared API client intentionally separates registry-backed operations from di
 
 ## DataViews Behavior And Migration
 
-The current experimental starter uses DataViews 20.0 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme; validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack retain the WordPress 6.9 boundary test. Treat DataViews package upgrades as explicit compatibility changes: the old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages. DataViews 20 requires `@wordpress/dependency-extraction-webpack-plugin` 6.57 or newer, normally supplied by `@wordpress/scripts` 36.1. Extraction plugin 6.57 bundles `@wordpress/react-inert-value`; older releases declare a `wp-react-inert-value` script handle that WordPress 7.1 does not register, so WordPress refuses to enqueue the admin script. Projects with a custom webpack configuration or a separately pinned extraction plugin must ensure version 6.57 or newer. Its WordPress package majors still accept React 18; keep React and React DOM at 18.3.1.
+The current experimental starter uses DataViews 22.0.0 with matching WordPress package versions and requires WordPress 7.1 or later (validated against 7.1.2). Declare `Requires at least: 7.1` or higher in both the plugin header and readme. Validation rejects a lower or missing declaration for this starter. The basic starter and REST/Abilities pack use the WordPress 6.9 boundary test.
+
+The qualified build uses `@wordpress/scripts` 37.1.0 and `@wordpress/dependency-extraction-webpack-plugin` 7.1.0. Treat DataViews package upgrades as explicit compatibility changes. The old 14.3 dependency graph could build successfully while failing at runtime against newer private API packages. The qualified extraction plugin bundles `@wordpress/react-inert-value`. Older extraction graphs can declare a `wp-react-inert-value` script handle that WordPress 7.1 does not register, preventing the admin script from being enqueued. Projects with custom webpack configuration or a separately pinned extraction plugin should compare against the qualified 7.1.0 baseline and verify their emitted handles against their minimum WordPress version. Use React and React DOM 18.3.1 for the supported WordPress runtime.
 
 The DataViews stylesheet is imported through `src/dataviews.scss`, so it is bundled as CSS rather than becoming an invalid WordPress script dependency. The managed loader enqueues both `style-index.css` and optional `index.css`, with their generated RTL variants. Keep the generated `index.asset.php` alongside the bundle; it identifies the WordPress-provided scripts required at runtime.
 
@@ -57,11 +59,13 @@ The DataViews starter carries a larger bundle than the basic starter because its
 
 The DataViews starter applies `filterSortAndPaginate` to the fetched collection. Search, filters, sorting, and page size reset the view to page 1; pagination totals describe the filtered result. A shrinking collection clamps the current page to the last available page.
 
+DataViews 22 keeps the sort popover open after choosing a direction. Dismiss the popover through the normal UI before interacting with pagination or other controls outside it.
+
 Both starters translate status labels in their detail panel. Example operation responses use stable `stable`, `enabled`, and `disabled` status identifiers. Translate their labels in the UI, including the detail panel; do not translate stored values or filter identifiers.
 
 For existing DataViews consumers, these fixes require a reviewed merge into child-owned `.wp-plugin-base-admin-ui/src/app.js`, `src/dataviews.scss`, `package.json`, `package-lock.json`, and `includes/rest-operations/example-items-operations.php`:
 
-1. Reconcile the aligned DataViews 20.0 dependency set, including `@wordpress/scripts` 36.1, with product-specific dependencies and regenerate the lockfile. Confirm that the rebuilt `index.asset.php` lists only handles registered by your minimum WordPress version. Include `src/dataviews.scss` and import it from `app.js`; remove the direct JavaScript import of the package CSS.
+1. Reconcile the aligned DataViews 22.0.0 dependency set, including `@wordpress/scripts` 37.1.0, with product-specific dependencies and regenerate the lockfile. Confirm that the rebuilt `index.asset.php` lists only handles registered by your minimum WordPress version. Include `src/dataviews.scss` and import it from `app.js`; remove the direct JavaScript import of the package CSS.
 2. Import `filterSortAndPaginate` from `@wordpress/dataviews`, derive its `data` and `paginationInfo` from the collection, view, and field definitions, and pass both results to `DataViews`.
 3. Reset or clamp the page when the query or collection changes.
 4. Return stable status identifiers from PHP and translate their display labels in the UI.
@@ -71,7 +75,7 @@ Sync preserves these owned files and will not overwrite local customizations. Co
 
 ## Starter Tooling And Save Behavior
 
-Both starters use `@wordpress/scripts` 36 with explicit React/react-dom 18.3.1
+Both starters use `@wordpress/scripts` 37.1.0 with explicit React/react-dom 18.3.1
 peers for the WordPress runtime. The starters no longer override
 `typescript-eslint`; the complete package group resolves as one version within
 `@wordpress/eslint-plugin`'s declared range. Existing children that copied the

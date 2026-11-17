@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.17
+
+* Align the managed admin-pack migration guide with the qualified DataViews 22.0.0, WordPress scripts 37.1.0 and extraction plugin 7.1.0 package set. Document the sort-popover interaction and verified-backport build step.
+* Check current guide versions against the starter manifests and lockfile during foundation validation, so future package upgrades expose documentation drift before release.
+
 ## v1.10.16
 
 * Add the verified Picomatch 4.0.7 security backport for GHSA-fc5q-39xc-vjpf. Build, Markdown and audit tooling apply the exact upstream parser fix before use, verify every installed copy, and retain raw audit evidence. The package identity, upstream patch commit, complete file inventories and regression are integrity-bound.
