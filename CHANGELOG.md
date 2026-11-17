@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.10.16
+
+* Add the verified Picomatch 4.0.7 security backport for GHSA-fc5q-39xc-vjpf. Build, Markdown and audit tooling apply the exact upstream parser fix before use, verify every installed copy, and retain raw audit evidence. The package identity, upstream patch commit, complete file inventories and regression are integrity-bound.
+* Existing projects retain ownership of their admin starter manifests. To adopt the Picomatch remediation, copy the `picomatch` 4.0.7 override and `picomatch-4.0.7` entry from the current starter into their `package.json` and `npm-remediations.json`, regenerate the lockfile, and run the managed build and security checks.
+* Resolve compatible dependency advisories across the WordPress environment, admin starters, application fixture and audit tooling, including Glob, IP Address, qs, minimatch, undici, isomorphic-git, fast-xml-parser and follow-redirects. Renew the reviewed audit producer tree digest.
+* Update Semgrep to 1.185.0, pip to 26.3, setuptools to 84.2.1, markdownlint-cli2 to 0.24.1, PHPStan to 2.3.5 and PHPUnit to 9.6.39. Explicitly disable tracing in managed Semgrep scans and rule tests. Document the unused MCP and OpenTelemetry call paths, pending upstream fixes and review conditions.
+* Adopt signature-verified Syft 1.57.0, the official Composer 2.11.1 image digest and CodeQL upload-sarif 4.39.3. Align reusable workflows, child templates and reviewed action pins.
+* Group foundation GitHub Actions version updates monthly with a seven-day cooldown and five-PR cap.
+* Resolve physical temporary paths when installing and testing the npm audit producer on macOS.
+* Qualify the coordinated WordPress package updates across both admin starters and the existing-application fixture, including scripts 37.1 and DataViews 22. Verify builds, type checking, lint, browser interactions, supported WordPress asset handles and bundle budgets. DataViews 22 keeps its sort menu open after a direction is chosen, so browser acceptance dismisses it before pagination.
+
 ## v1.10.15
 
 * Classify npm audit graphs from reachable advisories
