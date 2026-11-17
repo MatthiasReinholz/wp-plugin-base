@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, posix, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import { classifyAudit } from '../security/npm-audit-report.mjs';
 
 const fixture = fileURLToPath(new URL('../../tests/fixtures/npm-remediation/', import.meta.url));
 const cli = fileURLToPath(new URL('../security/npm-remediation.mjs', import.meta.url));
-const temporary = mkdtempSync(join(tmpdir(), 'foundation-npm-remediation-'));
+const temporary = mkdtempSync(join(realpathSync(tmpdir()), 'foundation-npm-remediation-'));
 const baseline = join(temporary, 'baseline');
 const auditTools = join(temporary, 'audit-tools');
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex');
