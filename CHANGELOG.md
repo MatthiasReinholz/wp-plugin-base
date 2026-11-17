@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.17
+
+* Maintenance release.
+
 ## v1.10.16
 
 * Add the verified Picomatch 4.0.7 security backport for GHSA-fc5q-39xc-vjpf. Build, Markdown and audit tooling apply the exact upstream parser fix before use, verify every installed copy, and retain raw audit evidence. The package identity, upstream patch commit, complete file inventories and regression are integrity-bound.
