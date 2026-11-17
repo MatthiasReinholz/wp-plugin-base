@@ -167,7 +167,7 @@ proposals for this fixture.
 
 Dependabot groups `@wordpress/*` updates per directory (`wordpress-packages`) for
 both admin starters and the fixture, because these packages are qualified as a
-set; DataViews 20, for example, requires scripts 36.1. Dependabot still opens
+set. The DataViews 22 starter is qualified with scripts 37.1. Dependabot still opens
 one grouped proposal per directory. The foundation contracts require identical
 `overrides` and shared `@wordpress/*` and React versions across all three
 manifests, so combine the three grouped proposals into one reviewed change.

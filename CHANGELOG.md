@@ -2,7 +2,8 @@
 
 ## v1.10.17
 
-* Maintenance release.
+* Align the managed admin-pack migration guide with the qualified DataViews 22.0.0, WordPress scripts 37.1.0 and extraction plugin 7.1.0 package set. Document the sort-popover interaction and verified-backport build step.
+* Check current guide versions against the starter manifests and lockfile during foundation validation, so future package upgrades expose documentation drift before release.
 
 ## v1.10.16
 
