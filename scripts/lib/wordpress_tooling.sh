@@ -56,6 +56,8 @@ wp_plugin_base_install_npm_audit() {
   local destination_dir="$1"
   local source_dir
 
+  # npm compares prefix paths with the physical project path on macOS.
+  destination_dir="$(cd "$destination_dir" && pwd -P)" || return 1
   source_dir="$(wp_plugin_base_wordpress_tools_dir)/../npm-audit" || return 1
   cp "$source_dir/.npmrc" "$source_dir/package.json" "$source_dir/package-lock.json" "$destination_dir/" || return 1
   npm ci --prefix="$destination_dir" --ignore-scripts --bin-links=false --engine-strict \
