@@ -22,7 +22,8 @@ a green schedule start alone is not evidence of successful maintenance.
   Follow the [candidate isolation contract](update-model.md#candidate-isolation-and-recovery)
   for all external tools. Validate any changed upstream signing identity separately.
 - Check supported releases at least weekly through Dependabot and the external
-  updater. Security fixes should not wait for the normal weekly schedule.
+  updater. GitHub Actions version updates are grouped monthly with a seven-day
+  cooldown. Review urgent security fixes without waiting for a scheduled run.
 - Audit every npm lockfile listed in the inventory and both Python lockfiles under
   `tools/python-lint-tools/` and `tools/python-semgrep/`. Also audit fresh lint-only,
   Semgrep-only, and combined Python environments after hash-locked installation.
@@ -67,6 +68,19 @@ scripts embed them. Previous successful environments remain available to running
 processes; remove an unused old environment only after its processes finish and
 no active wrapper references it. Failed candidate directories are removed.
 
+## November 17, 2026 Dependency Review
+
+Semgrep 1.185.0 still requires MCP 1.29.0 and OpenTelemetry API 1.37.x.
+MCP 1.30.0 and OpenTelemetry API 1.45.2 contain the relevant fixes. Track
+the MCP constraint in [Semgrep #11992](https://github.com/semgrep/semgrep/issues/11992).
+The foundation uses Semgrep as a CLI scanner. Keep the outstanding advisories
+visible until the resolver can install patched versions. GitHub also lists
+no patched `deepmerge` release for the admin build toolchain.
+
+`@wordpress/env` 12.1.0 requires Node 22.13.0 or later. The Docker backend
+keeps 11.17.0 to support Node 22.12.0. The `@wp-playground/storage` override
+selects patched `isomorphic-git` 1.38.6 while its parent still pins 1.37.6.
+
 ## PHP Quality Tool Compatibility
 
 The managed quality-tool manifest fixes Composer's resolution platform at PHP
@@ -75,8 +89,8 @@ runtime platform checks enabled. Installing with a newer Composer container must
 not select dependencies that cannot execute under the supported host interpreter.
 This tooling floor does not change a plugin's project-owned runtime metadata.
 
-The reviewed lock uses Doctrine Instantiator 1.5.0, PHPStan 2.3.1,
-phpstan-wordpress 2.0.4 and PHPUnit 9.6.38. Actual locked installation, platform
+The reviewed lock uses Doctrine Instantiator 1.5.0, PHPStan 2.3.5,
+phpstan-wordpress 2.0.4 and PHPUnit 9.6.39. Actual locked installation, platform
 checks and quality-tool execution passed on PHP 8.0, including actual Doctrine object instantiation. The full foundation gate
 also uses Composer's real solver to reject incompatible locked PHP requirements.
 

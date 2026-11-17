@@ -22,7 +22,7 @@ The current hardened baseline allows only these external actions:
 - `actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9`
 - `actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333`
 - `actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8`
-- `github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee`
+- `github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066`
 - `ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e`
 - `shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962`
 
