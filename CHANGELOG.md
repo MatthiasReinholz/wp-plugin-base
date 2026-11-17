@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.10.16
+
+* Qualify coordinated WordPress package updates across starters and fixture
+* Complete dependency review and verify Picomatch security backport
+* Create npm remediation fixtures under a physical temporary path
+* Resolve npm audit installation paths before setting the prefix
+* Patch foundation dependencies and group Dependabot Actions updates
+
 ## v1.10.15
 
 * Classify npm audit graphs from reachable advisories
