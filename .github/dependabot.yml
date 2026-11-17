@@ -1,10 +1,20 @@
 version: 2
 updates:
+  # Version updates keep the SHA-pinned Actions current.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - dependencies
+      - github_actions
     commit-message:
       prefix: chore
       include: scope

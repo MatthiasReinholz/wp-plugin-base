@@ -10,6 +10,9 @@
     "npm-audit-report": "7.0.0"
   },
   "auditProducer": {
-    "treeSha256": "55912b50ebf83eb80254d59c9d8cdc05571622a5afe98d47a7edfd5e5949c1a9"
+    "treeSha256": "d35530f17d828b6a821a164d921bdef4a9f2b044bf1f543104baf5973865f6aa"
+  },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "11.0.1"
   }
 }
