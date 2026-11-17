@@ -73,13 +73,62 @@ no active wrapper references it. Failed candidate directories are removed.
 Semgrep 1.185.0 still requires MCP 1.29.0 and OpenTelemetry API 1.37.x.
 MCP 1.30.0 and OpenTelemetry API 1.45.2 contain the relevant fixes. Track
 the MCP constraint in [Semgrep #11992](https://github.com/semgrep/semgrep/issues/11992).
-The foundation uses Semgrep as a CLI scanner. Keep the outstanding advisories
-visible until the resolver can install patched versions. GitHub also lists
-no patched `deepmerge` release for the admin build toolchain.
+The foundation uses Semgrep as a CLI scanner. The November 17 completion review
+below records which affected paths are unused and the conditions for reopening
+their alerts. GitHub withdrew the `deepmerge` advisory on November 16.
 
 `@wordpress/env` 12.1.0 requires Node 22.13.0 or later. The Docker backend
 keeps 11.17.0 to support Node 22.12.0. The `@wp-playground/storage` override
 selects patched `isomorphic-git` 1.38.6 while its parent still pins 1.37.6.
+
+## November 17, 2026 Completion Review
+
+The merged dependency updates resolved 18 Dependabot alerts, including all six
+then-high findings. The two `deepmerge` alerts also closed after GitHub withdrew
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4).
+The following six Semgrep alerts receive repository-specific `not_used` dispositions.
+Their upstream package versions remain affected. These dispositions apply only
+to the invocation and input boundaries reviewed here.
+
+| Alerts | Package and affected use | Foundation evidence | Reopen when |
+| --- | --- | --- | --- |
+| #328, #351, #352, #353 | MCP 1.29.0 stateful HTTP server, bearer authentication, client schema fetching and client redirects | `run_semgrep_security.sh` and foundation CI invoke CLI scanning and rule tests. Neither starts an MCP client or server. | Any supported command enables MCP, or another caller uses these APIs. |
+| #349, #362 | OpenTelemetry API 1.37.0 trace-context header parsing | Both supported Semgrep commands explicitly pass `--no-trace`. In Semgrep 1.185.0, `Telemetry.configure()` returns before instrumentation and `extract()` when tracing is disabled. | Tracing is enabled, environment trace context is accepted, or a new caller parses headers. |
+
+The Semgrep source review used
+[`telemetry.py` at v1.185.0](https://github.com/semgrep/semgrep/blob/v1.185.0/cli/src/semgrep/telemetry.py).
+The resolver-compatible dependency update is pending in
+[Semgrep #12057](https://github.com/semgrep/semgrep/pull/12057).
+Picomatch alert #377 is mitigated by the exact
+[Picomatch #237](https://github.com/micromatch/picomatch/pull/237) backport in the
+verified remediation catalog. All build, lint and audit graphs resolve Picomatch
+4.0.7 and apply that backport before use. The catalog binds the official package
+integrity, complete file inventories, upstream patch commit and security regression.
+The alert's `tolerable_risk` disposition records this verified workaround while
+GitHub still identifies the upstream version as affected.
+The audit producer and WordPress environment also use patched Glob 14.0.2, and
+the audit producer uses IP Address 10.7.4. Their supported commands and engines
+are requalified with these overrides.
+Retain the pinned official releases and adopt the fixes when published.
+Foundation maintainers must review these dispositions by December 17, 2026,
+and at every change to the affected commands. Dependabot alerts and security
+updates remain enabled.
+
+The external-tool review accepts Syft 1.57.0 and the Composer image at
+`sha256:8de2184c6de224f4689e8f80ed5f5edaf0030b6b8b7839a22a2bcb6722ac87d0`.
+Syft's checksum manifest verifies against its exact publisher workflow identity.
+The Composer digest is from the official Docker Library image and is exercised
+by the foundation checks. The older Composer PRs #448 and #460 are superseded.
+
+WordPress Env 12.1.0 (#472) requires Node 22.13.0, above the supported
+Docker-tool floor of 22.12.0, so that proposal is declined.
+The coordinated WordPress package proposals #457–#459 include scripts 37 and
+DataViews 22, changing the current starter set. The existing React 18,
+WordPress 6.9 basic starter and WordPress 7.1 DataViews contracts remain the
+supported set for this patch release. Those major proposals are declined pending
+a dedicated build and WordPress browser migration. Their currently supported
+dependency trees receive compatible security fixes independently.
+Review these major migrations by December 17, 2026.
 
 ## PHP Quality Tool Compatibility
 
@@ -331,8 +380,8 @@ unless renewed with new evidence, and is removed when upstream publishes a
 compatible fix.
 
 - [GHSA-84m7-p3x7-pcfv](https://github.com/advisories/GHSA-84m7-p3x7-pcfv)
-  (`mcp` 1.29.0, pinned by Semgrep): Semgrep 1.181.0, the latest release, still
-  pins `mcp==1.29.0`; upstream tracks the update in
+  (`mcp` 1.29.0, pinned by Semgrep): this historical exception is superseded
+  by the November 17 completion review above. Upstream tracks the update in
   [semgrep/semgrep#11992](https://github.com/semgrep/semgrep/issues/11992). The
   advisory affects stateful Streamable HTTP MCP servers. Foundation and child CI
   run Semgrep only as a CLI scanner and rule tester and never start `semgrep mcp`.

@@ -105,6 +105,8 @@ assert_file_contains_literal "$ROOT_DIR/templates/child/.github/workflows/releas
 assert_file_contains_literal "$ROOT_DIR/scripts/release/publish_github_release.sh" '--verify-tag' "GitHub release publication must verify that the tag already exists."
 assert_file_contains_literal "$ROOT_DIR/scripts/release/publish_github_release.sh" '--draft=false' "GitHub release repair must clear draft state after assets are present."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" '--require-hashes' "Foundation lint tool bootstrap must install Python tools from hash-pinned requirements."
+assert_file_contains_literal "$ROOT_DIR/scripts/ci/run_semgrep_security.sh" '--no-trace' "Managed Semgrep scans must keep OpenTelemetry header extraction disabled."
+assert_file_contains_literal "$ROOT_DIR/.github/workflows/foundation-ci.yml" 'semgrep --no-trace --test' "Semgrep rule tests must keep OpenTelemetry header extraction disabled."
 assert_file_contains_literal "$ROOT_DIR/scripts/ci/install_lint_tools.sh" 'npm ci --ignore-scripts --no-audit --no-fund' "Foundation lint tool bootstrap must install markdownlint from the committed npm lockfile."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/check_wordpress_env_tooling.sh" 'npm audit --package-lock-only --audit-level=high' "WordPress env tooling check must fail on high-severity committed lockfile advisories."
 assert_file_contains_literal "$ROOT_DIR/scripts/foundation/run_foundation_policy_checks.sh" 'test_validate_config_scope.sh' "Foundation policy checks must include config scope validation tests."

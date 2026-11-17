@@ -160,7 +160,7 @@ jobs:
           SEMGREP_ENABLE_VERSION_CHECK: '0'
         run: |
           bash scripts/ci/install_lint_tools.sh "$RUNNER_TEMP/wp-plugin-base-tools" semgrep
-          semgrep --test --config scripts/ci/semgrep-rules/ tests/fixtures/semgrep/
+          semgrep --no-trace --test --config scripts/ci/semgrep-rules/ tests/fixtures/semgrep/
 
       - name: Validate full foundation
         env:

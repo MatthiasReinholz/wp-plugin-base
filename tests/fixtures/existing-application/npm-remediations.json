@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "remediations": [
+    "picomatch-4.0.7"
+  ]
+}
