@@ -122,13 +122,19 @@ by the foundation checks. The older Composer PRs #448 and #460 are superseded.
 
 WordPress Env 12.1.0 (#472) requires Node 22.13.0, above the supported
 Docker-tool floor of 22.12.0, so that proposal is declined.
-The coordinated WordPress package proposals #457–#459 include scripts 37 and
-DataViews 22, changing the current starter set. The existing React 18,
-WordPress 6.9 basic starter and WordPress 7.1 DataViews contracts remain the
-supported set for this patch release. Those major proposals are declined pending
-a dedicated build and WordPress browser migration. Their currently supported
-dependency trees receive compatible security fixes independently.
-Review these major migrations by December 17, 2026.
+The coordinated WordPress package proposals #457–#459 were initially declined,
+then qualified together against the supported applications. The accepted set uses
+api-fetch 8.1, components 44, data 11.1, element 10.1, i18n 7.1, scripts 37.1 and
+DataViews 22 with React 18. The basic starter builds and lints with its original
+four registered WordPress 6.9 asset handles. Every emitted DataViews and application
+fixture handle is registered in WordPress 7.1.0 and 7.1.2.
+Standalone browser acceptance covers both starters, including search, sorting,
+pagination, page resets and translated filters. DataViews 22 keeps the sort menu
+open after choosing a direction, so the browser test dismisses that menu with
+Escape before clicking pagination. The application fixture also passes type
+checking, lint, unit tests, production build and runtime import tests.
+Its license assertion derives the expected DataViews version from its manifest.
+Review the deferred WordPress Env migration by December 17, 2026.
 
 ## PHP Quality Tool Compatibility
 

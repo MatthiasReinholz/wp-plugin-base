@@ -149,6 +149,7 @@ createRoot(document.getElementById('root')).render(createElement(App));
     await page
       .getByRole("menuitemradio", { name: "Sort descending", exact: true })
       .click();
+    await page.keyboard.press("Escape");
     await page.waitForFunction(() =>
       document.querySelector("tbody tr")?.textContent.includes("Record 25"),
     );
