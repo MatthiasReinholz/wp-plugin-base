@@ -141,7 +141,7 @@
       },
       "pin": {
         "file": "scripts/lib/wordpress_tooling.sh",
-        "pattern": "WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'"
+        "pattern": "WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.2.0'"
       }
     },
     {
