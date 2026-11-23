@@ -6,7 +6,7 @@
     "npm": ">=10.2.3"
   },
   "devDependencies": {
-    "@npmcli/arborist": "9.9.3",
+    "@npmcli/arborist": "9.9.4",
     "npm-audit-report": "7.0.0"
   },
   "auditProducer": {
