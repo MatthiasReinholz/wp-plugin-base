@@ -3,7 +3,7 @@
 set -euo pipefail
 
 WP_PLUGIN_BASE_COMPOSER_IMAGE='composer@sha256:8de2184c6de224f4689e8f80ed5f5edaf0030b6b8b7839a22a2bcb6722ac87d0'
-WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.1.0'
+WP_PLUGIN_BASE_PLUGIN_CHECK_VERSION='2.2.0'
 
 wp_plugin_base_wordpress_tools_dir() {
   local script_dir
